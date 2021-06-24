@@ -4,34 +4,45 @@ use std::process::exit;
 use comeondosomething::calc;
 
 fn main() {
-    let input = read_file().or_else(read_args).unwrap_or_else(String::new);
-    print_calc(&input);
+    let mut args = args().skip(1);
+    if let Some(first) = args.next() {
+        match first.as_str() {
+            "-i" | "--interactive" => repl(),
+            "-p" | "--path" => calc_file(args.next()),
+            _ => calc_args(first, args),
+        }
+    } else {
+        println!("\x1B[;31mMissing required arguments\x1B[0m");
+        exit(1);
+    }
 }
 
-fn read_file() -> Option<String> {
-    let mut args = args().skip(1);
-    let name = args.next()?;
-    if &name == "--path" || &name == "-p" {
-        let path = args.next()?;
+fn repl() {
+    todo!("A repl is not yet implemented")
+}
 
-        match std::fs::read_to_string(&path) {
-            Ok(input) => return Some(input),
+fn calc_file(path: Option<String>) {
+    if let Some(p) = path {
+        match std::fs::read_to_string(&p) {
+            Ok(input) => return print_calc(&input),
             Err(_) => {
-                println!("\x1B[;31mError reading file: {}\x1B[0m", path);
+                println!("\x1B[;31mError reading file: {}\x1B[0m", p);
                 exit(1);
             }
         }
     }
-
-    None
+    println!("\x1B[;31mPath not specified\x1B[0m");
+    exit(1);
 }
 
-fn read_args() -> Option<String> {
-    args().skip(1).reduce(|mut a, b| {
+fn calc_args(first: String, args: impl Iterator<Item = String>) {
+    let input = args.fold(first, |mut a, b| {
         a.push(' ');
         a.push_str(&b);
         a
-    })
+    });
+
+    print_calc(&input);
 }
 
 fn print_calc(input: &str) {
