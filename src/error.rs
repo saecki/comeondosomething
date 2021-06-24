@@ -1,3 +1,10 @@
+use std::{
+    cmp::{max, min},
+    fmt::{self, Write},
+};
+
+use unicode_width::UnicodeWidthChar;
+
 use crate::{range, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -9,36 +16,17 @@ pub enum Error {
     MissingClosingParenthesis(Par),
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
-    MismatchedParenthesis { opening: Par, found: Par },
+    MismatchedParenthesis { opening: Par, closing: Par },
     InvalidCharacter { char: char, range: Range },
-    NumberFormatException(Range),
+    InvalidNumberFormat(Range),
 }
 
 impl Error {
-    pub fn show(&self, _string: &str) -> String {
-        let mut out = String::new();
-        match self {
-            Self::MissingOperand(p) => mark_range(&mut out, *p),
-            Self::MissingOperator(p) => mark_range(&mut out, *p),
-            Self::MissingClosingParenthesis(p) => mark_range(&mut out, p.range()),
-            Self::UnexpectedOperator(o) => mark_range(&mut out, o.range()),
-            Self::UnexpectedParenthesis(p) => mark_range(&mut out, p.range()),
-            Self::MismatchedParenthesis { opening, found } => {
-                mark_range(&mut out, opening.range());
-                let start = found.range().start - opening.range().end;
-                let end = start + found.range().len();
-                mark_range(&mut out, range(start, end));
-            }
-            Self::InvalidCharacter { char: _, range } => mark_range(&mut out, *range),
-            Self::NumberFormatException(r) => mark_range(&mut out, *r),
-        }
-        out.push('\n');
-        out.push_str(self.description());
-
-        out
+    pub fn display<'a>(&'a self, input: &'a str) -> DisplayError<'a> {
+        DisplayError { input, error: self }
     }
 
-    fn description(&self) -> &'static str {
+    pub fn description(&self) -> &'static str {
         match self {
             Self::MissingOperand(_) => "Missing an operand",
             Self::MissingOperator(_) => "Missing an operator",
@@ -47,13 +35,88 @@ impl Error {
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis",
             Self::MismatchedParenthesis { .. } => "Parenthesis do not match",
             Self::InvalidCharacter { .. } => "Found an invalid character",
-            Self::NumberFormatException { .. } => "Found an invalid number literal",
+            Self::InvalidNumberFormat(_) => "Invalid number format",
+        }
+    }
+
+    pub fn range(&self) -> Range {
+        match self {
+            Error::MissingOperand(p) => *p,
+            Error::MissingOperator(p) => *p,
+            Error::MissingClosingParenthesis(p) => p.range(),
+            Error::UnexpectedOperator(o) => o.range(),
+            Error::UnexpectedParenthesis(p) => p.range(),
+            Error::MismatchedParenthesis { opening, closing } => {
+                range(opening.range().start, closing.range().end)
+            }
+            Error::InvalidCharacter { char: _, range } => *range,
+            Error::InvalidNumberFormat(r) => *r,
         }
     }
 }
 
-fn mark_range(out: &mut String, range: Range) {
-    let Range { start, end } = range;
-    out.extend((0..start).map(|_| ' '));
-    out.extend((start..end).map(|_| '^'));
+pub struct DisplayError<'a> {
+    input: &'a str,
+    error: &'a Error,
+}
+
+impl fmt::Display for DisplayError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Range { start, end } = self.error.range();
+
+        let mut i = 0;
+        for (nr, l) in self.input.lines().enumerate() {
+            let count = l.chars().count();
+
+            if start <= i + count && end >= i {
+                let ms = max(diff_or(start, i, 0), 0);
+                let me = min(diff_or(end, i, count), count);
+                mark_range(f, nr + 1, l, range(ms, me))?;
+            }
+
+            i += count + 1;
+        }
+
+        write!(f, "     \x1B[;31m{}\x1B[0m", self.error.description())?;
+        Ok(())
+    }
+}
+
+const fn diff_or(a: usize, b: usize, c: usize) -> usize {
+    if a >= b {
+        a - b
+    } else {
+        c
+    }
+}
+
+fn mark_range(f: &mut fmt::Formatter<'_>, line_nr: usize, line: &str, range: Range) -> fmt::Result {
+    let offset: usize = line
+        .chars()
+        .take(range.start)
+        .filter_map(|c| c.width())
+        .sum();
+
+    let mut width: usize = line
+        .chars()
+        .skip(range.start)
+        .take(range.len())
+        .filter_map(|c| c.width())
+        .sum();
+    if width == 0 {
+        width = 1;
+    };
+
+    write!(f, "{:02} │ {}\n   │ ", line_nr, line)?;
+    for _ in 0..offset {
+        f.write_char(' ')?;
+    }
+    for _ in 0..width {
+        f.write_str("\x1B[;31m")?;
+        f.write_char('^')?;
+        f.write_str("\x1B[0m")?;
+    }
+    f.write_char('\n')?;
+
+    Ok(())
 }

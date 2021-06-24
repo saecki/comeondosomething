@@ -1,47 +1,5 @@
 use crate::{range, Num, Op, Par, Range, Token};
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Item {
-    Group(Vec<Item>),
-    Op(Op),
-    Num(Num),
-}
-
-impl Item {
-    pub const fn try_from(token: &Token) -> Option<Self> {
-        match *token {
-            Token::Op(o) => Some(Self::Op(o)),
-            Token::Num(n) => Some(Self::Num(n)),
-            Token::Par(_) => None,
-        }
-    }
-
-    pub const fn op(&self) -> Option<Op> {
-        match self {
-            Self::Op(o) => Some(*o),
-            _ => None,
-        }
-    }
-
-    pub fn range(&self) -> Option<Range> {
-        match self {
-            Self::Group(g) => items_range(g),
-            Self::Num(n) => Some(n.range),
-            Self::Op(o) => Some(o.range()),
-        }
-    }
-}
-
-pub fn items_range(items: &[Item]) -> Option<Range> {
-    let first = items.first().and_then(|i| i.range());
-    let last = items.last().and_then(|i| i.range());
-
-    match (first, last) {
-        (Some(f), Some(l)) => Some(range(f.start, l.end)),
-        _ => None,
-    }
-}
-
 pub fn lex(tokens: &[Token]) -> crate::Result<Vec<Item>> {
     let mut items = Vec::new();
     let mut pos = 0;
@@ -88,9 +46,51 @@ fn matching_parenthesis(
         }
         Some((_, open_par)) => Err(crate::Error::MismatchedParenthesis {
             opening: open_par,
-            found: close_par,
+            closing: close_par,
         }),
         _ => Err(crate::Error::UnexpectedParenthesis(close_par)),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Item {
+    Group(Vec<Item>),
+    Op(Op),
+    Num(Num),
+}
+
+impl Item {
+    pub const fn try_from(token: &Token) -> Option<Self> {
+        match *token {
+            Token::Op(o) => Some(Self::Op(o)),
+            Token::Num(n) => Some(Self::Num(n)),
+            Token::Par(_) => None,
+        }
+    }
+
+    pub const fn op(&self) -> Option<Op> {
+        match self {
+            Self::Op(o) => Some(*o),
+            _ => None,
+        }
+    }
+
+    pub fn range(&self) -> Option<Range> {
+        match self {
+            Self::Group(g) => items_range(g),
+            Self::Num(n) => Some(n.range),
+            Self::Op(o) => Some(o.range()),
+        }
+    }
+}
+
+pub fn items_range(items: &[Item]) -> Option<Range> {
+    let first = items.first().and_then(|i| i.range());
+    let last = items.last().and_then(|i| i.range());
+
+    match (first, last) {
+        (Some(f), Some(l)) => Some(range(f.start, l.end)),
+        _ => None,
     }
 }
 

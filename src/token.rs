@@ -1,4 +1,51 @@
-use unicode_width::UnicodeWidthChar;
+pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
+    let mut tokens = Vec::new();
+    let mut literal = String::new();
+
+    let mut i = 0;
+    for c in string.chars() {
+        match c {
+            '0'..='9' => literal.push(c),
+            ',' | '.' => literal.push('.'),
+            '_' | '\'' => (), // literal separator
+            _ => {
+                tokens.extend(complete_num(&mut literal, i)?);
+
+                let range = pos(i);
+                match c {
+                    ' ' | '\n' => (), // visual separator
+                    '+' => tokens.push(Token::Op(Op::Add(range))),
+                    '-' | '−' => tokens.push(Token::Op(Op::Sub(range))),
+                    '*' | '×' => tokens.push(Token::Op(Op::Mul(range))),
+                    '/' | '÷' => tokens.push(Token::Op(Op::Div(range))),
+                    '(' => tokens.push(Token::Par(Par::RoundOpen(range))),
+                    '[' => tokens.push(Token::Par(Par::SquareOpen(range))),
+                    ')' => tokens.push(Token::Par(Par::RoundClose(range))),
+                    ']' => tokens.push(Token::Par(Par::SquareClose(range))),
+                    _ => return Err(crate::Error::InvalidCharacter { char: c, range }),
+                }
+            }
+        }
+        i += 1;
+    }
+
+    tokens.extend(complete_num(&mut literal, i)?);
+
+    Ok(tokens)
+}
+
+fn complete_num(literal: &mut String, end: usize) -> crate::Result<Option<Token>> {
+    if !literal.is_empty() {
+        let start = end - literal.len();
+        let val = literal
+            .parse::<f64>()
+            .map_err(|_| crate::Error::InvalidNumberFormat(range(start, end)))?;
+
+        literal.clear();
+        return Ok(Some(Token::Num(num(val, start, end))));
+    }
+    Ok(None)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Token {
@@ -132,66 +179,12 @@ impl Range {
     }
 }
 
-pub fn char_range(start: usize, char: char) -> Range {
-    range(start, start + char.width().unwrap_or(1))
-}
-
 pub const fn range(start: usize, end: usize) -> Range {
-    let end = if start >= end { start + 1 } else { end };
     Range { start, end }
 }
 
 pub const fn pos(pos: usize) -> Range {
     range(pos, pos + 1)
-}
-
-pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
-    let mut tokens = Vec::new();
-    let mut literal = String::new();
-
-    let mut i = 0;
-    for c in string.chars() {
-        match c {
-            '0'..='9' => literal.push(c),
-            ',' | '.' => literal.push('.'),
-            '_' | '\'' => (), // literal separator
-            _ => {
-                tokens.extend(complete_num(&mut literal, i)?);
-
-                let range = char_range(i, c);
-                match c {
-                    ' ' | '\n' => (), // visual separator
-                    '+' => tokens.push(Token::Op(Op::Add(range))),
-                    '-' | '−' => tokens.push(Token::Op(Op::Sub(range))),
-                    '*' | '×' => tokens.push(Token::Op(Op::Mul(range))),
-                    '/' | '÷' => tokens.push(Token::Op(Op::Div(range))),
-                    '(' => tokens.push(Token::Par(Par::RoundOpen(range))),
-                    '[' => tokens.push(Token::Par(Par::SquareOpen(range))),
-                    ')' => tokens.push(Token::Par(Par::RoundClose(range))),
-                    ']' => tokens.push(Token::Par(Par::SquareClose(range))),
-                    _ => return Err(crate::Error::InvalidCharacter { char: c, range }),
-                }
-            }
-        }
-        i += c.width().unwrap_or(1);
-    }
-
-    tokens.extend(complete_num(&mut literal, i)?);
-
-    Ok(tokens)
-}
-
-fn complete_num(literal: &mut String, end: usize) -> crate::Result<Option<Token>> {
-    if !literal.is_empty() {
-        let start = end - literal.len();
-        let val = literal
-            .parse::<f64>()
-            .map_err(|_| crate::Error::NumberFormatException(range(start, end)))?;
-
-        literal.clear();
-        return Ok(Some(Token::Num(num(val, start, end))));
-    }
-    Ok(None)
 }
 
 #[cfg(test)]

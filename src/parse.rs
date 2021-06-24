@@ -2,34 +2,12 @@ use std::cmp::Ordering;
 
 use crate::{items_range, pos, range, Item, Op, Range};
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Calc {
-    Num(f64),
-    Add(Box<Calc>, Box<Calc>),
-    Sub(Box<Calc>, Box<Calc>),
-    Mul(Box<Calc>, Box<Calc>),
-    Div(Box<Calc>, Box<Calc>),
-}
-
-impl Calc {
-    pub fn calc(&self) -> f64 {
-        match self {
-            Calc::Num(n) => *n,
-            Calc::Add(a, b) => a.calc() + b.calc(),
-            Calc::Sub(a, b) => a.calc() - b.calc(),
-            Calc::Mul(a, b) => a.calc() * b.calc(),
-            Calc::Div(a, b) => a.calc() / b.calc(),
-        }
-    }
-}
-
 pub fn parse(items: &[Item]) -> crate::Result<Calc> {
     let r = items_range(items).unwrap_or_else(|| pos(0));
     _parse(r, items)
 }
 
 fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
-    println!("range {:?}", r);
     if items.is_empty() {
         return Err(crate::Error::MissingOperand(r));
     } else if items.len() == 1 {
@@ -78,4 +56,25 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
     }
 
     Err(crate::Error::MissingOperator(r)) // TODO proper position
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Calc {
+    Num(f64),
+    Add(Box<Calc>, Box<Calc>),
+    Sub(Box<Calc>, Box<Calc>),
+    Mul(Box<Calc>, Box<Calc>),
+    Div(Box<Calc>, Box<Calc>),
+}
+
+impl Calc {
+    pub fn calc(&self) -> f64 {
+        match self {
+            Calc::Num(n) => *n,
+            Calc::Add(a, b) => a.calc() + b.calc(),
+            Calc::Sub(a, b) => a.calc() - b.calc(),
+            Calc::Mul(a, b) => a.calc() * b.calc(),
+            Calc::Div(a, b) => a.calc() / b.calc(),
+        }
+    }
 }
