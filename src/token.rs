@@ -13,7 +13,7 @@ pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
 
                 let range = pos(i);
                 match c {
-                    ' ' | '\n' => (), // visual separator
+                    ' ' | '\n' | '\r' => (), // visual separator
                     '+' => tokens.push(Token::Op(Op::Add(range))),
                     '-' | '−' => tokens.push(Token::Op(Op::Sub(range))),
                     '*' | '×' => tokens.push(Token::Op(Op::Mul(range))),
@@ -87,6 +87,14 @@ impl Token {
             _ => None,
         }
     }
+
+    pub const fn range(&self) -> Range {
+        match self {
+            Self::Num(n) => n.range,
+            Self::Op(o) => o.range(),
+            Self::Par(p) => p.range(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -137,14 +145,14 @@ pub enum Par {
 }
 
 impl Par {
-    pub fn is_opening(&self) -> bool {
+    pub const fn is_opening(&self) -> bool {
         match self {
             Self::SquareOpen(_) | Self::RoundOpen(_) => true,
             Self::SquareClose(_) | Self::RoundClose(_) => false,
         }
     }
 
-    pub fn matches(&self, other: Self) -> bool {
+    pub const fn matches(&self, other: Self) -> bool {
         match self {
             Self::RoundOpen(_) => matches!(other, Par::RoundClose(_)),
             Self::RoundClose(_) => matches!(other, Par::RoundOpen(_)),
@@ -153,7 +161,7 @@ impl Par {
         }
     }
 
-    pub fn range(&self) -> Range {
+    pub const fn range(&self) -> Range {
         match *self {
             Self::RoundOpen(r) => r,
             Self::RoundClose(r) => r,

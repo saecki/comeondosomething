@@ -12,9 +12,7 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
         return Err(crate::Error::MissingOperand(r));
     } else if items.len() == 1 {
         match &items[0] {
-            Item::Group(g) => {
-                return _parse(items_range(g).unwrap_or(r), g); // TODO proper position
-            }
+            Item::Group { items, range } => return _parse(*range, items),
             &Item::Num(n) => return Ok(Calc::Num(n.val)),
             &Item::Op(o) => return Err(crate::Error::UnexpectedOperator(o)),
         }
@@ -55,7 +53,10 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
         };
     }
 
-    Err(crate::Error::MissingOperator(r)) // TODO proper position
+    Err(crate::Error::MissingOperator(range(
+        items[0].range().end,
+        items[1].range().start,
+    )))
 }
 
 #[derive(Clone, Debug, PartialEq)]

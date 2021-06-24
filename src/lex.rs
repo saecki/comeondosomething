@@ -16,7 +16,10 @@ pub fn lex(tokens: &[Token]) -> crate::Result<Vec<Item>> {
         } else if let Some((start, end)) = matching_parenthesis(i, p, &mut par_stack)? {
             let prev_tokens = tokens[pos..start].iter().filter_map(Item::try_from);
             items.extend(prev_tokens);
-            items.push(Item::Group(lex(&tokens[(start + 1)..end])?));
+            items.push(Item::Group {
+                items: lex(&tokens[(start + 1)..end])?,
+                range: range(tokens[start].range().end, tokens[end].range().start),
+            });
             pos = end + 1;
         }
     }
@@ -54,7 +57,7 @@ fn matching_parenthesis(
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
-    Group(Vec<Item>),
+    Group { items: Vec<Item>, range: Range },
     Op(Op),
     Num(Num),
 }
@@ -75,18 +78,18 @@ impl Item {
         }
     }
 
-    pub fn range(&self) -> Option<Range> {
+    pub fn range(&self) -> Range {
         match self {
-            Self::Group(g) => items_range(g),
-            Self::Num(n) => Some(n.range),
-            Self::Op(o) => Some(o.range()),
+            Self::Group { range, .. } => *range,
+            Self::Num(n) => n.range,
+            Self::Op(o) => o.range(),
         }
     }
 }
 
 pub fn items_range(items: &[Item]) -> Option<Range> {
-    let first = items.first().and_then(|i| i.range());
-    let last = items.last().and_then(|i| i.range());
+    let first = items.first().map(|i| i.range());
+    let last = items.last().map(|i| i.range());
 
     match (first, last) {
         (Some(f), Some(l)) => Some(range(f.start, l.end)),
@@ -122,11 +125,14 @@ mod test {
         assert_eq!(
             items,
             vec![
-                Item::Group(vec![
-                    Item::Num(num(23.13, 1, 6)),
-                    Item::Op(Op::Add(pos(7))),
-                    Item::Num(num(543.23, 9, 15))
-                ]),
+                Item::Group {
+                    items: vec![
+                        Item::Num(num(23.13, 1, 6)),
+                        Item::Op(Op::Add(pos(7))),
+                        Item::Num(num(543.23, 9, 15))
+                    ],
+                    range: range(1, 15),
+                },
                 Item::Op(Op::Mul(pos(17))),
                 Item::Num(num(34.2, 19, 23)),
             ]
