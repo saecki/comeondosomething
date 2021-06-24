@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron:  '0 0 * * 1' # weekly
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        toolchain: [ stable, nightly ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.toolchain }}
+    - run: cargo test
