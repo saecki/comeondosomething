@@ -1,34 +1,36 @@
-use crate::{Op, Par};
+use crate::{range, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    MissingOperand(usize),
-    MissingOperator(usize),
+    MissingOperand(Range),
+    MissingOperator(Range),
     MissingClosingParenthesis(Par),
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
     MismatchedParenthesis { opening: Par, found: Par },
-    InvalidCharacter { char: char, pos: usize },
-    NumberFormatException { start: usize, end: usize },
+    InvalidCharacter { char: char, range: Range },
+    NumberFormatException(Range),
 }
 
 impl Error {
     pub fn show(&self, _string: &str) -> String {
         let mut out = String::new();
         match self {
-            &Self::MissingOperand(p) => mark_pos(&mut out, p),
-            &Self::MissingOperator(p) => mark_pos(&mut out, p),
-            &Self::MissingClosingParenthesis(p) => mark_pos(&mut out, p.pos()),
-            &Self::UnexpectedOperator(o) => mark_pos(&mut out, o.pos()),
-            &Self::UnexpectedParenthesis(p) => mark_pos(&mut out, p.pos()),
-            &Self::MismatchedParenthesis { opening, found } => {
-                mark_pos(&mut out, opening.pos());
-                mark_pos(&mut out, found.pos() - opening.pos() - 1);
+            Self::MissingOperand(p) => mark_range(&mut out, *p),
+            Self::MissingOperator(p) => mark_range(&mut out, *p),
+            Self::MissingClosingParenthesis(p) => mark_range(&mut out, p.range()),
+            Self::UnexpectedOperator(o) => mark_range(&mut out, o.range()),
+            Self::UnexpectedParenthesis(p) => mark_range(&mut out, p.range()),
+            Self::MismatchedParenthesis { opening, found } => {
+                mark_range(&mut out, opening.range());
+                let start = found.range().start - opening.range().end;
+                let end = start + found.range().len();
+                mark_range(&mut out, range(start, end));
             }
-            &Self::InvalidCharacter { char: _, pos } => mark_pos(&mut out, pos),
-            &Self::NumberFormatException { start, end } => mark_range(&mut out, start, end),
+            Self::InvalidCharacter { char: _, range } => mark_range(&mut out, *range),
+            Self::NumberFormatException(r) => mark_range(&mut out, *r),
         }
         out.push('\n');
         out.push_str(self.description());
@@ -38,23 +40,20 @@ impl Error {
 
     fn description(&self) -> &'static str {
         match self {
-            &Self::MissingOperand(_) => "Missing an operand",
-            &Self::MissingOperator(_) => "Missing an operator",
-            &Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis",
-            &Self::UnexpectedOperator(_) => "Found an unexpected operator",
-            &Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis",
-            &Self::MismatchedParenthesis { .. } => "Parenthesis do not match",
-            &Self::InvalidCharacter { .. } => "Found an invalid character",
-            &Self::NumberFormatException { .. } => "Found an invalid number literal",
+            Self::MissingOperand(_) => "Missing an operand",
+            Self::MissingOperator(_) => "Missing an operator",
+            Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis",
+            Self::UnexpectedOperator(_) => "Found an unexpected operator",
+            Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis",
+            Self::MismatchedParenthesis { .. } => "Parenthesis do not match",
+            Self::InvalidCharacter { .. } => "Found an invalid character",
+            Self::NumberFormatException { .. } => "Found an invalid number literal",
         }
     }
 }
 
-fn mark_pos(out: &mut String, pos: usize) {
-    mark_range(out, pos, pos + 1);
-}
-
-fn mark_range(out: &mut String, start: usize, end: usize) {
+fn mark_range(out: &mut String, range: Range) {
+    let Range { start, end } = range;
     out.extend((0..start).map(|_| ' '));
     out.extend((start..end).map(|_| '^'));
 }

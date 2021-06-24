@@ -10,7 +10,7 @@ fn main() {
             a.push_str(&b);
             a
         })
-        .unwrap_or(String::new());
+        .unwrap_or_else(String::new);
 
     match calc(&input) {
         Ok(n) => println!("{}", n),

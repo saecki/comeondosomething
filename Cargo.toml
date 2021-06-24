@@ -8,3 +8,7 @@ description = "A cli calculator"
 [[bin]]
 name = "cods"
 path = "src/main.rs"
+
+[dependencies]
+colored = "2.0.0"
+unicode-width = "0.1.8"

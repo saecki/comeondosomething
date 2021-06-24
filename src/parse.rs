@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{Item, Op};
+use crate::{items_range, pos, range, Item, Op, Range};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Calc {
@@ -24,16 +24,18 @@ impl Calc {
 }
 
 pub fn parse(items: &[Item]) -> crate::Result<Calc> {
-    parse_int(0, items)
+    let r = items_range(items).unwrap_or_else(|| pos(0));
+    _parse(r, items)
 }
 
-fn parse_int(pos: usize, items: &[Item]) -> crate::Result<Calc> {
+fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
+    println!("range {:?}", r);
     if items.is_empty() {
-        return Err(crate::Error::MissingOperand(pos));
+        return Err(crate::Error::MissingOperand(r));
     } else if items.len() == 1 {
         match &items[0] {
             Item::Group(g) => {
-                return parse_int(pos + 1, g); // TODO proper position
+                return _parse(items_range(g).unwrap_or(r), g); // TODO proper position
             }
             &Item::Num(n) => return Ok(Calc::Num(n.val)),
             &Item::Op(o) => return Err(crate::Error::UnexpectedOperator(o)),
@@ -58,17 +60,22 @@ fn parse_int(pos: usize, items: &[Item]) -> crate::Result<Calc> {
         }
     });
 
-    if let Some(&(i, t)) = ops.last() {
-        let a = Box::new(parse_int(pos, &items[0..i])?);
-        let b = Box::new(parse_int(t.pos() + 1, &items[(i + 1)..(items.len())])?);
+    if let Some(&(i, o)) = ops.last() {
+        let a = &items[0..i];
+        let ra = items_range(a).unwrap_or_else(|| range(r.start, o.range().start));
+        let ca = Box::new(_parse(ra, a)?);
 
-        return match t {
-            Op::Add(_) => Ok(Calc::Add(a, b)),
-            Op::Sub(_) => Ok(Calc::Sub(a, b)),
-            Op::Mul(_) => Ok(Calc::Mul(a, b)),
-            Op::Div(_) => Ok(Calc::Div(a, b)),
+        let b = &items[(i + 1)..];
+        let rb = items_range(b).unwrap_or_else(|| range(o.range().end, r.end));
+        let cb = Box::new(_parse(rb, b)?);
+
+        return match o {
+            Op::Add(_) => Ok(Calc::Add(ca, cb)),
+            Op::Sub(_) => Ok(Calc::Sub(ca, cb)),
+            Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
+            Op::Div(_) => Ok(Calc::Div(ca, cb)),
         };
     }
 
-    Err(crate::Error::MissingOperator(pos)) // TODO proper position
+    Err(crate::Error::MissingOperator(r)) // TODO proper position
 }
