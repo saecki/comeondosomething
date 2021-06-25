@@ -1,3 +1,5 @@
+use std::f64::consts;
+
 pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
     let mut tokens = Vec::new();
     let mut literal = String::new();
@@ -6,10 +8,11 @@ pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
     for c in string.chars() {
         match c {
             '0'..='9' => literal.push(c),
+            'a'..='z' | 'A'..='Z' => literal.push(c),
             ',' | '.' => literal.push('.'),
             '_' | '\'' => (), // literal separator
             _ => {
-                tokens.extend(complete_num(&mut literal, i)?);
+                tokens.extend(complete_literal(&mut literal, i)?);
 
                 let range = pos(i);
                 match c {
@@ -18,6 +21,9 @@ pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
                     '-' | '−' => tokens.push(Token::Op(Op::Sub(range))),
                     '*' | '×' => tokens.push(Token::Op(Op::Mul(range))),
                     '/' | '÷' => tokens.push(Token::Op(Op::Div(range))),
+                    '°' => tokens.push(Token::Mod(Mod::Degree(range))),
+                    '!' => tokens.push(Token::Mod(Mod::Factorial(range))),
+                    '^' => tokens.push(Token::Op(Op::Pow(range))),
                     '(' => tokens.push(Token::Par(Par::RoundOpen(range))),
                     '[' => tokens.push(Token::Par(Par::SquareOpen(range))),
                     ')' => tokens.push(Token::Par(Par::RoundClose(range))),
@@ -29,20 +35,43 @@ pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
         i += 1;
     }
 
-    tokens.extend(complete_num(&mut literal, i)?);
+    tokens.extend(complete_literal(&mut literal, i)?);
 
     Ok(tokens)
 }
 
-fn complete_num(literal: &mut String, end: usize) -> crate::Result<Option<Token>> {
+fn complete_literal(literal: &mut String, end: usize) -> crate::Result<Option<Token>> {
     if !literal.is_empty() {
-        let start = end - literal.len();
-        let val = literal
-            .parse::<f64>()
-            .map_err(|_| crate::Error::InvalidNumberFormat(range(start, end)))?;
+        let start = end - literal.chars().count();
+        let range = range(start, end);
+
+        let token = match literal.to_lowercase().as_str() {
+            "sqrt" => Token::Cmd(Cmd::Sqrt(range)),
+            "sin" => Token::Cmd(Cmd::Sin(range)),
+            "cos" => Token::Cmd(Cmd::Cos(range)),
+            "tan" => Token::Cmd(Cmd::Tan(range)),
+            "π" | "pi" => Token::Num(Num {
+                val: Val::PI,
+                range,
+            }),
+            "τ" | "tau" => Token::Num(Num {
+                val: Val::TAU,
+                range,
+            }),
+            "e" => Token::Num(Num { val: Val::E, range }),
+            _ => {
+                let val = literal
+                    .parse::<u64>()
+                    .ok()
+                    .map(|i| Val::Int(i))
+                    .or_else(|| literal.parse::<f64>().ok().map(|f| Val::Float(f)))
+                    .ok_or(crate::Error::InvalidNumberFormat(range))?;
+                Token::Num(Num { val, range })
+            }
+        };
 
         literal.clear();
-        return Ok(Some(Token::Num(num(val, start, end))));
+        return Ok(Some(token));
     }
     Ok(None)
 }
@@ -51,16 +80,22 @@ fn complete_num(literal: &mut String, end: usize) -> crate::Result<Option<Token>
 pub enum Token {
     Num(Num),
     Op(Op),
+    Cmd(Cmd),
+    Mod(Mod),
     Par(Par),
 }
 
 impl Token {
+    pub const fn is_num(&self) -> bool {
+        matches!(self, Self::Num(_))
+    }
+
     pub const fn is_op(&self) -> bool {
         matches!(self, Self::Op(_))
     }
 
-    pub const fn is_num(&self) -> bool {
-        matches!(self, Self::Num(_))
+    pub const fn is_cmd(&self) -> bool {
+        matches!(self, Self::Cmd(_))
     }
 
     pub const fn is_par(&self) -> bool {
@@ -92,6 +127,8 @@ impl Token {
         match self {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range(),
+            Self::Cmd(r) => r.range(),
+            Self::Mod(r) => r.range(),
             Self::Par(p) => p.range(),
         }
     }
@@ -99,14 +136,35 @@ impl Token {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Num {
-    pub val: f64,
+    pub val: Val,
     pub range: Range,
 }
 
-pub const fn num(val: f64, start: usize, end: usize) -> Num {
+pub const fn num(val: Val, start: usize, end: usize) -> Num {
     Num {
         val,
         range: range(start, end),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Val {
+    Int(u64),
+    Float(f64),
+    TAU,
+    PI,
+    E,
+}
+
+impl Val {
+    pub const fn to_f64(&self) -> f64 {
+        match *self {
+            Self::Int(i) => i as f64,
+            Self::Float(f) => f,
+            Self::TAU => consts::TAU,
+            Self::PI => consts::PI,
+            Self::E => consts::E,
+        }
     }
 }
 
@@ -116,13 +174,15 @@ pub enum Op {
     Sub(Range),
     Mul(Range),
     Div(Range),
+    Pow(Range),
 }
 
 impl Op {
     pub const fn priority(&self) -> usize {
         match self {
-            Self::Mul(_) | Self::Div(_) => 0,
-            Self::Add(_) | Self::Sub(_) => 1,
+            Self::Pow(_) => 0,
+            Self::Mul(_) | Self::Div(_) => 1,
+            Self::Add(_) | Self::Sub(_) => 2,
         }
     }
 
@@ -132,6 +192,41 @@ impl Op {
             Self::Div(r) => r,
             Self::Add(r) => r,
             Self::Sub(r) => r,
+            Self::Pow(r) => r,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cmd {
+    Sqrt(Range),
+    Sin(Range),
+    Cos(Range),
+    Tan(Range),
+}
+
+impl Cmd {
+    pub const fn range(&self) -> Range {
+        match *self {
+            Self::Sqrt(r) => r,
+            Self::Sin(r) => r,
+            Self::Cos(r) => r,
+            Self::Tan(r) => r,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mod {
+    Degree(Range),
+    Factorial(Range),
+}
+
+impl Mod {
+    pub const fn range(&self) -> Range {
+        match *self {
+            Self::Degree(r) => r,
+            Self::Factorial(r) => r,
         }
     }
 }
@@ -204,9 +299,9 @@ mod test {
         check(
             "432,432 + 24324,543",
             vec![
-                Token::Num(num(432.432, 0, 7)),
+                Token::Num(num(Val::Float(432.432), 0, 7)),
                 Token::Op(Op::Add(pos(8))),
-                Token::Num(num(24324.543, 10, 19)),
+                Token::Num(num(Val::Float(24324.543), 10, 19)),
             ],
         );
     }
@@ -216,9 +311,9 @@ mod test {
         check(
             "604.453 *3562,543",
             vec![
-                Token::Num(num(604.453, 0, 7)),
+                Token::Num(num(Val::Float(604.453), 0, 7)),
                 Token::Op(Op::Mul(pos(8))),
-                Token::Num(num(3562.543, 9, 17)),
+                Token::Num(num(Val::Float(3562.543), 9, 17)),
             ],
         );
     }
@@ -229,12 +324,12 @@ mod test {
             "(32+ 604.453)* 3562,543",
             vec![
                 Token::Par(Par::RoundOpen(pos(0))),
-                Token::Num(num(32.0, 1, 3)),
+                Token::Num(num(Val::Int(32), 1, 3)),
                 Token::Op(Op::Add(pos(3))),
-                Token::Num(num(604.453, 5, 12)),
+                Token::Num(num(Val::Float(604.453), 5, 12)),
                 Token::Par(Par::RoundClose(pos(12))),
                 Token::Op(Op::Mul(pos(13))),
-                Token::Num(num(3562.543, 15, 23)),
+                Token::Num(num(Val::Float(3562.543), 15, 23)),
             ],
         );
     }

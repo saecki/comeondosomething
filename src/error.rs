@@ -5,7 +5,7 @@ use std::{
 
 use unicode_width::UnicodeWidthChar;
 
-use crate::{range, Op, Par, Range};
+use crate::{range, Cmd, Group, Mod, Num, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -13,8 +13,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     MissingOperand(Range),
     MissingOperator(Range),
+    MissingCommandParenthesis(Range),
     MissingClosingParenthesis(Par),
+    UnexpectedGroup(Group),
+    UnexpectedNumber(Num),
     UnexpectedOperator(Op),
+    UnexpectedCommand(Cmd),
+    UnexpectedModifier(Mod),
     UnexpectedParenthesis(Par),
     MismatchedParenthesis { opening: Par, closing: Par },
     InvalidCharacter { char: char, range: Range },
@@ -30,8 +35,13 @@ impl Error {
         match self {
             Self::MissingOperand(_) => "Missing an operand",
             Self::MissingOperator(_) => "Missing an operator",
+            Self::MissingCommandParenthesis(_) => "Missing a command parenthesis",
             Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis",
+            Self::UnexpectedGroup(_) => "Found an unexpected group",
+            Self::UnexpectedNumber(_) => "Found an unexpected number",
             Self::UnexpectedOperator(_) => "Found an unexpected operator",
+            Self::UnexpectedCommand(_) => "Found an unexpected command",
+            Self::UnexpectedModifier(_) => "Found an unexpected modifier",
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis",
             Self::MismatchedParenthesis { .. } => "Parenthesis do not match",
             Self::InvalidCharacter { .. } => "Found an invalid character",
@@ -43,8 +53,13 @@ impl Error {
         match self {
             Error::MissingOperand(p) => *p,
             Error::MissingOperator(p) => *p,
+            Error::MissingCommandParenthesis(r) => *r,
             Error::MissingClosingParenthesis(p) => p.range(),
+            Error::UnexpectedGroup(g) => g.range,
+            Error::UnexpectedNumber(n) => n.range,
             Error::UnexpectedOperator(o) => o.range(),
+            Error::UnexpectedCommand(c) => c.range(),
+            Error::UnexpectedModifier(m) => m.range(),
             Error::UnexpectedParenthesis(p) => p.range(),
             Error::MismatchedParenthesis { opening, closing } => {
                 range(opening.range().start, closing.range().end)

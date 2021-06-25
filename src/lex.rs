@@ -1,4 +1,4 @@
-use crate::{range, Num, Op, Par, Range, Token};
+use crate::{range, Cmd, Mod, Num, Op, Par, Range, Token};
 
 pub fn lex(tokens: &[Token]) -> crate::Result<Vec<Item>> {
     let mut items = Vec::new();
@@ -16,10 +16,11 @@ pub fn lex(tokens: &[Token]) -> crate::Result<Vec<Item>> {
         } else if let Some((start, end)) = matching_parenthesis(i, p, &mut par_stack)? {
             let prev_tokens = tokens[pos..start].iter().filter_map(Item::try_from);
             items.extend(prev_tokens);
-            items.push(Item::Group {
-                items: lex(&tokens[(start + 1)..end])?,
-                range: range(tokens[start].range().end, tokens[end].range().start),
-            });
+            items.push(Item::Group(group(
+                lex(&tokens[(start + 1)..end])?,
+                tokens[start].range().end,
+                tokens[end].range().start,
+            )));
             pos = end + 1;
         }
     }
@@ -57,16 +58,20 @@ fn matching_parenthesis(
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
-    Group { items: Vec<Item>, range: Range },
-    Op(Op),
+    Group(Group),
     Num(Num),
+    Op(Op),
+    Cmd(Cmd),
+    Mod(Mod),
 }
 
 impl Item {
     pub const fn try_from(token: &Token) -> Option<Self> {
         match *token {
-            Token::Op(o) => Some(Self::Op(o)),
             Token::Num(n) => Some(Self::Num(n)),
+            Token::Op(o) => Some(Self::Op(o)),
+            Token::Cmd(c) => Some(Self::Cmd(c)),
+            Token::Mod(m) => Some(Self::Mod(m)),
             Token::Par(_) => None,
         }
     }
@@ -78,11 +83,27 @@ impl Item {
         }
     }
 
+    pub const fn modifier(&self) -> Option<Mod> {
+        match self {
+            Self::Mod(m) => Some(*m),
+            _ => None,
+        }
+    }
+
+    pub const fn cmd(&self) -> Option<Cmd> {
+        match self {
+            Self::Cmd(c) => Some(*c),
+            _ => None,
+        }
+    }
+
     pub fn range(&self) -> Range {
         match self {
-            Self::Group { range, .. } => *range,
+            Self::Group(g) => g.range,
             Self::Num(n) => n.range,
             Self::Op(o) => o.range(),
+            Self::Cmd(c) => c.range(),
+            Self::Mod(m) => m.range(),
         }
     }
 }
@@ -97,10 +118,24 @@ pub fn items_range(items: &[Item]) -> Option<Range> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Group {
+    pub items: Vec<Item>,
+    pub range: Range,
+}
+
+pub const fn group(items: Vec<Item>, start: usize, end: usize) -> Group {
+    Group {
+        items,
+        range: range(start, end),
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::{num, pos, tokenize, Op, Val};
+
     use super::*;
-    use crate::{num, pos, tokenize, Op};
 
     #[test]
     fn no_parenthesis() {
@@ -110,31 +145,32 @@ mod test {
         assert_eq!(
             items,
             vec![
-                Item::Num(num(423.42, 0, 6)),
+                Item::Num(num(Val::Float(423.42), 0, 6)),
                 Item::Op(Op::Mul(pos(7))),
-                Item::Num(num(64.52, 9, 14)),
+                Item::Num(num(Val::Float(64.52), 9, 14)),
             ]
         );
     }
 
     #[test]
     fn add_parenthesis() {
-        let tokens = tokenize("(23.13 + 543.23) * 34.2").unwrap();
+        let tokens = tokenize("(23.13 + 543.23) * 34").unwrap();
         let items = lex(&tokens).unwrap();
 
         assert_eq!(
             items,
             vec![
-                Item::Group {
-                    items: vec![
-                        Item::Num(num(23.13, 1, 6)),
+                Item::Group(group(
+                    vec![
+                        Item::Num(num(Val::Float(23.13), 1, 6)),
                         Item::Op(Op::Add(pos(7))),
-                        Item::Num(num(543.23, 9, 15))
+                        Item::Num(num(Val::Float(543.23), 9, 15))
                     ],
-                    range: range(1, 15),
-                },
+                    1,
+                    15,
+                )),
                 Item::Op(Op::Mul(pos(17))),
-                Item::Num(num(34.2, 19, 23)),
+                Item::Num(num(Val::Int(34), 19, 21)),
             ]
         );
     }
