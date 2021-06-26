@@ -6,7 +6,7 @@ use crate::{span, Num, Range};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Val {
-    Int(i64),
+    Int(i128),
     Float(f64),
     TAU,
     PI,
@@ -35,6 +35,20 @@ impl Val {
             Self::E => consts::E,
         }
     }
+
+    pub fn maybe_int(self) -> Self {
+        match self {
+            Self::Float(f) => {
+                let i = f as i128;
+                if i as f64 == f {
+                    Self::Int(i)
+                } else {
+                    Self::Float(f)
+                }
+            }
+            v => v,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -61,19 +75,23 @@ impl Calc {
     // TODO use checked variants or arithmetic operations
     fn _calc(&self) -> crate::Result<Num> {
         match self {
-            Calc::Num(n) => Ok(*n),
-            Calc::Add(a, b) => add(a._calc()?, b._calc()?),
-            Calc::Sub(a, b) => sub(a._calc()?, b._calc()?),
-            Calc::Mul(a, b) => mul(a._calc()?, b._calc()?),
-            Calc::Div(a, b) => div(a._calc()?, b._calc()?),
-            Calc::Pow(a, b) => pow(a._calc()?, b._calc()?),
-            Calc::Sqrt(a, r) => a._calc()?.sqrt(*r),
-            Calc::Sin(a, r) => a._calc()?.sin(*r),
-            Calc::Cos(a, r) => a._calc()?.cos(*r),
-            Calc::Tan(a, r) => a._calc()?.tan(*r),
-            Calc::Degree(a, r) => a._calc()?.degree(*r), // TODO add rad modifier for radiants and require a typed angle value as input for trigeometrical functions
-            Calc::Factorial(a, r) => a._calc()?.factorial(*r),
+            Self::Num(n) => Ok(*n),
+            Self::Add(a, b) => add(a._calc()?, b._calc()?),
+            Self::Sub(a, b) => sub(a._calc()?, b._calc()?),
+            Self::Mul(a, b) => mul(a._calc()?, b._calc()?),
+            Self::Div(a, b) => div(a._calc()?, b._calc()?),
+            Self::Pow(a, b) => pow(a._calc()?, b._calc()?),
+            Self::Sqrt(a, r) => a._calc()?.sqrt(*r),
+            Self::Sin(a, r) => a._calc()?.sin(*r),
+            Self::Cos(a, r) => a._calc()?.cos(*r),
+            Self::Tan(a, r) => a._calc()?.tan(*r),
+            Self::Degree(a, r) => a._calc()?.degree(*r), // TODO add rad modifier for radiants and require a typed angle value as input for trigeometrical functions
+            Self::Factorial(a, r) => a._calc()?.factorial(*r),
         }
+        .map(|mut n| {
+            n.val = n.val.maybe_int();
+            n
+        })
     }
 }
 
@@ -109,8 +127,10 @@ pub fn div(n1: Num, n2: Num) -> crate::Result<Num> {
         (Val::Int(a), Val::Int(b)) => {
             if b == 0 {
                 return Err(crate::Error::DivideByZero(n1, n2));
-            } else {
+            } else if a % b == 0 {
                 Val::Int(a / b)
+            } else {
+                Val::Float(a as f64 / b as f64)
             }
         }
         (a, b) => {
@@ -172,7 +192,7 @@ impl Num {
     }
 
     pub fn degree(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64() / 360.0 * consts::TAU);
+        let val = Val::Float(self.val.to_f64().to_radians());
         Ok(Num { val, range })
     }
 

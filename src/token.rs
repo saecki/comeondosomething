@@ -65,7 +65,7 @@ fn complete_literal(state: &mut ParserState) -> crate::Result<()> {
             _ => {
                 let val = state
                     .literal
-                    .parse::<i64>()
+                    .parse::<i128>()
                     .ok()
                     .map(Val::Int)
                     .or_else(|| state.literal.parse::<f64>().ok().map(Val::Float))
