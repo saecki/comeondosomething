@@ -34,7 +34,7 @@ pub fn lex(tokens: &[Token]) -> crate::Result<Vec<Item>> {
     Ok(items)
 }
 
-/// Returns a range enclosed by parenthesis
+/// Returns the indexes of parenthesis enclosing the outermost group or tokens
 fn matching_parenthesis(
     close_pos: usize,
     close_par: Par,
@@ -48,10 +48,7 @@ fn matching_parenthesis(
                 Ok(None)
             }
         }
-        Some((_, open_par)) => Err(crate::Error::MismatchedParenthesis {
-            opening: open_par,
-            closing: close_par,
-        }),
+        Some((_, open_par)) => Err(crate::Error::MismatchedParenthesis(open_par, close_par)),
         _ => Err(crate::Error::UnexpectedParenthesis(close_par)),
     }
 }

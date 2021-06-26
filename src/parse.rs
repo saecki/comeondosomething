@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
-use std::f64::consts;
 
-use crate::{items_range, pos, range, Cmd, Item, Mod, Op, Range, Val};
+use crate::{items_range, pos, range, Calc, Cmd, Item, Mod, Op, Range};
 
 pub fn parse(items: &[Item]) -> crate::Result<Calc> {
     let r = items_range(items).unwrap_or_else(|| pos(0));
@@ -14,7 +13,7 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
     } else if items.len() == 1 {
         return match &items[0] {
             Item::Group(g) => _parse(g.range, &g.items),
-            Item::Num(n) => Ok(Calc::Num(n.val)),
+            Item::Num(n) => Ok(Calc::Num(*n)),
             Item::Op(o) => Err(crate::Error::UnexpectedOperator(*o)),
             Item::Cmd(c) => Err(crate::Error::MissingOperand(pos(c.range().end))),
             Item::Mod(m) => Err(crate::Error::MissingOperand(pos(m.range().start))),
@@ -74,8 +73,8 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
         }
 
         return Ok(match m {
-            Mod::Degree(_) => Calc::Degree(ac),
-            Mod::Factorial(_) => Calc::Factorial(ac),
+            Mod::Degree(r) => Calc::Degree(ac, r),
+            Mod::Factorial(r) => Calc::Factorial(ac, r),
         });
     }
 
@@ -85,10 +84,10 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
                 Item::Group(g) => {
                     let inner = Box::new(_parse(g.range, &g.items)?);
                     Ok(match cmd {
-                        Cmd::Sqrt(_) => Calc::Sqrt(inner),
-                        Cmd::Sin(_) => Calc::Sin(inner),
-                        Cmd::Cos(_) => Calc::Cos(inner),
-                        Cmd::Tan(_) => Calc::Tan(inner),
+                        Cmd::Sqrt(r) => Calc::Sqrt(inner, r),
+                        Cmd::Sin(r) => Calc::Sin(inner, r),
+                        Cmd::Cos(r) => Calc::Cos(inner, r),
+                        Cmd::Tan(r) => Calc::Tan(inner, r),
                     })
                 }
                 i => {
@@ -103,39 +102,4 @@ fn _parse(r: Range, items: &[Item]) -> crate::Result<Calc> {
         items[0].range().end,
         items[1].range().start,
     )))
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Calc {
-    Num(Val),
-    Add(Box<Calc>, Box<Calc>),
-    Sub(Box<Calc>, Box<Calc>),
-    Mul(Box<Calc>, Box<Calc>),
-    Div(Box<Calc>, Box<Calc>),
-    Pow(Box<Calc>, Box<Calc>),
-    Sqrt(Box<Calc>),
-    Sin(Box<Calc>),
-    Cos(Box<Calc>),
-    Tan(Box<Calc>),
-    Degree(Box<Calc>),
-    Factorial(Box<Calc>),
-}
-
-impl Calc {
-    pub fn calc(&self) -> f64 {
-        match self {
-            Calc::Num(n) => n.to_f64(),
-            Calc::Add(a, b) => a.calc() + b.calc(),
-            Calc::Sub(a, b) => a.calc() - b.calc(),
-            Calc::Mul(a, b) => a.calc() * b.calc(),
-            Calc::Div(a, b) => a.calc() / b.calc(),
-            Calc::Pow(a, b) => a.calc().powf(b.calc()),
-            Calc::Sqrt(a) => a.calc().sqrt(),
-            Calc::Sin(a) => a.calc().sin(),
-            Calc::Cos(a) => a.calc().cos(),
-            Calc::Tan(a) => a.calc().tan(),
-            Calc::Degree(a) => a.calc() / 360.0 * consts::TAU,
-            Calc::Factorial(_) => todo!("require integer"),
-        }
-    }
 }

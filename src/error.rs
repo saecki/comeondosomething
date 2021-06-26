@@ -1,11 +1,11 @@
 use std::{
-    cmp::{max, min},
+    cmp::min,
     fmt::{self, Write},
 };
 
 use unicode_width::UnicodeWidthChar;
 
-use crate::{range, Cmd, Group, Mod, Num, Op, Par, Range};
+use crate::{range, span, Cmd, Group, Mod, Num, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -21,9 +21,10 @@ pub enum Error {
     UnexpectedCommand(Cmd),
     UnexpectedModifier(Mod),
     UnexpectedParenthesis(Par),
-    MismatchedParenthesis { opening: Par, closing: Par },
-    InvalidCharacter { char: char, range: Range },
+    MismatchedParenthesis(Par, Par),
     InvalidNumberFormat(Range),
+    DivideByZero(Num, Num),
+    NegativeFactorial(Range),
 }
 
 impl Error {
@@ -36,36 +37,38 @@ impl Error {
             Self::MissingOperand(_) => "Missing an operand",
             Self::MissingOperator(_) => "Missing an operator",
             Self::MissingCommandParenthesis(_) => "Missing a command parenthesis",
-            Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis",
+            Self::MissingClosingParenthesis(_) => "Missing a matching closing parenthesis",
             Self::UnexpectedGroup(_) => "Found an unexpected group",
             Self::UnexpectedNumber(_) => "Found an unexpected number",
             Self::UnexpectedOperator(_) => "Found an unexpected operator",
             Self::UnexpectedCommand(_) => "Found an unexpected command",
             Self::UnexpectedModifier(_) => "Found an unexpected modifier",
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis",
-            Self::MismatchedParenthesis { .. } => "Parenthesis do not match",
-            Self::InvalidCharacter { .. } => "Found an invalid character",
+            Self::MismatchedParenthesis(_, _) => "Parenthesis do not match",
             Self::InvalidNumberFormat(_) => "Invalid number format",
+            Self::DivideByZero(_, _) => "Attempted to divide by 0",
+            Self::NegativeFactorial(_) => {
+                "Attempted to calculate the factorial of a negative number"
+            }
         }
     }
 
     pub fn range(&self) -> Range {
         match self {
-            Error::MissingOperand(p) => *p,
-            Error::MissingOperator(p) => *p,
-            Error::MissingCommandParenthesis(r) => *r,
-            Error::MissingClosingParenthesis(p) => p.range(),
-            Error::UnexpectedGroup(g) => g.range,
-            Error::UnexpectedNumber(n) => n.range,
-            Error::UnexpectedOperator(o) => o.range(),
-            Error::UnexpectedCommand(c) => c.range(),
-            Error::UnexpectedModifier(m) => m.range(),
-            Error::UnexpectedParenthesis(p) => p.range(),
-            Error::MismatchedParenthesis { opening, closing } => {
-                range(opening.range().start, closing.range().end)
-            }
-            Error::InvalidCharacter { char: _, range } => *range,
-            Error::InvalidNumberFormat(r) => *r,
+            Self::MissingOperand(r) => *r,
+            Self::MissingOperator(r) => *r,
+            Self::MissingCommandParenthesis(r) => *r,
+            Self::MissingClosingParenthesis(p) => p.range(),
+            Self::UnexpectedGroup(g) => g.range,
+            Self::UnexpectedNumber(n) => n.range,
+            Self::UnexpectedOperator(o) => o.range(),
+            Self::UnexpectedCommand(c) => c.range(),
+            Self::UnexpectedModifier(m) => m.range(),
+            Self::UnexpectedParenthesis(p) => p.range(),
+            Self::MismatchedParenthesis(a, b) => span(a.range(), b.range()), // TODO mark two separate ranges
+            Self::InvalidNumberFormat(r) => *r,
+            Self::DivideByZero(_a, b) => b.range, // TODO mark two separate ranges
+            Self::NegativeFactorial(r) => *r,
         }
     }
 }
@@ -84,8 +87,8 @@ impl fmt::Display for DisplayError<'_> {
             let count = l.chars().count();
 
             if start <= i + count && end >= i {
-                let ms = max(diff_or(start, i, 0), 0);
-                let me = min(diff_or(end, i, count), count);
+                let ms = start.saturating_sub(i);
+                let me = min(end.checked_sub(i).unwrap_or(count), count);
                 mark_range(f, nr + 1, l, range(ms, me))?;
             }
 
@@ -94,14 +97,6 @@ impl fmt::Display for DisplayError<'_> {
 
         write!(f, "     \x1B[;31m{}\x1B[0m", self.error.description())?;
         Ok(())
-    }
-}
-
-const fn diff_or(a: usize, b: usize, c: usize) -> usize {
-    if a >= b {
-        a - b
-    } else {
-        c
     }
 }
 

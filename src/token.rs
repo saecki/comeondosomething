@@ -1,51 +1,54 @@
-use std::f64::consts;
+use crate::Val;
 
-pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
-    let mut tokens = Vec::new();
-    let mut literal = String::new();
-
-    let mut i = 0;
-    for c in string.chars() {
-        match c {
-            '0'..='9' => literal.push(c),
-            'a'..='z' | 'A'..='Z' => literal.push(c),
-            ',' | '.' => literal.push('.'),
-            '_' | '\'' => (), // literal separator
-            _ => {
-                tokens.extend(complete_literal(&mut literal, i)?);
-
-                let range = pos(i);
-                match c {
-                    ' ' | '\n' | '\r' => (), // visual separator
-                    '+' => tokens.push(Token::Op(Op::Add(range))),
-                    '-' | '−' => tokens.push(Token::Op(Op::Sub(range))),
-                    '*' | '×' => tokens.push(Token::Op(Op::Mul(range))),
-                    '/' | '÷' => tokens.push(Token::Op(Op::Div(range))),
-                    '°' => tokens.push(Token::Mod(Mod::Degree(range))),
-                    '!' => tokens.push(Token::Mod(Mod::Factorial(range))),
-                    '^' => tokens.push(Token::Op(Op::Pow(range))),
-                    '(' => tokens.push(Token::Par(Par::RoundOpen(range))),
-                    '[' => tokens.push(Token::Par(Par::SquareOpen(range))),
-                    ')' => tokens.push(Token::Par(Par::RoundClose(range))),
-                    ']' => tokens.push(Token::Par(Par::SquareClose(range))),
-                    _ => return Err(crate::Error::InvalidCharacter { char: c, range }),
-                }
-            }
-        }
-        i += 1;
-    }
-
-    tokens.extend(complete_literal(&mut literal, i)?);
-
-    Ok(tokens)
+#[derive(Default)]
+struct ParserState {
+    tokens: Vec<Token>,
+    literal: String,
+    char_index: usize,
 }
 
-fn complete_literal(literal: &mut String, end: usize) -> crate::Result<Option<Token>> {
-    if !literal.is_empty() {
-        let start = end - literal.chars().count();
-        let range = range(start, end);
+pub fn tokenize(string: &str) -> crate::Result<Vec<Token>> {
+    let mut state = ParserState::default();
 
-        let token = match literal.to_lowercase().as_str() {
+    for c in string.chars() {
+        let range = pos(state.char_index);
+        match c {
+            ' ' | '\n' | '\r' => complete_literal(&mut state)?,
+            '+' => new_token(&mut state, Token::Op(Op::Add(range)))?,
+            '-' | '−' => new_token(&mut state, Token::Op(Op::Sub(range)))?,
+            '*' | '×' => new_token(&mut state, Token::Op(Op::Mul(range)))?,
+            '/' | '÷' => new_token(&mut state, Token::Op(Op::Div(range)))?,
+            '°' => new_token(&mut state, Token::Mod(Mod::Degree(range)))?,
+            '!' => new_token(&mut state, Token::Mod(Mod::Factorial(range)))?,
+            '^' => new_token(&mut state, Token::Op(Op::Pow(range)))?,
+            '(' => new_token(&mut state, Token::Par(Par::RoundOpen(range)))?,
+            '[' => new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
+            ')' => new_token(&mut state, Token::Par(Par::RoundClose(range)))?,
+            ']' => new_token(&mut state, Token::Par(Par::SquareClose(range)))?,
+            '_' | '\'' => (), // visual separator
+            ',' | '.' => state.literal.push('.'),
+            c => state.literal.push(c),
+        }
+        state.char_index += 1;
+    }
+
+    complete_literal(&mut state)?;
+
+    Ok(state.tokens)
+}
+
+fn new_token(state: &mut ParserState, token: Token) -> crate::Result<()> {
+    complete_literal(state)?;
+    state.tokens.push(token);
+    Ok(())
+}
+
+fn complete_literal(state: &mut ParserState) -> crate::Result<()> {
+    if !state.literal.is_empty() {
+        let start = state.char_index - state.literal.chars().count();
+        let range = range(start, state.char_index);
+
+        let token = match state.literal.as_str() {
             "sqrt" => Token::Cmd(Cmd::Sqrt(range)),
             "sin" => Token::Cmd(Cmd::Sin(range)),
             "cos" => Token::Cmd(Cmd::Cos(range)),
@@ -60,20 +63,22 @@ fn complete_literal(literal: &mut String, end: usize) -> crate::Result<Option<To
             }),
             "e" => Token::Num(Num { val: Val::E, range }),
             _ => {
-                let val = literal
-                    .parse::<u64>()
+                let val = state
+                    .literal
+                    .parse::<i64>()
                     .ok()
-                    .map(|i| Val::Int(i))
-                    .or_else(|| literal.parse::<f64>().ok().map(|f| Val::Float(f)))
+                    .map(Val::Int)
+                    .or_else(|| state.literal.parse::<f64>().ok().map(Val::Float))
                     .ok_or(crate::Error::InvalidNumberFormat(range))?;
                 Token::Num(Num { val, range })
             }
         };
 
-        literal.clear();
-        return Ok(Some(token));
+        state.literal.clear();
+        state.tokens.push(token);
     }
-    Ok(None)
+
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -144,27 +149,6 @@ pub const fn num(val: Val, start: usize, end: usize) -> Num {
     Num {
         val,
         range: range(start, end),
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val {
-    Int(u64),
-    Float(f64),
-    TAU,
-    PI,
-    E,
-}
-
-impl Val {
-    pub const fn to_f64(&self) -> f64 {
-        match *self {
-            Self::Int(i) => i as f64,
-            Self::Float(f) => f,
-            Self::TAU => consts::TAU,
-            Self::PI => consts::PI,
-            Self::E => consts::E,
-        }
     }
 }
 
@@ -266,6 +250,7 @@ impl Par {
     }
 }
 
+/// Range of character indices
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Range {
     pub start: usize,
@@ -284,6 +269,10 @@ impl Range {
 
 pub const fn range(start: usize, end: usize) -> Range {
     Range { start, end }
+}
+
+pub const fn span(a: Range, b: Range) -> Range {
+    range(a.start, b.end)
 }
 
 pub const fn pos(pos: usize) -> Range {
