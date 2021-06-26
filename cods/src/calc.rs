@@ -53,6 +53,7 @@ impl Val {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Calc {
+    Error(Range),
     Num(Num),
     Add(Box<Calc>, Box<Calc>),
     Sub(Box<Calc>, Box<Calc>),
@@ -75,6 +76,7 @@ impl Calc {
     // TODO use checked variants or arithmetic operations
     fn _calc(&self) -> crate::Result<Num> {
         match self {
+            Self::Error(r) => Err(crate::Error::Parsing(*r)),
             Self::Num(n) => Ok(*n),
             Self::Add(a, b) => add(a._calc()?, b._calc()?),
             Self::Sub(a, b) => sub(a._calc()?, b._calc()?),

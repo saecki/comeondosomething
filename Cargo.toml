@@ -1,13 +1,5 @@
-[package]
-name = "comeondosomething"
-version = "0.1.0"
-authors = ["Saecki <tobiasschmitz2001@gmail.com>"]
-edition = "2018"
-description = "A cli calculator"
-
-[[bin]]
-name = "cods"
-path = "src/main.rs"
-
-[dependencies]
-unicode-width = "0.1.8"
+[workspace]
+members = [
+    "cods",
+    "cli",
+]

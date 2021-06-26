@@ -1,4 +1,4 @@
-use comeondosomething::{calc, Val};
+use cods::{calc, Val};
 
 #[test]
 fn test1() {

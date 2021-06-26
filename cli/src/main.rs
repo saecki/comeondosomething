@@ -1,7 +1,7 @@
 use std::env::args;
 use std::process::exit;
 
-use comeondosomething::calc;
+use cods::UserFacing;
 
 fn main() {
     let mut args = args().skip(1);
@@ -46,8 +46,17 @@ fn calc_args(first: String, args: impl Iterator<Item = String>) {
 }
 
 fn print_calc(input: &str) {
-    match calc(input) {
-        Ok(n) => println!("{}", n),
-        Err(e) => println!("\n{}", e.display(input)),
+    match cods::calc(input) {
+        Ok((v, warnings)) => {
+            for w in warnings.iter() {
+                println!("{}", w.display(input));
+            }
+            println!("\n{}", v);
+        }
+        Err(errors) => {
+            for e in errors.iter() {
+                println!("{}", e.display(input));
+            }
+        }
     }
 }
