@@ -1,6 +1,6 @@
 use crate::{Context, Val};
 
-macro_rules! match_strict_case {
+macro_rules! match_warn_case {
     (
         $state:ident,
         $range:ident,
@@ -13,7 +13,7 @@ macro_rules! match_strict_case {
                 if $lit == $v {
                     $res
                 } else if $lit.eq_ignore_ascii_case(&$v) {
-                    $state.warnings.push(crate::Warning::ConfusingCase($lit, $range));
+                    $state.warnings.push(crate::Warning::ConfusingCase($range, $lit));
                     $res
                 } else
         )+ )*
@@ -71,7 +71,7 @@ impl Context {
             let range = range(start, state.char_index);
 
             let literal = &state.literal;
-            let token = match_strict_case! {
+            let token = match_warn_case! {
                 self,
                 range,
                 match literal {
@@ -288,6 +288,14 @@ impl Range {
 
     pub const fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub const fn intersects(&self, other: &Range) -> bool {
+        self.contains(other.start) || other.contains(self.start)
+    }
+
+    pub const fn contains(&self, pos: usize) -> bool {
+        self.start <= pos && self.end > pos
     }
 }
 

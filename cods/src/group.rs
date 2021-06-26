@@ -68,8 +68,8 @@ impl Context {
                 }
             }
             Some((open_pos, open_par)) => {
-                self.errors
-                    .push(crate::Error::MismatchedParenthesis(open_par, close_par));
+                self.warnings
+                    .push(crate::Warning::MismatchedParenthesis(open_par, close_par));
                 if par_stack.is_empty() {
                     Ok(Some(GroupRange {
                         start: open_pos + 1,
