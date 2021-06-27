@@ -26,6 +26,14 @@ impl Context {
             return Ok(Calc::Error(r));
         }
 
+        if items.len() > 1 {
+            if let Item::Op(Op::Sub(neg_range)) = items[0] {
+                let val = self.parse_items(items[1].range(), &items[1..])?;
+                let range = span(neg_range, items[1].range());
+                return Ok(Calc::Neg(Box::new(val), range));
+            }
+        }
+
         let mut ops: Vec<_> = items
             .iter()
             .enumerate()

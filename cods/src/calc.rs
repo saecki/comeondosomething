@@ -68,6 +68,7 @@ impl Val {
 pub enum Calc {
     Error(Range),
     Num(Num),
+    Neg(Box<Calc>, Range),
     Add(Box<Calc>, Box<Calc>),
     Sub(Box<Calc>, Box<Calc>),
     Mul(Box<Calc>, Box<Calc>),
@@ -85,33 +86,42 @@ pub enum Calc {
 
 impl Calc {
     pub fn calc(&self) -> crate::Result<Val> {
-        Ok(self._calc()?.val)
+        Ok(self.calc_num()?.val)
     }
 
     // TODO use checked variants of arithmetic operations
-    fn _calc(&self) -> crate::Result<Num> {
+    fn calc_num(&self) -> crate::Result<Num> {
         match self {
             Self::Error(r) => Err(crate::Error::Parsing(*r)),
             Self::Num(n) => Ok(*n),
-            Self::Add(a, b) => add(a._calc()?, b._calc()?),
-            Self::Sub(a, b) => sub(a._calc()?, b._calc()?),
-            Self::Mul(a, b) => mul(a._calc()?, b._calc()?),
-            Self::Div(a, b) => div(a._calc()?, b._calc()?),
-            Self::Pow(a, b, r) => pow(a._calc()?, b._calc()?, *r),
-            Self::Ln(a, r) => ln(a._calc()?, *r),
-            Self::Log(a, b, r) => log(a._calc()?, b._calc()?, *r),
-            Self::Sqrt(a, r) => a._calc()?.sqrt(*r),
-            Self::Sin(a, r) => a._calc()?.sin(*r),
-            Self::Cos(a, r) => a._calc()?.cos(*r),
-            Self::Tan(a, r) => a._calc()?.tan(*r),
-            Self::Degree(a, r) => a._calc()?.degree(*r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
-            Self::Factorial(a, r) => a._calc()?.factorial(*r),
+            Self::Neg(a, r) => neg(a.calc_num()?, *r),
+            Self::Add(a, b) => add(a.calc_num()?, b.calc_num()?),
+            Self::Sub(a, b) => sub(a.calc_num()?, b.calc_num()?),
+            Self::Mul(a, b) => mul(a.calc_num()?, b.calc_num()?),
+            Self::Div(a, b) => div(a.calc_num()?, b.calc_num()?),
+            Self::Pow(a, b, r) => pow(a.calc_num()?, b.calc_num()?, *r),
+            Self::Ln(a, r) => ln(a.calc_num()?, *r),
+            Self::Log(a, b, r) => log(a.calc_num()?, b.calc_num()?, *r),
+            Self::Sqrt(a, r) => sqrt(a.calc_num()?, *r),
+            Self::Sin(a, r) => sin(a.calc_num()?, *r),
+            Self::Cos(a, r) => cos(a.calc_num()?, *r),
+            Self::Tan(a, r) => tan(a.calc_num()?, *r),
+            Self::Degree(a, r) => degree(a.calc_num()?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            Self::Factorial(a, r) => factorial(a.calc_num()?, *r),
         }
         .map(|mut n| {
             n.val = n.val.maybe_int();
             n
         })
     }
+}
+
+pub fn neg(n: Num, range: Range) -> crate::Result<Num> {
+    let val = match n.val {
+        Val::Int(i) => Val::Int(-i),
+        v => Val::Float(-v.to_f64()),
+    };
+    Ok(Num { val, range })
 }
 
 pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
@@ -198,50 +208,48 @@ pub fn log(base: Num, n: Num, range: Range) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-impl Num {
-    pub fn sqrt(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64().sqrt());
-        Ok(Num { val, range })
-    }
+pub fn sqrt(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().sqrt());
+    Ok(Num { val, range })
+}
 
-    pub fn sin(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64().sin());
-        Ok(Num { val, range })
-    }
+pub fn sin(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().sin());
+    Ok(Num { val, range })
+}
 
-    pub fn cos(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64().cos());
-        Ok(Num { val, range })
-    }
+pub fn cos(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().cos());
+    Ok(Num { val, range })
+}
 
-    pub fn tan(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64().tan());
-        Ok(Num { val, range })
-    }
+pub fn tan(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().tan());
+    Ok(Num { val, range })
+}
 
-    pub fn degree(self, range: Range) -> crate::Result<Self> {
-        let val = Val::Float(self.val.to_f64().to_radians());
-        Ok(Num { val, range })
-    }
+pub fn degree(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().to_radians());
+    Ok(Num { val, range })
+}
 
-    pub fn factorial(self, range: Range) -> crate::Result<Self> {
-        let val = match self.val {
-            Val::Int(i) => {
-                if i < 0 {
-                    return Err(crate::Error::NegativeFactorial(self.range));
-                } else {
-                    Val::Int((1..=i).reduce(|a, b| a * b).unwrap_or(1))
-                }
+pub fn factorial(n: Num, range: Range) -> crate::Result<Num> {
+    let val = match n.val {
+        Val::Int(i) => {
+            if i < 0 {
+                return Err(crate::Error::NegativeFactorial(n.range));
+            } else {
+                Val::Int((1..=i).reduce(|a, b| a * b).unwrap_or(1))
             }
-            v => {
-                let f = v.to_f64();
-                if f < 0.0 {
-                    return Err(crate::Error::NegativeFactorial(self.range));
-                } else {
-                    todo!("Factorial of fractions is not yet implemented")
-                }
+        }
+        v => {
+            let f = v.to_f64();
+            if f < 0.0 {
+                return Err(crate::Error::NegativeFactorial(n.range));
+            } else {
+                todo!("Factorial of fractions is not yet implemented")
             }
-        };
-        Ok(Num { val, range })
-    }
+        }
+    };
+    Ok(Num { val, range })
 }
