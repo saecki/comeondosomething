@@ -27,8 +27,18 @@ pub enum Error {
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
-    MissingCommandParenthesis(Range),
     MissingClosingParenthesis(Par),
+    MissingCommandParenthesis(Range),
+    MissingCommandArguments {
+        range: Range,
+        expected: usize,
+        found: usize,
+    },
+    UnexpectedCommandArguments {
+        ranges: Vec<Range>,
+        expected: usize,
+        found: usize,
+    },
     UnexpectedGroup(Group),
     UnexpectedNumber(Num),
     UnexpectedOperator(Op),
@@ -48,6 +58,30 @@ impl UserFacing<Red> for Error {
             Self::MissingOperator(_) => "Missing an operator".into(),
             Self::MissingCommandParenthesis(_) => "Missing a command parenthesis".into(),
             Self::MissingClosingParenthesis(_) => "Missing a matching closing parenthesis".into(),
+            Self::MissingCommandArguments {
+                expected, found, ..
+            } => {
+                let missing = expected - found;
+                let arg_s = if missing == 1 { "" } else { "s" };
+                let are_is = if *expected == 1 { "is" } else { "are" };
+                let were_was = if *found == 1 { "was" } else { "were" };
+                format!(
+                    "Missing {} command argument{}, {} {} required, but only {} {} found",
+                    missing, arg_s, expected, are_is, found, were_was,
+                )
+            }
+            Self::UnexpectedCommandArguments {
+                expected, found, ..
+            } => {
+                let over = found - expected;
+                let arg_s = if over == 1 { "s" } else { "" };
+                let are_is = if *expected == 1 { "is" } else { "are" };
+                let were_was = if *found == 1 { "was" } else { "were" };
+                format!(
+                    "Found {} unexpected command argument{}, only {} {} required, but {} {} found",
+                    over, arg_s, expected, are_is, found, were_was,
+                )
+            }
             Self::UnexpectedGroup(_) => "Found an unexpected group".into(),
             Self::UnexpectedNumber(_) => "Found an unexpected number".into(),
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
@@ -69,6 +103,8 @@ impl UserFacing<Red> for Error {
             Self::MissingOperator(r) => vec![*r],
             Self::MissingCommandParenthesis(r) => vec![*r],
             Self::MissingClosingParenthesis(p) => vec![p.range()],
+            Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
+            Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedGroup(g) => vec![g.range],
             Self::UnexpectedNumber(n) => vec![n.range],
             Self::UnexpectedOperator(o) => vec![o.range()],

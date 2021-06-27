@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{range, Cmd, Context, Mod, Num, Op, Par, Range, Token};
+use crate::{range, Cmd, Context, Mod, Num, Op, Par, Range, Sep, Token};
 
 impl Context {
     pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
@@ -150,6 +150,7 @@ pub enum Item {
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
+    Sep(Sep),
 }
 
 impl Item {
@@ -160,6 +161,7 @@ impl Item {
             Token::Cmd(c) => Some(Self::Cmd(c)),
             Token::Mod(m) => Some(Self::Mod(m)),
             Token::Par(_) => None,
+            Token::Sep(s) => Some(Self::Sep(s)),
         }
     }
 
@@ -184,6 +186,17 @@ impl Item {
         }
     }
 
+    pub const fn sep(&self) -> Option<Sep> {
+        match self {
+            Self::Sep(c) => Some(*c),
+            _ => None,
+        }
+    }
+
+    pub const fn is_sep(&self) -> bool {
+        matches!(self, Self::Sep(_))
+    }
+
     pub fn range(&self) -> Range {
         match self {
             Self::Group(g) => g.range,
@@ -191,6 +204,7 @@ impl Item {
             Self::Op(o) => o.range(),
             Self::Cmd(c) => c.range(),
             Self::Mod(m) => m.range(),
+            Self::Sep(s) => s.range(),
         }
     }
 }

@@ -47,8 +47,8 @@ impl Context {
                 '[' => self.new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
                 ')' => self.new_token(&mut state, Token::Par(Par::RoundClose(range)))?,
                 ']' => self.new_token(&mut state, Token::Par(Par::SquareClose(range)))?,
+                ',' => self.new_token(&mut state, Token::Sep(Sep::Comma(range)))?,
                 '_' | '\'' => (), // visual separator
-                ',' | '.' => state.literal.push('.'),
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -75,6 +75,7 @@ impl Context {
                 self,
                 range,
                 match literal {
+                    "pow" => Token::Cmd(Cmd::Pow(range)),
                     "sqrt" => Token::Cmd(Cmd::Sqrt(range)),
                     "sin" => Token::Cmd(Cmd::Sin(range)),
                     "cos" => Token::Cmd(Cmd::Cos(range)),
@@ -112,6 +113,7 @@ pub enum Token {
     Cmd(Cmd),
     Mod(Mod),
     Par(Par),
+    Sep(Sep),
 }
 
 impl Token {
@@ -129,6 +131,10 @@ impl Token {
 
     pub const fn is_par(&self) -> bool {
         matches!(self, Self::Par(_))
+    }
+
+    pub const fn is_sep(&self) -> bool {
+        matches!(self, Self::Sep(_))
     }
 
     pub const fn num(&self) -> Option<Num> {
@@ -156,9 +162,10 @@ impl Token {
         match self {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range(),
-            Self::Cmd(r) => r.range(),
-            Self::Mod(r) => r.range(),
+            Self::Cmd(c) => c.range(),
+            Self::Mod(m) => m.range(),
             Self::Par(p) => p.range(),
+            Self::Sep(s) => s.range(),
         }
     }
 }
@@ -205,8 +212,10 @@ impl Op {
     }
 }
 
+// TODO add asin acos and atan
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cmd {
+    Pow(Range),
     Sqrt(Range),
     Sin(Range),
     Cos(Range),
@@ -216,6 +225,7 @@ pub enum Cmd {
 impl Cmd {
     pub const fn range(&self) -> Range {
         match *self {
+            Self::Pow(r) => r,
             Self::Sqrt(r) => r,
             Self::Sin(r) => r,
             Self::Cos(r) => r,
@@ -274,6 +284,19 @@ impl Par {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sep {
+    Comma(Range),
+}
+
+impl Sep {
+    pub const fn range(&self) -> Range {
+        match *self {
+            Self::Comma(r) => r,
+        }
+    }
+}
+
 /// Range of character indices
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Range {
@@ -322,7 +345,7 @@ mod test {
     #[test]
     fn simple_add() {
         check(
-            "432,432 + 24324,543",
+            "432.432 + 24324.543",
             vec![
                 Token::Num(num(Val::Float(432.432), 0, 7)),
                 Token::Op(Op::Add(pos(8))),
@@ -334,7 +357,7 @@ mod test {
     #[test]
     fn simple_mul() {
         check(
-            "604.453 *3562,543",
+            "604.453 *3562.543",
             vec![
                 Token::Num(num(Val::Float(604.453), 0, 7)),
                 Token::Op(Op::Mul(pos(8))),
@@ -346,7 +369,7 @@ mod test {
     #[test]
     fn add_mul() {
         check(
-            "(32+ 604.453)* 3562,543",
+            "(32+ 604.453)* 3562.543",
             vec![
                 Token::Par(Par::RoundOpen(pos(0))),
                 Token::Num(num(Val::Int(32), 1, 3)),
