@@ -121,6 +121,10 @@ impl UserFacing<Red> for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     ConfusingCase(Range, &'static str),
+    NegationBehindAdd(Range, Range),
+    NegationBehindSub(Range, Range),
+    NegationBehindMul(Range, Range),
+    NegationBehindDiv(Range, Range),
     MismatchedParenthesis(Par, Par),
 }
 
@@ -128,6 +132,18 @@ impl UserFacing<Yellow> for Warning {
     fn description(&self) -> String {
         match self {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
+            Self::NegationBehindAdd(_, _) => {
+                "Negation directly behind addition, consider making this a subtraction".into()
+            }
+            Self::NegationBehindSub(_, _) => {
+                "Negation directly behind subtraction, consider making this an addition".into()
+            }
+            Self::NegationBehindMul(_, _) => {
+                "Negation directly behind multiplication, consider negating the whole term".into()
+            }
+            Self::NegationBehindDiv(_, _) => {
+                "Negation directly behind division, consider negating the whole term".into()
+            }
             Self::MismatchedParenthesis(_, _) => "Parenthesis do not match".into(),
         }
     }
@@ -135,6 +151,10 @@ impl UserFacing<Yellow> for Warning {
     fn ranges(&self) -> Vec<Range> {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],
+            Self::NegationBehindAdd(r1, r2) => vec![*r1, *r2],
+            Self::NegationBehindSub(r1, r2) => vec![*r1, *r2],
+            Self::NegationBehindMul(r1, r2) => vec![*r1, *r2],
+            Self::NegationBehindDiv(r1, r2) => vec![*r1, *r2],
             Self::MismatchedParenthesis(a, b) => vec![a.range(), b.range()],
         }
     }

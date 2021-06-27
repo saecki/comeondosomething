@@ -26,13 +26,13 @@ impl Context {
             return Ok(Calc::Error(r));
         }
 
-        if items.len() > 1 {
-            if let Item::Op(Op::Sub(neg_range)) = items[0] {
-                let val = self.parse_items(items[1].range(), &items[1..])?;
-                let range = span(neg_range, items[1].range());
-                return Ok(Calc::Neg(Box::new(val), range));
-            }
-        }
+        //if items.len() == 2 {
+        //    if let Item::Op(Op::Sub(neg_range)) = items[0] {
+        //        let val = self.parse_items(items[1].range(), &items[1..])?;
+        //        let range = span(neg_range, items[1].range());
+        //        return Ok(Calc::Neg(Box::new(val), range));
+        //    }
+        //}
 
         let mut ops: Vec<_> = items
             .iter()
@@ -52,7 +52,31 @@ impl Context {
             }
         });
 
-        if let Some(&(i, o)) = ops.last() {
+        if let Some(&(mut i, mut o)) = ops.last() {
+            if let Op::Sub(sr) = o {
+                if i == 0 {
+                    let b = &items[(i + 1)..];
+                    let rb = items_range(b).unwrap_or_else(|| range(o.range().end, r.end));
+                    let cb = Box::new(self.parse_items(rb, b)?);
+                    return Ok(Calc::Neg(cb, span(o.range(), rb)));
+                } else if let Some(op) = items[i - 1].op() {
+                    match op {
+                        Op::Add(_) => self
+                            .warnings
+                            .push(crate::Warning::NegationBehindAdd(op.range(), sr)),
+                        Op::Sub(_) => self
+                            .warnings
+                            .push(crate::Warning::NegationBehindSub(op.range(), sr)),
+                        Op::Mul(_) => (),
+                        Op::Div(_) => (),
+                        Op::Pow(_) => (),
+                    }
+
+                    i = ops[ops.len() - 2].0;
+                    o = ops[ops.len() - 2].1;
+                }
+            }
+
             let a = &items[0..i];
             let ra = items_range(a).unwrap_or_else(|| range(r.start, o.range().start));
             let ca = Box::new(self.parse_items(ra, a)?);
@@ -62,8 +86,8 @@ impl Context {
             let cb = Box::new(self.parse_items(rb, b)?);
 
             return match o {
-                Op::Add(_) => Ok(Calc::Add(ca, cb)),
                 Op::Sub(_) => Ok(Calc::Sub(ca, cb)),
+                Op::Add(_) => Ok(Calc::Add(ca, cb)),
                 Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
                 Op::Div(_) => Ok(Calc::Div(ca, cb)),
                 Op::Pow(_) => Ok(Calc::Pow(ca, cb, span(ra, rb))),
