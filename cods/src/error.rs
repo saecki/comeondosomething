@@ -295,6 +295,13 @@ impl Color for Red {
     }
 }
 
+pub struct Green;
+impl Color for Green {
+    fn ansi_start() -> &'static str {
+        "\x1B[;32m"
+    }
+}
+
 pub struct Yellow;
 impl Color for Yellow {
     fn ansi_start() -> &'static str {
