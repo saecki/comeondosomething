@@ -76,6 +76,8 @@ impl Context {
                 range,
                 match literal {
                     "pow" => Token::Cmd(Cmd::Pow(range)),
+                    "ln" => Token::Cmd(Cmd::Ln(range)),
+                    "log" => Token::Cmd(Cmd::Log(range)),
                     "sqrt" => Token::Cmd(Cmd::Sqrt(range)),
                     "sin" => Token::Cmd(Cmd::Sin(range)),
                     "cos" => Token::Cmd(Cmd::Cos(range)),
@@ -216,6 +218,8 @@ impl Op {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cmd {
     Pow(Range),
+    Ln(Range),
+    Log(Range),
     Sqrt(Range),
     Sin(Range),
     Cos(Range),
@@ -226,6 +230,8 @@ impl Cmd {
     pub const fn range(&self) -> Range {
         match *self {
             Self::Pow(r) => r,
+            Self::Ln(r) => r,
+            Self::Log(r) => r,
             Self::Sqrt(r) => r,
             Self::Sin(r) => r,
             Self::Cos(r) => r,

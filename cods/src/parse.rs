@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-use crate::{between, items_range, pos, range, Calc, Cmd, Context, Item, Mod, Op, Range};
+use crate::{between, items_range, pos, range, span, Calc, Cmd, Context, Item, Mod, Op, Range};
 
 impl Context {
     pub fn parse(&mut self, items: &[Item]) -> crate::Result<Calc> {
@@ -58,7 +58,7 @@ impl Context {
                 Op::Sub(_) => Ok(Calc::Sub(ca, cb)),
                 Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
                 Op::Div(_) => Ok(Calc::Div(ca, cb)),
-                Op::Pow(_) => Ok(Calc::Pow(ca, cb)),
+                Op::Pow(_) => Ok(Calc::Pow(ca, cb, span(ra, rb))),
             };
         }
 
@@ -87,28 +87,39 @@ impl Context {
         if items.len() == 2 {
             if let Item::Cmd(cmd) = items[0] {
                 return match &items[1] {
-                    Item::Group(g) => Ok(match cmd {
-                        Cmd::Pow(_) => {
-                            let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
-                            Calc::Pow(Box::new(base), Box::new(exp))
-                        }
-                        Cmd::Sqrt(r) => {
-                            let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                            Calc::Sqrt(Box::new(val), r)
-                        }
-                        Cmd::Sin(r) => {
-                            let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                            Calc::Sin(Box::new(val), r)
-                        }
-                        Cmd::Cos(r) => {
-                            let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                            Calc::Cos(Box::new(val), r)
-                        }
-                        Cmd::Tan(r) => {
-                            let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                            Calc::Tan(Box::new(val), r)
-                        }
-                    }),
+                    Item::Group(g) => {
+                        let range = span(cmd.range(), g.range);
+                        Ok(match cmd {
+                            Cmd::Pow(_) => {
+                                let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Pow(Box::new(base), Box::new(exp), range)
+                            }
+                            Cmd::Ln(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Ln(Box::new(val), range)
+                            }
+                            Cmd::Log(_) => {
+                                let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Log(Box::new(base), Box::new(val), range)
+                            }
+                            Cmd::Sqrt(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Sqrt(Box::new(val), range)
+                            }
+                            Cmd::Sin(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Sin(Box::new(val), range)
+                            }
+                            Cmd::Cos(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Cos(Box::new(val), range)
+                            }
+                            Cmd::Tan(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Tan(Box::new(val), range)
+                            }
+                        })
+                    }
                     i => {
                         let range = range(cmd.range().end, i.range().start);
                         self.errors

@@ -60,7 +60,9 @@ pub enum Calc {
     Sub(Box<Calc>, Box<Calc>),
     Mul(Box<Calc>, Box<Calc>),
     Div(Box<Calc>, Box<Calc>),
-    Pow(Box<Calc>, Box<Calc>),
+    Pow(Box<Calc>, Box<Calc>, Range),
+    Ln(Box<Calc>, Range),
+    Log(Box<Calc>, Box<Calc>, Range),
     Sqrt(Box<Calc>, Range),
     Sin(Box<Calc>, Range),
     Cos(Box<Calc>, Range),
@@ -83,7 +85,9 @@ impl Calc {
             Self::Sub(a, b) => sub(a._calc()?, b._calc()?),
             Self::Mul(a, b) => mul(a._calc()?, b._calc()?),
             Self::Div(a, b) => div(a._calc()?, b._calc()?),
-            Self::Pow(a, b) => pow(a._calc()?, b._calc()?),
+            Self::Pow(a, b, r) => pow(a._calc()?, b._calc()?, *r),
+            Self::Ln(a, r) => ln(a._calc()?, *r),
+            Self::Log(a, b, r) => log(a._calc()?, b._calc()?, *r),
             Self::Sqrt(a, r) => a._calc()?.sqrt(*r),
             Self::Sin(a, r) => a._calc()?.sin(*r),
             Self::Cos(a, r) => a._calc()?.cos(*r),
@@ -149,7 +153,7 @@ pub fn div(n1: Num, n2: Num) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn pow(n1: Num, n2: Num) -> crate::Result<Num> {
+pub fn pow(n1: Num, n2: Num, range: Range) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if let Ok(exp) = u32::try_from(b) {
@@ -169,7 +173,16 @@ pub fn pow(n1: Num, n2: Num) -> crate::Result<Num> {
         }
         (a, b) => Val::Float(a.to_f64().powf(b.to_f64())),
     };
-    let range = span(n1.range, n2.range);
+    Ok(Num { val, range })
+}
+
+pub fn ln(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().ln());
+    Ok(Num { val, range })
+}
+
+pub fn log(base: Num, n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().log(base.val.to_f64()));
     Ok(Num { val, range })
 }
 
