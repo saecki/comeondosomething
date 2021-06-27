@@ -1,26 +1,7 @@
-use std::cmp::min;
-use std::fmt;
-use std::fmt::Write;
-use std::marker::PhantomData;
-
-use unicode_width::UnicodeWidthChar;
-
-use crate::{range, Num, Op, Par, Range};
+use crate::{LRed, LYellow, UserFacing};
+use crate::{Num, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-pub trait UserFacing<C: Color>: Sized + fmt::Debug {
-    fn description(&self) -> String;
-    fn ranges(&self) -> Vec<Range>;
-
-    fn display<'a>(&'a self, input: &'a str) -> DisplayUserFacing<'a, Self, C> {
-        DisplayUserFacing {
-            input,
-            error: self,
-            c: PhantomData::<C>,
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
@@ -46,14 +27,14 @@ pub enum Error {
     NegativeFactorial(Range),
 }
 
-impl UserFacing<Red> for Error {
+impl UserFacing<LRed> for Error {
     fn description(&self) -> String {
         match self {
             Self::Parsing(_) => "A parsing error occured".into(),
             Self::MissingOperand(_) => "Missing an operand".into(),
             Self::MissingOperator(_) => "Missing an operator".into(),
             Self::MissingCommandParenthesis(_) => "Missing a command parenthesis".into(),
-            Self::MissingClosingParenthesis(_) => "Missing a matching closing parenthesis".into(),
+            Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis".into(),
             Self::MissingCommandArguments {
                 expected, found, ..
             } => {
@@ -113,10 +94,10 @@ pub enum Warning {
     NegationBehindSub(Range, Range),
     NegationBehindMul(Range, Range),
     NegationBehindDiv(Range, Range),
-    MismatchedParenthesis(Par, Par),
+    MismatchedParentheses(Par, Par),
 }
 
-impl UserFacing<Yellow> for Warning {
+impl UserFacing<LYellow> for Warning {
     fn description(&self) -> String {
         match self {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
@@ -132,7 +113,7 @@ impl UserFacing<Yellow> for Warning {
             Self::NegationBehindDiv(_, _) => {
                 "Negation directly behind division, consider negating the whole term".into()
             }
-            Self::MismatchedParenthesis(_, _) => "Parenthesis do not match".into(),
+            Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
         }
     }
 
@@ -143,176 +124,7 @@ impl UserFacing<Yellow> for Warning {
             Self::NegationBehindSub(r1, r2) => vec![*r1, *r2],
             Self::NegationBehindMul(r1, r2) => vec![*r1, *r2],
             Self::NegationBehindDiv(r1, r2) => vec![*r1, *r2],
-            Self::MismatchedParenthesis(a, b) => vec![a.range(), b.range()],
+            Self::MismatchedParentheses(a, b) => vec![a.range(), b.range()],
         }
-    }
-}
-
-pub struct DisplayUserFacing<'a, U: UserFacing<C>, C: Color> {
-    input: &'a str,
-    error: &'a U,
-    c: PhantomData<C>,
-}
-
-impl<U: UserFacing<C>, C: Color> fmt::Display for DisplayUserFacing<'_, U, C> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ranges = self.error.ranges();
-        let lines = range_lines(self.input);
-
-        for (nr, (lr, l)) in lines.iter().enumerate() {
-            let intersecting: Vec<_> = ranges
-                .iter()
-                .filter(|r| r.intersects(lr))
-                .map(|r| {
-                    let ms = r.start.saturating_sub(lr.start);
-                    let me = min(r.end.saturating_sub(lr.start), lr.len());
-                    range(ms, me)
-                })
-                .collect();
-
-            if !intersecting.is_empty() {
-                mark_ranges::<C>(f, nr + 1, l, &intersecting)?;
-            }
-        }
-
-        write!(
-            f,
-            "     {}{}{}",
-            C::ansi_start(),
-            self.error.description(),
-            C::ansi_end()
-        )?;
-        Ok(())
-    }
-}
-
-fn mark_ranges<C: Color>(
-    f: &mut fmt::Formatter<'_>,
-    line_nr: usize,
-    line: &str,
-    ranges: &[Range],
-) -> fmt::Result {
-    write!(f, "{:02} │ {}\n   │ ", line_nr, line)?;
-
-    let mut chars = line.chars();
-    let mut pos = 0;
-    let mut peeked = 0;
-
-    for r in ranges {
-        let mut offset = 0;
-        for _ in pos..(r.start) {
-            if let Some(c) = chars.next() {
-                pos += 1;
-                offset += c.width().unwrap_or(0);
-            }
-        }
-        for _ in 0..peeked {
-            if offset > 0 {
-                offset -= 1;
-                peeked -= 1;
-            }
-        }
-
-        let mut width = 0;
-        for _ in (pos)..(r.end) {
-            if let Some(c) = chars.next() {
-                pos += 1;
-                width += c.width().unwrap_or(0);
-            }
-        }
-        if width == 0 && peeked == 0 {
-            width = 1;
-        };
-        for _ in 0..peeked {
-            if width > 1 {
-                offset -= 1;
-                peeked -= 1;
-            }
-        }
-
-        for _ in 0..offset {
-            f.write_char(' ')?;
-        }
-        f.write_str(C::ansi_start())?;
-        for _ in 0..width {
-            f.write_char('^')?;
-        }
-        f.write_str(C::ansi_end())?;
-    }
-
-    f.write_char('\n')?;
-
-    Ok(())
-}
-
-fn range_lines(string: &str) -> Vec<(Range, &str)> {
-    let mut lines = Vec::new();
-    let mut line_start = (0, 0);
-    let mut pos = (0, 0);
-    let mut pushed_line = false;
-
-    let mut chars = string.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '\r' => {
-                if !pushed_line {
-                    let range = range(line_start.0, pos.0);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
-                }
-                pushed_line = true;
-            }
-            '\n' => {
-                if !pushed_line {
-                    let range = range(line_start.0, pos.0);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
-                }
-
-                // We know these chars are 1 byte wide
-                line_start = (pos.0 + 1, pos.1 + 1);
-                pushed_line = false;
-            }
-            _ => pushed_line = false,
-        }
-
-        pos.0 += 1;
-        pos.1 = string.len() - chars.as_str().len();
-    }
-
-    if !pushed_line {
-        let range = range(line_start.0, pos.0);
-        let line = &string[line_start.1..pos.1];
-        lines.push((range, line));
-    }
-
-    lines
-}
-
-pub trait Color: Sized {
-    fn ansi_start() -> &'static str;
-    fn ansi_end() -> &'static str {
-        "\x1B[0m"
-    }
-}
-
-pub struct Red;
-impl Color for Red {
-    fn ansi_start() -> &'static str {
-        "\x1B[;31m"
-    }
-}
-
-pub struct Green;
-impl Color for Green {
-    fn ansi_start() -> &'static str {
-        "\x1B[;32m"
-    }
-}
-
-pub struct Yellow;
-impl Color for Yellow {
-    fn ansi_start() -> &'static str {
-        "\x1B[;33m"
     }
 }

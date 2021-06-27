@@ -1,15 +1,19 @@
 use std::result;
 
 pub use calc::*;
+pub use display::*;
 pub use error::*;
 pub use group::*;
 pub use parse::*;
+pub use style::*;
 pub use token::*;
 
 mod calc;
+mod display;
 mod error;
 mod group;
 mod parse;
+mod style;
 mod token;
 
 #[derive(Clone, Debug, Default, PartialEq)]

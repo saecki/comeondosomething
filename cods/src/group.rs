@@ -16,7 +16,7 @@ impl Context {
         for (i, p) in pars {
             if p.is_opening() {
                 par_stack.push((i, p));
-            } else if let Some(group_range) = self.matching_parenthesis(i, p, &mut par_stack)? {
+            } else if let Some(group_range) = self.matching_parentheses(i, p, &mut par_stack)? {
                 let prev_range = group_range.tokens_before(pos);
                 let prev_tokens = tokens[prev_range].iter().filter_map(Item::try_from);
                 items.extend(prev_tokens);
@@ -48,8 +48,8 @@ impl Context {
         Ok(items)
     }
 
-    /// Returns the indexes of parenthesis enclosing the outermost group or tokens
-    fn matching_parenthesis(
+    /// Returns the indexes of parentheses enclosing the outermost group or tokens
+    fn matching_parentheses(
         &mut self,
         close_pos: usize,
         close_par: Par,
@@ -69,7 +69,7 @@ impl Context {
             }
             Some((open_pos, open_par)) => {
                 self.warnings
-                    .push(crate::Warning::MismatchedParenthesis(open_par, close_par));
+                    .push(crate::Warning::MismatchedParentheses(open_par, close_par));
                 if par_stack.is_empty() {
                     Ok(Some(GroupRange {
                         start: open_pos + 1,
