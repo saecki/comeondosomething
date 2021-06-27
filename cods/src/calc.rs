@@ -40,6 +40,7 @@ impl Val {
         match self {
             Self::Float(f) => {
                 let i = f as i128;
+                #[allow(clippy::float_cmp)]
                 if i as f64 == f {
                     Self::Int(i)
                 } else {

@@ -43,21 +43,21 @@ pub enum Error {
 impl UserFacing<Red> for Error {
     fn description(&self) -> String {
         match self {
-            Self::Parsing(_) => format!("A parsing error occured"),
-            Self::MissingOperand(_) => format!("Missing an operand"),
-            Self::MissingOperator(_) => format!("Missing an operator"),
-            Self::MissingCommandParenthesis(_) => format!("Missing a command parenthesis"),
-            Self::MissingClosingParenthesis(_) => format!("Missing a matching closing parenthesis"),
-            Self::UnexpectedGroup(_) => format!("Found an unexpected group"),
-            Self::UnexpectedNumber(_) => format!("Found an unexpected number"),
-            Self::UnexpectedOperator(_) => format!("Found an unexpected operator"),
-            Self::UnexpectedCommand(_) => format!("Found an unexpected command"),
-            Self::UnexpectedModifier(_) => format!("Found an unexpected modifier"),
-            Self::UnexpectedParenthesis(_) => format!("Found an unexpected parenthesis"),
-            Self::InvalidNumberFormat(_) => format!("Invalid number format"),
-            Self::DivideByZero(_, _) => format!("Attempted to divide by 0"),
+            Self::Parsing(_) => "A parsing error occured".into(),
+            Self::MissingOperand(_) => "Missing an operand".into(),
+            Self::MissingOperator(_) => "Missing an operator".into(),
+            Self::MissingCommandParenthesis(_) => "Missing a command parenthesis".into(),
+            Self::MissingClosingParenthesis(_) => "Missing a matching closing parenthesis".into(),
+            Self::UnexpectedGroup(_) => "Found an unexpected group".into(),
+            Self::UnexpectedNumber(_) => "Found an unexpected number".into(),
+            Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
+            Self::UnexpectedCommand(_) => "Found an unexpected command".into(),
+            Self::UnexpectedModifier(_) => "Found an unexpected modifier".into(),
+            Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
+            Self::InvalidNumberFormat(_) => "Invalid number format".into(),
+            Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
             Self::NegativeFactorial(_) => {
-                format!("Attempted to calculate the factorial of a negative number")
+                "Attempted to calculate the factorial of a negative number".into()
             }
         }
     }
@@ -92,7 +92,7 @@ impl UserFacing<Yellow> for Warning {
     fn description(&self) -> String {
         match self {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
-            Self::MismatchedParenthesis(_, _) => format!("Parenthesis do not match"),
+            Self::MismatchedParenthesis(_, _) => "Parenthesis do not match".into(),
         }
     }
 
