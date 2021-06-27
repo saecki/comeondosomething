@@ -17,7 +17,19 @@ impl fmt::Display for Val {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Val::Int(n) => write!(f, "{}", n),
-            Val::Float(n) => write!(f, "{}", n),
+            Val::Float(n) => {
+                if n.is_infinite() {
+                    if n.is_sign_positive() {
+                        write!(f, "infinity")
+                    } else {
+                        write!(f, "-infinity")
+                    }
+                } else if n.is_nan() {
+                    write!(f, "undefined")
+                } else {
+                    write!(f, "{}", n)
+                }
+            }
             Val::TAU => write!(f, "τ"),
             Val::PI => write!(f, "π"),
             Val::E => write!(f, "e"),
