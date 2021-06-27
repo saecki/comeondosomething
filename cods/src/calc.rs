@@ -74,7 +74,7 @@ impl Calc {
         Ok(self._calc()?.val)
     }
 
-    // TODO use checked variants or arithmetic operations
+    // TODO use checked variants of arithmetic operations
     fn _calc(&self) -> crate::Result<Num> {
         match self {
             Self::Error(r) => Err(crate::Error::Parsing(*r)),
@@ -88,7 +88,7 @@ impl Calc {
             Self::Sin(a, r) => a._calc()?.sin(*r),
             Self::Cos(a, r) => a._calc()?.cos(*r),
             Self::Tan(a, r) => a._calc()?.tan(*r),
-            Self::Degree(a, r) => a._calc()?.degree(*r), // TODO add rad modifier for radiants and require a typed angle value as input for trigeometrical functions
+            Self::Degree(a, r) => a._calc()?.degree(*r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
             Self::Factorial(a, r) => a._calc()?.factorial(*r),
         }
         .map(|mut n| {
