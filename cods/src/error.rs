@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use unicode_width::UnicodeWidthChar;
 
-use crate::{range, Cmd, Group, Mod, Num, Op, Par, Range};
+use crate::{range, Num, Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -39,11 +39,7 @@ pub enum Error {
         expected: usize,
         found: usize,
     },
-    UnexpectedGroup(Group),
-    UnexpectedNumber(Num),
     UnexpectedOperator(Op),
-    UnexpectedCommand(Cmd),
-    UnexpectedModifier(Mod),
     UnexpectedParenthesis(Par),
     InvalidNumberFormat(Range),
     DivideByZero(Num, Num),
@@ -82,11 +78,7 @@ impl UserFacing<Red> for Error {
                     over, arg_s, expected, are_is, found, were_was,
                 )
             }
-            Self::UnexpectedGroup(_) => "Found an unexpected group".into(),
-            Self::UnexpectedNumber(_) => "Found an unexpected number".into(),
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
-            Self::UnexpectedCommand(_) => "Found an unexpected command".into(),
-            Self::UnexpectedModifier(_) => "Found an unexpected modifier".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
@@ -105,11 +97,7 @@ impl UserFacing<Red> for Error {
             Self::MissingClosingParenthesis(p) => vec![p.range()],
             Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
-            Self::UnexpectedGroup(g) => vec![g.range],
-            Self::UnexpectedNumber(n) => vec![n.range],
             Self::UnexpectedOperator(o) => vec![o.range()],
-            Self::UnexpectedCommand(c) => vec![c.range()],
-            Self::UnexpectedModifier(m) => vec![m.range()],
             Self::UnexpectedParenthesis(p) => vec![p.range()],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
