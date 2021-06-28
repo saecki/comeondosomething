@@ -90,10 +90,9 @@ impl UserFacing<LRed> for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     ConfusingCase(Range, &'static str),
-    NegationBehindAdd(Range, Range),
-    NegationBehindSub(Range, Range),
-    NegationBehindMul(Range, Range),
-    NegationBehindDiv(Range, Range),
+    SignFollowingAddition(Range, Range, bool, usize),
+    SignFollowingSubtraction(Range, Range, bool, usize),
+    MultipleSigns(Range, bool),
     MismatchedParentheses(Par, Par),
 }
 
@@ -101,17 +100,31 @@ impl UserFacing<LYellow> for Warning {
     fn description(&self) -> String {
         match self {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
-            Self::NegationBehindAdd(_, _) => {
-                "Negation directly behind addition, consider making this a subtraction".into()
+            Self::SignFollowingAddition(_, _, s, c) => {
+                let sign_s = if *c == 1 { "" } else { "s" };
+                let pos_neg = if *s {
+                    "consider removing them"
+                } else {
+                    "consider making this a subtraction"
+                };
+                format!("Sign{} following an addition, {}", sign_s, pos_neg)
             }
-            Self::NegationBehindSub(_, _) => {
-                "Negation directly behind subtraction, consider making this an addition".into()
+            Self::SignFollowingSubtraction(_, _, s, c) => {
+                let sign_s = if *c == 1 { "" } else { "s" };
+                let pos_neg = if *s {
+                    "consider making this an addition"
+                } else {
+                    "consider removing them"
+                };
+                format!("Sign{} following a subtraction, {}", sign_s, pos_neg)
             }
-            Self::NegationBehindMul(_, _) => {
-                "Negation directly behind multiplication, consider negating the whole term".into()
-            }
-            Self::NegationBehindDiv(_, _) => {
-                "Negation directly behind division, consider negating the whole term".into()
+            Self::MultipleSigns(_, s) => {
+                if *s {
+                    "Multiple consecutive signs canceling each other out, consider removing them"
+                        .into()
+                } else {
+                    "Multiple consecutive signs, consider using a single negation".into()
+                }
             }
             Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
         }
@@ -120,10 +133,21 @@ impl UserFacing<LYellow> for Warning {
     fn ranges(&self) -> Vec<Range> {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],
-            Self::NegationBehindAdd(r1, r2) => vec![*r1, *r2],
-            Self::NegationBehindSub(r1, r2) => vec![*r1, *r2],
-            Self::NegationBehindMul(r1, r2) => vec![*r1, *r2],
-            Self::NegationBehindDiv(r1, r2) => vec![*r1, *r2],
+            Self::SignFollowingAddition(or, sr, s, _) => {
+                if *s {
+                    vec![*sr]
+                } else {
+                    vec![*or, *sr]
+                }
+            }
+            Self::SignFollowingSubtraction(or, sr, s, _) => {
+                if *s {
+                    vec![*or, *sr]
+                } else {
+                    vec![*sr]
+                }
+            }
+            Self::MultipleSigns(r, _) => vec![*r],
             Self::MismatchedParentheses(a, b) => vec![a.range(), b.range()],
         }
     }

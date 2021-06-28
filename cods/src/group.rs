@@ -193,6 +193,10 @@ impl Item {
         }
     }
 
+    pub const fn is_op(&self) -> bool {
+        matches!(self, Self::Op(_))
+    }
+
     pub const fn is_sep(&self) -> bool {
         matches!(self, Self::Sep(_))
     }

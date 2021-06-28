@@ -14,6 +14,7 @@ fn main() {
             _ => calc_args(first, args),
         }
     } else {
+        bprintln!(LRed, "Error: missing arguments\n");
         help();
         exit(1);
     }

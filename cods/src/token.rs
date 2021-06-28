@@ -212,6 +212,37 @@ impl Op {
             Self::Pow(r) => r,
         }
     }
+
+    pub const fn sign(&self) -> Option<Sign> {
+        match self {
+            Self::Add(_) => Some(Sign::Positive),
+            Self::Sub(_) => Some(Sign::Negative),
+            Self::Mul(_) | Self::Div(_) | Self::Pow(_) => None,
+        }
+    }
+
+    pub const fn is_sign(&self) -> bool {
+        match self {
+            Self::Add(_) | Self::Sub(_) => true,
+            Self::Mul(_) | Self::Div(_) | Self::Pow(_) => false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sign {
+    Negative,
+    Positive,
+}
+
+impl Sign {
+    pub const fn is_negative(&self) -> bool {
+        matches!(self, Self::Negative)
+    }
+
+    pub const fn is_positive(&self) -> bool {
+        matches!(self, Self::Positive)
+    }
 }
 
 // TODO add asin acos and atan
