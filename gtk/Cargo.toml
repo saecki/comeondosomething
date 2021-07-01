@@ -1,0 +1,14 @@
+[package]
+name = "cods-gtk"
+version = "0.1.0"
+authors = ["Saecki <tobiasschmitz2001@gmail.com>"]
+description = "A text based calculator"
+edition = "2018"
+
+[[bin]]
+name = "cods-gtk"
+path = "src/main.rs"
+
+[dependencies]
+cods = { path = "../cods" }
+gtk4 = "0.1.0"

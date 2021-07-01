@@ -2,4 +2,5 @@
 members = [
     "cods",
     "cli",
+    "gtk",
 ]
