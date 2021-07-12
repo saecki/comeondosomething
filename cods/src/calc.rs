@@ -80,6 +80,9 @@ pub enum Calc {
     Sin(Box<Calc>, Range),
     Cos(Box<Calc>, Range),
     Tan(Box<Calc>, Range),
+    Asin(Box<Calc>, Range),
+    Acos(Box<Calc>, Range),
+    Atan(Box<Calc>, Range),
     Degree(Box<Calc>, Range),
     Factorial(Box<Calc>, Range),
 }
@@ -106,6 +109,9 @@ impl Calc {
             Self::Sin(a, r) => sin(a.calc_num()?, *r),
             Self::Cos(a, r) => cos(a.calc_num()?, *r),
             Self::Tan(a, r) => tan(a.calc_num()?, *r),
+            Self::Asin(a, r) => asin(a.calc_num()?, *r),
+            Self::Acos(a, r) => acos(a.calc_num()?, *r),
+            Self::Atan(a, r) => atan(a.calc_num()?, *r),
             Self::Degree(a, r) => degree(a.calc_num()?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
             Self::Factorial(a, r) => factorial(a.calc_num()?, *r),
         }
@@ -225,6 +231,21 @@ pub fn cos(n: Num, range: Range) -> crate::Result<Num> {
 
 pub fn tan(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().tan());
+    Ok(Num { val, range })
+}
+
+pub fn asin(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().asin());
+    Ok(Num { val, range })
+}
+
+pub fn acos(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().acos());
+    Ok(Num { val, range })
+}
+
+pub fn atan(n: Num, range: Range) -> crate::Result<Num> {
+    let val = Val::Float(n.val.to_f64().atan());
     Ok(Num { val, range })
 }
 

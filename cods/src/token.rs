@@ -82,6 +82,9 @@ impl Context {
                     "sin" => Token::Cmd(Cmd::Sin(range)),
                     "cos" => Token::Cmd(Cmd::Cos(range)),
                     "tan" => Token::Cmd(Cmd::Tan(range)),
+                    "asin" => Token::Cmd(Cmd::Asin(range)),
+                    "acos" => Token::Cmd(Cmd::Acos(range)),
+                    "atan" => Token::Cmd(Cmd::Atan(range)),
                     "π" | "pi" => Token::Num(Num {
                         val: Val::PI,
                         range,
@@ -255,6 +258,9 @@ pub enum Cmd {
     Sin(Range),
     Cos(Range),
     Tan(Range),
+    Asin(Range),
+    Acos(Range),
+    Atan(Range),
 }
 
 impl Cmd {
@@ -267,6 +273,9 @@ impl Cmd {
             Self::Sin(r) => r,
             Self::Cos(r) => r,
             Self::Tan(r) => r,
+            Self::Asin(r) => r,
+            Self::Acos(r) => r,
+            Self::Atan(r) => r,
         }
     }
 }

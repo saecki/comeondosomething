@@ -188,6 +188,18 @@ impl Context {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Tan(Box::new(val), range)
                             }
+                            Cmd::Asin(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Asin(Box::new(val), range)
+                            }
+                            Cmd::Acos(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Acos(Box::new(val), range)
+                            }
+                            Cmd::Atan(_) => {
+                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Atan(Box::new(val), range)
+                            }
                         })
                     }
                     i => {
