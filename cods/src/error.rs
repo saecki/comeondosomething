@@ -51,7 +51,7 @@ impl UserFacing<LRed> for Error {
                 expected, found, ..
             } => {
                 let over = found - expected;
-                let arg_s = if over == 1 { "s" } else { "" };
+                let arg_s = if over == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
                 format!(
