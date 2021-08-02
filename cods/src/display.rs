@@ -94,7 +94,7 @@ fn mark_ranges<C: Color>(
         }
 
         let mut width = 0;
-        for _ in (pos)..(r.end) {
+        for _ in pos..(r.end) {
             if let Some(c) = chars.next() {
                 pos += 1;
                 width += c.width().unwrap_or(0);

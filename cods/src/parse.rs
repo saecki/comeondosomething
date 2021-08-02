@@ -48,32 +48,32 @@ impl Context {
 
         if let Some(&(last_i, last_o)) = ops.last() {
             let mut i = last_i;
-            let mut o = last_o;
+            let mut op = last_o;
             let mut sign = true;
 
-            while let Some(s) = o.sign() {
+            while let Some(s) = op.sign() {
                 if s.is_negative() {
                     sign = !sign;
                 }
 
                 if i == 0 {
                     let a = &items[(last_i + 1)..];
-                    let ra = items_range(a).unwrap_or_else(|| range(o.range().end, r.end));
+                    let ra = items_range(a).unwrap_or_else(|| range(op.range().end, r.end));
                     let ca = self.parse_items(ra, a)?;
 
                     if last_i != i {
-                        let sign_range = span(o.range(), last_o.range());
+                        let sign_range = span(op.range(), last_o.range());
                         self.warnings.push(Warning::MultipleSigns(sign_range, sign));
                     }
 
                     if sign {
                         return Ok(ca);
                     } else {
-                        return Ok(Calc::Neg(Box::new(ca), span(o.range(), ra)));
+                        return Ok(Calc::Neg(Box::new(ca), span(op.range(), ra)));
                     }
-                } else if let Some(op) = items[i - 1].op() {
+                } else if let Some(o) = items[i - 1].op() {
                     i -= 1;
-                    o = op;
+                    op = o;
                 } else {
                     break;
                 }
@@ -81,15 +81,15 @@ impl Context {
 
             if last_i != i {
                 let sign_range = span(items[i + 1].range(), last_o.range());
-                match o {
+                match op {
                     Op::Add(_) => self.warnings.push(Warning::SignFollowingAddition(
-                        o.range(),
+                        op.range(),
                         sign_range,
                         sign,
                         last_i - i,
                     )),
                     Op::Sub(_) => self.warnings.push(Warning::SignFollowingSubtraction(
-                        o.range(),
+                        op.range(),
                         sign_range,
                         sign,
                         last_i - i,
@@ -101,14 +101,14 @@ impl Context {
             }
 
             let a = &items[0..i];
-            let ra = items_range(a).unwrap_or_else(|| range(r.start, o.range().start));
+            let ra = items_range(a).unwrap_or_else(|| range(r.start, op.range().start));
             let ca = Box::new(self.parse_items(ra, a)?);
 
             let b = &items[(last_i + 1)..];
-            let rb = items_range(b).unwrap_or_else(|| range(o.range().end, r.end));
+            let rb = items_range(b).unwrap_or_else(|| range(op.range().end, r.end));
             let cb = Box::new(self.parse_items(rb, b)?);
 
-            return match o {
+            return match op {
                 Op::Add(_) | Op::Sub(_) => {
                     if sign {
                         Ok(Calc::Add(ca, cb))
@@ -122,7 +122,7 @@ impl Context {
                     } else {
                         Box::new(Calc::Neg(cb, rb))
                     };
-                    match o {
+                    match op {
                         Op::Add(_) | Op::Sub(_) => unreachable!(),
                         Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
                         Op::Div(_) => Ok(Calc::Div(ca, cb)),
