@@ -49,7 +49,7 @@ impl<U: UserFacing<C>, C: Color> fmt::Display for DisplayUserFacing<'_, U, C> {
 
         write!(
             f,
-            "   {blue}|{esc} {col}{desc}{esc}",
+            "   {blue}│{esc} {col}{desc}{esc}",
             desc = self.error.description(),
             col = C::bold(),
             blue = LBlue::bold(),
