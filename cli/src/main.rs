@@ -1,7 +1,8 @@
 use std::env::args;
+use std::io;
 use std::process::exit;
 
-use cods::{bprintln, Color, DGreen, DYellow, LRed, UserFacing, ANSI_ESC};
+use cods::{bprintln, Color, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC};
 
 fn main() {
     let mut args = args().skip(1);
@@ -21,7 +22,26 @@ fn main() {
 }
 
 fn repl() {
-    bprintln!(LRed, "A repl is not yet implemented");
+    bprintln!(
+        LBlue,
+        "Started interactive repl (read interpret print loop)"
+    );
+
+    let input = io::stdin();
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        if input.read_line(&mut buf).is_err() {
+            bprintln!(LRed, "Error reading line");
+            continue;
+        }
+
+        if buf.lines().next().map(|s| s.trim()) == Some("exit") {
+            break;
+        }
+
+        print_calc(&buf);
+    }
 }
 
 fn calc_file(path: Option<String>) {
