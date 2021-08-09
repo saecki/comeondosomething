@@ -59,11 +59,7 @@ fn calc_file(path: Option<String>) {
 }
 
 fn calc_args(first: String, args: impl Iterator<Item = String>) {
-    let input = args.fold(first, |mut a, b| {
-        a.push(' ');
-        a.push_str(&b);
-        a
-    });
+    let input = args.fold(first, |a, b| a + " " + &b);
 
     print_calc(&input);
 }
