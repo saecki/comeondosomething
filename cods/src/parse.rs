@@ -265,8 +265,12 @@ impl Context {
                 found: parsed_args,
             });
         } else if parsed_args < COUNT {
+            let range = match items.last() {
+                Some(i) => range(i.range().end, r.end),
+                None => pos(r.end),
+            };
             self.errors.push(crate::Error::MissingCommandArguments {
-                range: pos(r.end),
+                range,
                 expected: COUNT,
                 found: parsed_args,
             });
