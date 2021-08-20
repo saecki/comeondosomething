@@ -94,6 +94,7 @@ pub enum Warning {
     SignFollowingSubtraction(Range, Range, bool, usize),
     MultipleSigns(Range, bool),
     MismatchedParentheses(Par, Par),
+    ConfusingCommandParentheses(Range),
 }
 
 impl UserFacing<LYellow> for Warning {
@@ -127,6 +128,7 @@ impl UserFacing<LYellow> for Warning {
                 }
             }
             Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
+            Self::ConfusingCommandParentheses(_) => "Commands should use round parentheses".into(),
         }
     }
 
@@ -149,6 +151,7 @@ impl UserFacing<LYellow> for Warning {
             }
             Self::MultipleSigns(r, _) => vec![*r],
             Self::MismatchedParentheses(a, b) => vec![a.range(), b.range()],
+            Self::ConfusingCommandParentheses(r) => vec![*r],
         }
     }
 }

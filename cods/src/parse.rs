@@ -1,31 +1,29 @@
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-use crate::{
-    between, items_range, pos, range, span, Calc, Cmd, Context, Item, Mod, Op, Range, Warning,
-};
+use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Warning};
 
 impl Context {
     pub fn parse(&mut self, items: &[Item]) -> crate::Result<Calc> {
-        let r = items_range(items).unwrap_or_else(|| pos(0));
+        let r = items_range(items).unwrap_or_else(|| Range::pos(0));
         self.parse_items(r, items)
     }
 
-    fn parse_items(&mut self, r: Range, items: &[Item]) -> crate::Result<Calc> {
+    fn parse_items(&mut self, range: Range, items: &[Item]) -> crate::Result<Calc> {
         if items.is_empty() {
-            self.errors.push(crate::Error::MissingOperand(r));
-            return Ok(Calc::Error(r));
+            self.errors.push(crate::Error::MissingOperand(range));
+            return Ok(Calc::Error(range));
         } else if items.len() == 1 {
             let err = match &items[0] {
                 Item::Group(g) => return self.parse_items(g.range, &g.items),
                 Item::Num(n) => return Ok(Calc::Num(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
-                Item::Cmd(c) => crate::Error::MissingOperand(pos(c.range().end)),
-                Item::Mod(m) => crate::Error::MissingOperand(pos(m.range().start)),
-                Item::Sep(s) => crate::Error::MissingOperand(pos(s.range().start)),
+                Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range().end)),
+                Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range().start)),
+                Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range().start)),
             };
             self.errors.push(err);
-            return Ok(Calc::Error(r));
+            return Ok(Calc::Error(range));
         }
 
         let mut ops: Vec<_> = items
@@ -58,18 +56,18 @@ impl Context {
 
                 if i == 0 {
                     let a = &items[(last_i + 1)..];
-                    let ra = items_range(a).unwrap_or_else(|| range(op.range().end, r.end));
+                    let ra = items_range(a).unwrap_or_else(|| Range::of(op.range().end, range.end));
                     let ca = self.parse_items(ra, a)?;
 
                     if last_i != i {
-                        let sign_range = span(op.range(), last_o.range());
+                        let sign_range = Range::span(op.range(), last_o.range());
                         self.warnings.push(Warning::MultipleSigns(sign_range, sign));
                     }
 
                     if sign {
                         return Ok(ca);
                     } else {
-                        return Ok(Calc::Neg(Box::new(ca), span(op.range(), ra)));
+                        return Ok(Calc::Neg(Box::new(ca), Range::span(op.range(), ra)));
                     }
                 } else if let Some(o) = items[i - 1].op() {
                     i -= 1;
@@ -80,7 +78,7 @@ impl Context {
             }
 
             if last_i != i {
-                let sign_range = span(items[i + 1].range(), last_o.range());
+                let sign_range = Range::span(items[i + 1].range(), last_o.range());
                 match op {
                     Op::Add(_) => self.warnings.push(Warning::SignFollowingAddition(
                         op.range(),
@@ -101,11 +99,11 @@ impl Context {
             }
 
             let a = &items[0..i];
-            let ra = items_range(a).unwrap_or_else(|| range(r.start, op.range().start));
+            let ra = items_range(a).unwrap_or_else(|| Range::of(range.start, op.range().start));
             let ca = Box::new(self.parse_items(ra, a)?);
 
             let b = &items[(last_i + 1)..];
-            let rb = items_range(b).unwrap_or_else(|| range(op.range().end, r.end));
+            let rb = items_range(b).unwrap_or_else(|| Range::of(op.range().end, range.end));
             let cb = Box::new(self.parse_items(rb, b)?);
 
             return match op {
@@ -126,7 +124,7 @@ impl Context {
                         Op::Add(_) | Op::Sub(_) => unreachable!(),
                         Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
                         Op::Div(_) => Ok(Calc::Div(ca, cb)),
-                        Op::Pow(_) => Ok(Calc::Pow(ca, cb, span(ra, rb))),
+                        Op::Pow(_) => Ok(Calc::Pow(ca, cb, Range::span(ra, rb))),
                     }
                 }
             };
@@ -139,13 +137,13 @@ impl Context {
 
         if let Some((i, m)) = modifier {
             let a = &items[0..i];
-            let ar = items_range(a).unwrap_or_else(|| range(r.start, m.range().start));
+            let ar = items_range(a).unwrap_or_else(|| Range::of(range.start, m.range().start));
             let ac = Box::new(self.parse_items(ar, a)?);
 
             if let Some(i) = items.get(i + 1) {
-                let range = between(m.range(), i.range());
-                self.errors.push(crate::Error::MissingOperator(range));
-                return Ok(Calc::Error(r));
+                let r = Range::between(m.range(), i.range());
+                self.errors.push(crate::Error::MissingOperator(r));
+                return Ok(Calc::Error(range));
             }
 
             return Ok(match m {
@@ -158,86 +156,91 @@ impl Context {
             if let Item::Cmd(cmd) = items[0] {
                 return match &items[1] {
                     Item::Group(g) => {
-                        let range = span(cmd.range(), g.range);
+                        if g.par_type != ParType::Round {
+                            self.warnings
+                                .push(crate::Warning::ConfusingCommandParentheses(g.range));
+                        }
+
+                        let r = Range::span(cmd.range(), g.range);
                         Ok(match cmd {
                             Cmd::Pow(_) => {
                                 let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Pow(Box::new(base), Box::new(exp), range)
+                                Calc::Pow(Box::new(base), Box::new(exp), r)
                             }
                             Cmd::Ln(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Ln(Box::new(val), range)
+                                Calc::Ln(Box::new(val), r)
                             }
                             Cmd::Log(_) => {
                                 let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Log(Box::new(base), Box::new(val), range)
+                                Calc::Log(Box::new(base), Box::new(val), r)
                             }
                             Cmd::Sqrt(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Sqrt(Box::new(val), range)
+                                Calc::Sqrt(Box::new(val), r)
                             }
                             Cmd::Sin(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Sin(Box::new(val), range)
+                                Calc::Sin(Box::new(val), r)
                             }
                             Cmd::Cos(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Cos(Box::new(val), range)
+                                Calc::Cos(Box::new(val), r)
                             }
                             Cmd::Tan(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Tan(Box::new(val), range)
+                                Calc::Tan(Box::new(val), r)
                             }
                             Cmd::Asin(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Asin(Box::new(val), range)
+                                Calc::Asin(Box::new(val), r)
                             }
                             Cmd::Acos(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Acos(Box::new(val), range)
+                                Calc::Acos(Box::new(val), r)
                             }
                             Cmd::Atan(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::Atan(Box::new(val), range)
+                                Calc::Atan(Box::new(val), r)
                             }
                         })
                     }
                     i => {
-                        let range = range(cmd.range().end, i.range().start);
+                        let range = Range::of(cmd.range().end, i.range().start);
                         self.errors
                             .push(crate::Error::MissingCommandParenthesis(range));
-                        Ok(Calc::Error(r))
+                        Ok(Calc::Error(range))
                     }
                 };
             }
         }
 
-        self.errors.push(crate::Error::MissingOperator(range(
+        self.errors.push(crate::Error::MissingOperator(Range::of(
             items[0].range().end,
             items[1].range().start,
         )));
-        Ok(Calc::Error(r))
+        Ok(Calc::Error(range))
     }
 
     fn parse_cmd_args<const COUNT: usize>(
         &mut self,
-        r: Range,
+        range: Range,
         items: &[Item],
     ) -> crate::Result<[Calc; COUNT]> {
-        let mut args: [Calc; COUNT] = array_of(|_| Calc::Error(r));
+        let mut args: [Calc; COUNT] = array_of(|_| Calc::Error(range));
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
-        let mut start = (0, r.start);
+        let mut start = (0, range.start);
         let mut ti = 0;
 
         for i in items.iter() {
             if let Some(s) = i.sep() {
-                let range = range(start.1, s.range().start);
+                let r = Range::of(start.1, s.range().start);
                 if parsed_args < COUNT {
                     let is = &items[(start.0)..ti];
-                    args[parsed_args] = self.parse_items(range, is)?;
+                    args[parsed_args] = self.parse_items(r, is)?;
                 } else {
-                    unexpected_args.push(range);
+                    unexpected_args.push(r);
                 }
                 start = (ti + 1, s.range().end);
                 parsed_args += 1;
@@ -247,12 +250,12 @@ impl Context {
 
         if let Some(i) = items.last() {
             if !i.is_sep() {
-                let range = range(start.1, r.end);
+                let r = Range::of(start.1, range.end);
                 if parsed_args < COUNT {
                     let is = &items[(start.0)..ti];
-                    args[parsed_args] = self.parse_items(range, is)?;
+                    args[parsed_args] = self.parse_items(r, is)?;
                 } else {
-                    unexpected_args.push(range);
+                    unexpected_args.push(r);
                 }
                 parsed_args += 1;
             }
@@ -266,8 +269,8 @@ impl Context {
             });
         } else if parsed_args < COUNT {
             let range = match items.last() {
-                Some(i) => range(i.range().end, r.end),
-                None => pos(r.end),
+                Some(i) => Range::of(i.range().end, range.end),
+                None => Range::pos(range.end),
             };
             self.errors.push(crate::Error::MissingCommandArguments {
                 range,

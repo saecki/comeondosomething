@@ -33,7 +33,7 @@ impl Context {
         let mut state = Tokenizer::default();
 
         for c in string.chars() {
-            let range = pos(state.char_index);
+            let range = Range::pos(state.char_index);
             match c {
                 ' ' | '\n' | '\r' => self.complete_literal(&mut state)?,
                 '+' => self.new_token(&mut state, Token::Op(Op::Add(range)))?,
@@ -45,8 +45,10 @@ impl Context {
                 '^' => self.new_token(&mut state, Token::Op(Op::Pow(range)))?,
                 '(' => self.new_token(&mut state, Token::Par(Par::RoundOpen(range)))?,
                 '[' => self.new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
+                '{' => self.new_token(&mut state, Token::Par(Par::CurlyOpen(range)))?,
                 ')' => self.new_token(&mut state, Token::Par(Par::RoundClose(range)))?,
                 ']' => self.new_token(&mut state, Token::Par(Par::SquareClose(range)))?,
+                '}' => self.new_token(&mut state, Token::Par(Par::CurlyClose(range)))?,
                 ',' => self.new_token(&mut state, Token::Sep(Sep::Comma(range)))?,
                 '_' | '\'' => (), // visual separator
                 c => state.literal.push(c),
@@ -68,7 +70,7 @@ impl Context {
     fn complete_literal(&mut self, state: &mut Tokenizer) -> crate::Result<()> {
         if !state.literal.is_empty() {
             let start = state.char_index - state.literal.chars().count();
-            let range = range(start, state.char_index);
+            let range = Range::of(start, state.char_index);
 
             let literal = &state.literal;
             let token = match_warn_case! {
@@ -184,7 +186,7 @@ pub struct Num {
 pub const fn num(val: Val, start: usize, end: usize) -> Num {
     Num {
         val,
-        range: range(start, end),
+        range: Range::of(start, end),
     }
 }
 
@@ -301,13 +303,15 @@ pub enum Par {
     RoundClose(Range),
     SquareOpen(Range),
     SquareClose(Range),
+    CurlyOpen(Range),
+    CurlyClose(Range),
 }
 
 impl Par {
     pub const fn is_opening(&self) -> bool {
         match self {
-            Self::SquareOpen(_) | Self::RoundOpen(_) => true,
-            Self::SquareClose(_) | Self::RoundClose(_) => false,
+            Self::RoundOpen(_) | Self::SquareOpen(_) | Self::CurlyOpen(_) => true,
+            Self::RoundClose(_) | Self::SquareClose(_) | Self::CurlyClose(_) => false,
         }
     }
 
@@ -317,6 +321,8 @@ impl Par {
             Self::RoundClose(_) => matches!(other, Par::RoundOpen(_)),
             Self::SquareOpen(_) => matches!(other, Par::SquareClose(_)),
             Self::SquareClose(_) => matches!(other, Par::SquareOpen(_)),
+            Self::CurlyOpen(_) => matches!(other, Par::CurlyClose(_)),
+            Self::CurlyClose(_) => matches!(other, Par::CurlyOpen(_)),
         }
     }
 
@@ -326,8 +332,26 @@ impl Par {
             Self::RoundClose(r) => r,
             Self::SquareOpen(r) => r,
             Self::SquareClose(r) => r,
+            Self::CurlyOpen(r) => r,
+            Self::CurlyClose(r) => r,
         }
     }
+
+    pub const fn par_type(&self) -> ParType {
+        match self {
+            Self::RoundOpen(_) | Self::RoundClose(_) => ParType::Round,
+            Self::SquareOpen(_) | Self::SquareClose(_) => ParType::Square,
+            Self::CurlyOpen(_) | Self::CurlyClose(_) => ParType::Curly,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ParType {
+    Round,
+    Square,
+    Curly,
+    Mixed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -351,6 +375,22 @@ pub struct Range {
 }
 
 impl Range {
+    pub const fn of(start: usize, end: usize) -> Range {
+        Range { start, end }
+    }
+
+    pub const fn span(a: Range, b: Range) -> Range {
+        Self::of(a.start, b.end)
+    }
+
+    pub const fn between(a: Range, b: Range) -> Range {
+        Self::of(a.end, b.start)
+    }
+
+    pub const fn pos(pos: usize) -> Range {
+        Self::of(pos, pos + 1)
+    }
+
     pub const fn len(&self) -> usize {
         self.end - self.start
     }
@@ -368,22 +408,6 @@ impl Range {
     }
 }
 
-pub const fn range(start: usize, end: usize) -> Range {
-    Range { start, end }
-}
-
-pub const fn span(a: Range, b: Range) -> Range {
-    range(a.start, b.end)
-}
-
-pub const fn between(a: Range, b: Range) -> Range {
-    range(a.end, b.start)
-}
-
-pub const fn pos(pos: usize) -> Range {
-    range(pos, pos + 1)
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -394,7 +418,7 @@ mod test {
             "432.432 + 24324.543",
             vec![
                 Token::Num(num(Val::Float(432.432), 0, 7)),
-                Token::Op(Op::Add(pos(8))),
+                Token::Op(Op::Add(Range::pos(8))),
                 Token::Num(num(Val::Float(24324.543), 10, 19)),
             ],
         );
@@ -406,7 +430,7 @@ mod test {
             "604.453 *3562.543",
             vec![
                 Token::Num(num(Val::Float(604.453), 0, 7)),
-                Token::Op(Op::Mul(pos(8))),
+                Token::Op(Op::Mul(Range::pos(8))),
                 Token::Num(num(Val::Float(3562.543), 9, 17)),
             ],
         );
@@ -417,12 +441,12 @@ mod test {
         check(
             "(32+ 604.453)* 3562.543",
             vec![
-                Token::Par(Par::RoundOpen(pos(0))),
+                Token::Par(Par::RoundOpen(Range::pos(0))),
                 Token::Num(num(Val::Int(32), 1, 3)),
-                Token::Op(Op::Add(pos(3))),
+                Token::Op(Op::Add(Range::pos(3))),
                 Token::Num(num(Val::Float(604.453), 5, 12)),
-                Token::Par(Par::RoundClose(pos(12))),
-                Token::Op(Op::Mul(pos(13))),
+                Token::Par(Par::RoundClose(Range::pos(12))),
+                Token::Op(Op::Mul(Range::pos(13))),
                 Token::Num(num(Val::Float(3562.543), 15, 23)),
             ],
         );

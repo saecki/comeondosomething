@@ -84,10 +84,7 @@ fn print_calc(input: &str) {
     match cods::calc(input) {
         Ok((v, warnings)) => {
             for w in warnings.iter() {
-                println!("{}", w.display(input));
-            }
-            if !warnings.is_empty() {
-                println!();
+                println!("{}\n", w.display(input));
             }
             println!("= {}", v);
         }

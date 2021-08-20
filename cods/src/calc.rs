@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::f64::consts;
 use std::fmt;
 
-use crate::{span, Num, Range};
+use crate::{Num, Range};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Val {
@@ -135,7 +135,7 @@ pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
         (Val::Int(a), Val::Int(b)) => Val::Int(a + b),
         (a, b) => Val::Float(a.to_f64() + b.to_f64()),
     };
-    let range = span(n1.range, n2.range);
+    let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
 }
 
@@ -144,7 +144,7 @@ pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
         (Val::Int(a), Val::Int(b)) => Val::Int(a - b),
         (a, b) => Val::Float(a.to_f64() - b.to_f64()),
     };
-    let range = span(n1.range, n2.range);
+    let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
 }
 
@@ -153,7 +153,7 @@ pub fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
         (Val::Int(a), Val::Int(b)) => Val::Int(a * b),
         (a, b) => Val::Float(a.to_f64() * b.to_f64()),
     };
-    let range = span(n1.range, n2.range);
+    let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
 }
 
@@ -177,7 +177,7 @@ pub fn div(n1: Num, n2: Num) -> crate::Result<Num> {
             }
         }
     };
-    let range = span(n1.range, n2.range);
+    let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
 }
 

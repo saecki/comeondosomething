@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{range, Cmd, Context, Mod, Num, Op, Par, Range, Sep, Token};
+use crate::{Cmd, Context, Mod, Num, Op, Par, ParType, Range, Sep, Token};
 
 impl Context {
     pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
@@ -24,6 +24,7 @@ impl Context {
                 items.push(Item::Group(Group {
                     items: self.group(&tokens[group_range.tokens()])?,
                     range: group_range.chars(tokens),
+                    par_type: group_range.par_type,
                 }));
                 pos = group_range.tokens_after(0).start;
             }
@@ -35,10 +36,11 @@ impl Context {
             let prev_tokens = tokens[pos..i].iter().filter_map(Item::try_from);
             items.extend(prev_tokens);
 
-            let range = range(p.range().end, tokens.last().unwrap().range().end);
+            let range = Range::of(p.range().end, tokens.last().unwrap().range().end);
             items.push(Item::Group(Group {
                 items: self.group(&tokens[(i + 1)..])?,
                 range,
+                par_type: p.par_type(),
             }));
         } else {
             let remaining_tokens = tokens[pos..].iter().filter_map(Item::try_from);
@@ -48,7 +50,7 @@ impl Context {
         Ok(items)
     }
 
-    /// Returns the indexes of parentheses enclosing the outermost group or tokens
+    /// Returns the indices of parentheses enclosing the outermost group or tokens
     fn matching_parentheses(
         &mut self,
         close_pos: usize,
@@ -60,8 +62,10 @@ impl Context {
                 if par_stack.is_empty() {
                     Ok(Some(GroupRange {
                         start: open_pos + 1,
+                        missing_start_par: false,
                         end: close_pos,
-                        ..Default::default()
+                        missing_end_par: false,
+                        par_type: open_par.par_type(),
                     }))
                 } else {
                     Ok(None)
@@ -73,8 +77,10 @@ impl Context {
                 if par_stack.is_empty() {
                     Ok(Some(GroupRange {
                         start: open_pos + 1,
+                        missing_start_par: false,
                         end: close_pos,
-                        ..Default::default()
+                        missing_end_par: false,
+                        par_type: ParType::Mixed,
                     }))
                 } else {
                     Ok(None)
@@ -88,13 +94,13 @@ impl Context {
                     start: 0,
                     missing_end_par: false,
                     end: close_pos,
+                    par_type: close_par.par_type(),
                 }))
             }
         }
     }
 }
 
-#[derive(Default)]
 /// A range of token indices inside a group
 struct GroupRange {
     missing_start_par: bool,
@@ -103,6 +109,7 @@ struct GroupRange {
     missing_end_par: bool,
     /// excluding
     end: usize,
+    par_type: ParType,
 }
 
 impl GroupRange {
@@ -139,7 +146,7 @@ impl GroupRange {
             tokens[self.end].range().start
         };
 
-        range(start, end)
+        Range::of(start, end)
     }
 }
 
@@ -218,7 +225,7 @@ pub fn items_range(items: &[Item]) -> Option<Range> {
     let last = items.last().map(|i| i.range());
 
     match (first, last) {
-        (Some(f), Some(l)) => Some(range(f.start, l.end)),
+        (Some(f), Some(l)) => Some(Range::of(f.start, l.end)),
         _ => None,
     }
 }
@@ -227,18 +234,20 @@ pub fn items_range(items: &[Item]) -> Option<Range> {
 pub struct Group {
     pub items: Vec<Item>,
     pub range: Range,
+    pub par_type: ParType,
 }
 
-pub const fn group(items: Vec<Item>, start: usize, end: usize) -> Group {
+pub const fn group(items: Vec<Item>, start: usize, end: usize, par: ParType) -> Group {
     Group {
         items,
-        range: range(start, end),
+        range: Range::of(start, end),
+        par_type: par,
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{num, pos, Op, Val};
+    use crate::{num, Op, Range, Val};
 
     use super::*;
 
@@ -252,7 +261,7 @@ mod test {
             items,
             vec![
                 Item::Num(num(Val::Float(423.42), 0, 6)),
-                Item::Op(Op::Mul(pos(7))),
+                Item::Op(Op::Mul(Range::pos(7))),
                 Item::Num(num(Val::Float(64.52), 9, 14)),
             ]
         );
@@ -270,13 +279,14 @@ mod test {
                 Item::Group(group(
                     vec![
                         Item::Num(num(Val::Float(23.13), 1, 6)),
-                        Item::Op(Op::Add(pos(7))),
+                        Item::Op(Op::Add(Range::pos(7))),
                         Item::Num(num(Val::Float(543.23), 9, 15))
                     ],
                     1,
                     15,
+                    ParType::Round,
                 )),
-                Item::Op(Op::Mul(pos(17))),
+                Item::Op(Op::Mul(Range::pos(17))),
                 Item::Num(num(Val::Int(34), 19, 21)),
             ]
         );

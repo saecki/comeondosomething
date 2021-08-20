@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use unicode_width::UnicodeWidthChar;
 
-use crate::{range, Color, LBlue, Range, ANSI_ESC};
+use crate::{Color, LBlue, Range, ANSI_ESC};
 
 pub trait UserFacing<C: Color>: Sized + fmt::Debug {
     fn description(&self) -> String;
@@ -38,7 +38,7 @@ impl<U: UserFacing<C>, C: Color> fmt::Display for DisplayUserFacing<'_, U, C> {
                 .map(|r| {
                     let ms = r.start.saturating_sub(lr.start);
                     let me = min(r.end.saturating_sub(lr.start), lr.len());
-                    range(ms, me)
+                    Range::of(ms, me)
                 })
                 .collect();
 
@@ -141,7 +141,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     while let Some(c) = chars.next() {
         match c {
             NEW_LINE_CHAR => {
-                let range = range(line_start.0, pos.0 + 1);
+                let range = Range::of(line_start.0, pos.0 + 1);
                 let line = &string[line_start.1..pos.1];
                 lines.push((range, line));
 
@@ -157,7 +157,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     }
 
     if !pushed_line {
-        let range = range(line_start.0, pos.0 + 1);
+        let range = Range::of(line_start.0, pos.0 + 1);
         let line = &string[line_start.1..pos.1];
         lines.push((range, line));
     }
