@@ -125,45 +125,25 @@ fn mark_ranges<C: Color>(
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
 fn range_lines(string: &str) -> Vec<(Range, &str)> {
     let mut lines = Vec::new();
     let mut line_start = (0, 0);
     let mut pos = (0, 0);
-    let mut pushed_line = false;
 
     let mut chars = string.chars();
     while let Some(c) = chars.next() {
-        match c {
-            '\r' => {
-                if !pushed_line {
-                    let range = range(line_start.0, pos.0 + 1);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
-                }
-                pushed_line = true;
-            }
-            '\n' => {
-                if !pushed_line {
-                    let range = range(line_start.0, pos.0 + 1);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
-                }
+        if c == '\n' {
+            let range = range(line_start.0, pos.0 + 1);
+            let line = &string[line_start.1..pos.1];
+            lines.push((range, line));
 
-                // We know this char is 1 byte wide
-                line_start = (pos.0 + 1, pos.1 + 1);
-                pushed_line = false;
-            }
-            _ => pushed_line = false,
+            // We know this char is 1 byte wide
+            line_start = (pos.0 + 1, pos.1 + 1);
         }
 
         pos.0 += 1;
         pos.1 = string.len() - chars.as_str().len();
-    }
-
-    if !pushed_line {
-        let range = range(line_start.0, pos.0 + 1);
-        let line = &string[line_start.1..pos.1];
-        lines.push((range, line));
     }
 
     lines
