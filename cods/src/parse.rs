@@ -158,7 +158,11 @@ impl Context {
                     Item::Group(g) => {
                         if g.par_type != ParType::Round {
                             self.warnings
-                                .push(crate::Warning::ConfusingCommandParentheses(g.range));
+                                .push(crate::Warning::ConfusingCommandParentheses {
+                                    cmd,
+                                    open_par: Range::pos(g.range.start - 1),
+                                    close_par: Range::pos(g.range.end),
+                                });
                         }
 
                         let r = Range::span(cmd.range(), g.range);
