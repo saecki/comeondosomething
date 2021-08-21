@@ -55,7 +55,7 @@ fn calc_file(path: Option<String>) {
 
     match std::fs::read_to_string(&p) {
         Ok(input) => {
-            let calcs = split_separator_lines(&input);
+            let calcs = separate_lines(&input);
             let mut iter = calcs.iter().enumerate().peekable();
             while let Some((i, c)) = iter.next() {
                 println!("# {}", i + 1);
@@ -72,6 +72,67 @@ fn calc_file(path: Option<String>) {
             exit(1);
         }
     }
+}
+
+fn separate_lines(string: &str) -> Vec<&str> {
+    let mut calcs = Vec::new();
+    let mut line_start = 0;
+    let mut last_line_end = 0;
+    let mut last_line_start = 0;
+    let mut pos = 0;
+    let mut pushed_str = false;
+
+    let mut chars = string.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\r' => {
+                let line = &string[(last_line_end + 1)..pos];
+
+                if line == "---" {
+                    let calc = &string[line_start..last_line_end];
+                    calcs.push(calc);
+
+                    line_start = pos + 1;
+                    pushed_str = true;
+                }
+
+                last_line_end = pos;
+            }
+            '\n' => {
+                if !pushed_str {
+                    let line = &string[(last_line_start)..pos];
+
+                    if line == "---" {
+                        let calc = &string[line_start..last_line_end];
+                        calcs.push(calc);
+
+                        line_start = pos + 1;
+                        pushed_str = true;
+                    }
+
+                    last_line_end = pos;
+                }
+
+                last_line_start = pos + 1;
+            }
+            _ => pushed_str = false,
+        }
+
+        pos = string.len() - chars.as_str().len();
+    }
+
+    if !pushed_str {
+        let line = &string[(last_line_end + 1)..pos];
+
+        let calc = if line == "---" {
+            &string[line_start..last_line_end]
+        } else {
+            &string[line_start..pos]
+        };
+        calcs.push(calc);
+    }
+
+    calcs
 }
 
 fn calc_args(first: String, args: impl Iterator<Item = String>) {
@@ -94,30 +155,6 @@ fn print_calc(input: &str) {
             }
         }
     }
-}
-
-#[cfg(target_os = "linux")]
-pub fn split_separator_lines(string: &str) -> Vec<&str> {
-    let mut lines = Vec::new();
-    let mut line_start = 0;
-    let mut pos = 0;
-
-    let mut chars = string.chars();
-    while let Some(c) = chars.next() {
-        if c == '\n' {
-            let line = &string[line_start..pos];
-            if line != "---" {
-                lines.push(line);
-            }
-
-            // We know this char is 1 byte wide
-            line_start = pos + 1;
-        }
-
-        pos = string.len() - chars.as_str().len();
-    }
-
-    lines
 }
 
 fn help() {

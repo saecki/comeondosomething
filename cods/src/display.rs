@@ -125,47 +125,6 @@ fn mark_ranges<C: Color>(
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
-const NEW_LINE_CHAR: char = '\r';
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const NEW_LINE_CHAR: char = '\n';
-
-#[cfg(not(target_os = "windows"))]
-fn range_lines(string: &str) -> Vec<(Range, &str)> {
-    let mut lines = Vec::new();
-    let mut line_start = (0, 0);
-    let mut pos = (0, 0);
-    let mut pushed_line = false;
-
-    let mut chars = string.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            NEW_LINE_CHAR => {
-                let range = Range::of(line_start.0, pos.0 + 1);
-                let line = &string[line_start.1..pos.1];
-                lines.push((range, line));
-
-                // We know this char is 1 byte wide
-                line_start = (pos.0 + 1, pos.1 + 1);
-                pushed_line = true;
-            }
-            _ => pushed_line = false,
-        }
-
-        pos.0 += 1;
-        pos.1 = string.len() - chars.as_str().len();
-    }
-
-    if !pushed_line {
-        let range = Range::of(line_start.0, pos.0 + 1);
-        let line = &string[line_start.1..pos.1];
-        lines.push((range, line));
-    }
-
-    lines
-}
-
-#[cfg(target_os = "windows")]
 fn range_lines(string: &str) -> Vec<(Range, &str)> {
     let mut lines = Vec::new();
     let mut line_start = (0, 0);
@@ -176,11 +135,9 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     while let Some(c) = chars.next() {
         match c {
             '\r' => {
-                if !pushed_line {
-                    let range = Range::of(line_start.0, pos.0 + 1);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
-                }
+                let range = Range::of(line_start.0, pos.0 + 1);
+                let line = &string[line_start.1..pos.1];
+                lines.push((range, line));
                 pushed_line = true;
             }
             '\n' => {
@@ -192,7 +149,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
 
                 // We know this char is 1 byte wide
                 line_start = (pos.0 + 1, pos.1 + 1);
-                pushed_line = false;
+                pushed_line = true;
             }
             _ => pushed_line = false,
         }
