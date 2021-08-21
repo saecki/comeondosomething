@@ -177,7 +177,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
         match c {
             '\r' => {
                 if !pushed_line {
-                    let range = range(line_start.0, pos.0 + 1);
+                    let range = Range::of(line_start.0, pos.0 + 1);
                     let line = &string[line_start.1..pos.1];
                     lines.push((range, line));
                 }
@@ -185,7 +185,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
             }
             '\n' => {
                 if !pushed_line {
-                    let range = range(line_start.0, pos.0 + 1);
+                    let range = Range::of(line_start.0, pos.0 + 1);
                     let line = &string[line_start.1..pos.1];
                     lines.push((range, line));
                 }
@@ -202,7 +202,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     }
 
     if !pushed_line {
-        let range = range(line_start.0, pos.0 + 1);
+        let range = Range::of(line_start.0, pos.0 + 1);
         let line = &string[line_start.1..pos.1];
         lines.push((range, line));
     }
