@@ -6,4 +6,4 @@ description = "Text based calculator engine"
 edition = "2018"
 
 [dependencies]
-unicode-width = "0.1.8"
+unicode-width = "0.1.9"
