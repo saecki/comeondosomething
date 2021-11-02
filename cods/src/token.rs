@@ -250,7 +250,6 @@ impl Sign {
     }
 }
 
-// TODO add asin acos and atan
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cmd {
     Pow(Range),
