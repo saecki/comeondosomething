@@ -59,6 +59,7 @@ impl<U: UserFacing<C>, C: Color> fmt::Display for DisplayUserFacing<'_, U, C> {
     }
 }
 
+#[allow(clippy::mut_range_bound)]
 fn mark_ranges<C: Color>(
     f: &mut fmt::Formatter<'_>,
     line_nr: usize,
