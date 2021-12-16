@@ -144,13 +144,13 @@ fn calc_args(first: String, args: impl Iterator<Item = String>) {
 fn print_calc(input: &str) {
     match cods::calc(input) {
         Ok((v, warnings)) => {
-            for w in warnings.iter() {
+            for w in warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
             println!("= {}", v);
         }
         Err(errors) => {
-            for e in errors.iter() {
+            for e in errors.iter().rev() {
                 println!("{}", e.display(input));
             }
         }
