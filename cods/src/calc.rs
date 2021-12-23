@@ -134,7 +134,10 @@ pub fn neg(n: Num, range: Range) -> crate::Result<Num> {
 
 pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
-        (Val::Int(a), Val::Int(b)) => Val::Int(a + b),
+        (Val::Int(a), Val::Int(b)) => match a.checked_add(b) {
+            Some(v) => Val::Int(v),
+            None => return Err(crate::Error::AddOverflow(n1, n2)),
+        },
         (a, b) => Val::Float(a.to_f64() + b.to_f64()),
     };
     let range = Range::span(n1.range, n2.range);
@@ -143,7 +146,12 @@ pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
 
 pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
-        (Val::Int(a), Val::Int(b)) => Val::Int(a - b),
+        (Val::Int(a), Val::Int(b)) => {
+            match a.checked_sub(b) {
+                Some(v) => Val::Int(v),
+                None => return Err(crate::Error::SubOverflow(n1, n2)),
+            }
+        }
         (a, b) => Val::Float(a.to_f64() - b.to_f64()),
     };
     let range = Range::span(n1.range, n2.range);
@@ -152,7 +160,12 @@ pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
 
 pub fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
-        (Val::Int(a), Val::Int(b)) => Val::Int(a * b),
+        (Val::Int(a), Val::Int(b)) => {
+            match a.checked_mul(b) {
+                Some(v) => Val::Int(v),
+                None => return Err(crate::Error::MulOverflow(n1, n2)),
+            }
+        }
         (a, b) => Val::Float(a.to_f64() * b.to_f64()),
     };
     let range = Range::span(n1.range, n2.range);
@@ -269,7 +282,7 @@ pub fn factorial(n: Num, range: Range) -> crate::Result<Num> {
             if i < 0 {
                 return Err(crate::Error::NegativeFactorial(n.range));
             } else {
-                Val::Int((1..=i).reduce(|a, b| a * b).unwrap_or(1))
+                Val::Int((1..=i).fold(1, |a, b| a * b))
             }
         }
         v => {

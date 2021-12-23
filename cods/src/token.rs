@@ -98,9 +98,11 @@ impl Context {
                     }),
                     "e" => Token::Num(Num { val: Val::E, range }),
                     _ => {
-                        let i = || state.literal.parse::<i128>().ok().map(Val::Int);
-                        let f = || state.literal.parse::<f64>().ok().map(Val::Float);
-                        let val = i().or_else(f).ok_or(crate::Error::InvalidNumberFormat(range))?;
+                        let val = if state.literal.split_once(".").is_some() {
+                            state.literal.parse::<f64>().ok().map(Val::Float).ok_or(crate::Error::InvalidNumberFormat(range))?
+                        } else {
+                            state.literal.parse::<i128>().ok().map(Val::Int).ok_or(crate::Error::InvalidNumberFormat(range))?
+                        };
                         Token::Num(Num { val, range })
                     }
                 }

@@ -23,6 +23,9 @@ pub enum Error {
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
     InvalidNumberFormat(Range),
+    AddOverflow(Num, Num),
+    SubOverflow(Num, Num),
+    MulOverflow(Num, Num),
     DivideByZero(Num, Num),
     NegativeFactorial(Range),
 }
@@ -62,6 +65,15 @@ impl UserFacing<LRed> for Error {
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
+            Self::AddOverflow(a, b) => {
+                format!("Addition of {} and {} would overflow", a.val, b.val)
+            }
+            Self::SubOverflow(a, b) => {
+                format!("Subtraction of {} and {} would overflow", a.val, b.val)
+            }
+            Self::MulOverflow(a, b) => {
+                format!("Multiplication of {} and {} would overflow", a.val, b.val)
+            }
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
@@ -81,6 +93,9 @@ impl UserFacing<LRed> for Error {
             Self::UnexpectedOperator(o) => vec![o.range()],
             Self::UnexpectedParenthesis(p) => vec![p.range()],
             Self::InvalidNumberFormat(r) => vec![*r],
+            Self::AddOverflow(a, b) => vec![a.range, b.range],
+            Self::SubOverflow(a, b) => vec![a.range, b.range],
+            Self::MulOverflow(a, b) => vec![a.range, b.range],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
         }
