@@ -77,6 +77,7 @@ pub enum Calc {
     Ln(Box<Calc>, Range),
     Log(Box<Calc>, Box<Calc>, Range),
     Sqrt(Box<Calc>, Range),
+    Ncr(Box<Calc>, Box<Calc>, Range),
     Sin(Box<Calc>, Range),
     Cos(Box<Calc>, Range),
     Tan(Box<Calc>, Range),
@@ -106,6 +107,7 @@ impl Calc {
             Self::Ln(a, r) => ln(a.calc_num()?, *r),
             Self::Log(a, b, r) => log(a.calc_num()?, b.calc_num()?, *r),
             Self::Sqrt(a, r) => sqrt(a.calc_num()?, *r),
+            Self::Ncr(a, b, r) => ncr(a.calc_num()?, b.calc_num()?, *r),
             Self::Sin(a, r) => sin(a.calc_num()?, *r),
             Self::Cos(a, r) => cos(a.calc_num()?, *r),
             Self::Tan(a, r) => tan(a.calc_num()?, *r),
@@ -216,6 +218,13 @@ pub fn log(base: Num, n: Num, range: Range) -> crate::Result<Num> {
 
 pub fn sqrt(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().sqrt());
+    Ok(Num { val, range })
+}
+
+pub fn ncr(a: Num, b: Num, range: Range) -> crate::Result<Num> {
+    let divident = factorial(a, range)?;
+    let divisor = mul(factorial(b, range)?, factorial(sub(a, b)?, range)?)?;
+    let val = div(divident, divisor)?.val;
     Ok(Num { val, range })
 }
 

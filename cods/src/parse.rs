@@ -183,6 +183,10 @@ impl Context {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Sqrt(Box::new(val), r)
                             }
+                            Cmd::Ncr(_) => {
+                                let [n, k] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Ncr(Box::new(n), Box::new(k), r)
+                            }
                             Cmd::Sin(_) => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Sin(Box::new(val), r)
