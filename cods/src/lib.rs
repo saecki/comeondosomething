@@ -1,6 +1,6 @@
 use std::result;
 
-pub use calc::*;
+pub use calc::{Calc, Val};
 pub use display::*;
 pub use error::*;
 pub use group::*;
@@ -8,7 +8,7 @@ pub use parse::*;
 pub use style::*;
 pub use token::*;
 
-mod calc;
+pub mod calc;
 mod display;
 mod error;
 mod group;
