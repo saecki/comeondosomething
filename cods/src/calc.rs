@@ -146,12 +146,10 @@ pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
 
 pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
-        (Val::Int(a), Val::Int(b)) => {
-            match a.checked_sub(b) {
-                Some(v) => Val::Int(v),
-                None => return Err(crate::Error::SubOverflow(n1, n2)),
-            }
-        }
+        (Val::Int(a), Val::Int(b)) => match a.checked_sub(b) {
+            Some(v) => Val::Int(v),
+            None => return Err(crate::Error::SubOverflow(n1, n2)),
+        },
         (a, b) => Val::Float(a.to_f64() - b.to_f64()),
     };
     let range = Range::span(n1.range, n2.range);
@@ -160,12 +158,10 @@ pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
 
 pub fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
-        (Val::Int(a), Val::Int(b)) => {
-            match a.checked_mul(b) {
-                Some(v) => Val::Int(v),
-                None => return Err(crate::Error::MulOverflow(n1, n2)),
-            }
-        }
+        (Val::Int(a), Val::Int(b)) => match a.checked_mul(b) {
+            Some(v) => Val::Int(v),
+            None => return Err(crate::Error::MulOverflow(n1, n2)),
+        },
         (a, b) => Val::Float(a.to_f64() * b.to_f64()),
     };
     let range = Range::span(n1.range, n2.range);
