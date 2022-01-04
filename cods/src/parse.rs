@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
 use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Warning};
@@ -26,25 +25,23 @@ impl Context {
             return Ok(Calc::Error(range));
         }
 
-        let mut ops: Vec<_> = items
+        let mut last_op: Option<(usize, Op)> = None;
+        for op in items
             .iter()
             .enumerate()
             .filter_map(|(i, t)| t.op().map(|o| (i, o)))
-            .collect();
-
-        ops.sort_by(|(i1, t1), (i2, t2)| {
-            if t1.priority() < t2.priority() {
-                Ordering::Less
-            } else if t1.priority() > t2.priority() {
-                Ordering::Greater
-            } else if i1 < i2 {
-                Ordering::Less
-            } else {
-                Ordering::Greater
+        {
+            match last_op {
+                Some(l) => {
+                    if l.1.priority() >= op.1.priority() {
+                        last_op = Some(op);
+                    }
+                }
+                None => last_op = Some(op),
             }
-        });
+        }
 
-        if let Some(&(last_i, last_o)) = ops.last() {
+        if let Some((last_i, last_o)) = last_op {
             let mut i = last_i;
             let mut op = last_o;
             let mut sign = true;

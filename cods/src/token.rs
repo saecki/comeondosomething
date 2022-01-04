@@ -205,9 +205,9 @@ pub enum Op {
 impl Op {
     pub const fn priority(&self) -> usize {
         match self {
-            Self::Pow(_) => 0,
+            Self::Pow(_) => 2,
             Self::Mul(_) | Self::Div(_) => 1,
-            Self::Add(_) | Self::Sub(_) => 2,
+            Self::Add(_) | Self::Sub(_) => 0,
         }
     }
 
