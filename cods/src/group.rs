@@ -16,7 +16,7 @@ impl<T: Var> Context<T> {
         for (i, p) in pars {
             if p.is_opening() {
                 par_stack.push((i, p));
-            } else if let Some(group_range) = self.matching_parentheses(i, p, &mut par_stack)? {
+            } else if let Some(group_range) = self.matching_parentheses(i, p, &mut par_stack) {
                 let prev_range = group_range.tokens_before(pos);
                 let prev_tokens = tokens[prev_range].iter().filter_map(Item::try_from);
                 items.extend(prev_tokens);
@@ -56,46 +56,46 @@ impl<T: Var> Context<T> {
         close_pos: usize,
         close_par: Par,
         par_stack: &mut Vec<(usize, Par)>,
-    ) -> crate::Result<Option<GroupRange>, T> {
+    ) -> Option<GroupRange> {
         match par_stack.pop() {
             Some((open_pos, open_par)) if open_par.matches(close_par) => {
                 if par_stack.is_empty() {
-                    Ok(Some(GroupRange {
+                    Some(GroupRange {
                         start: open_pos + 1,
                         missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: open_par.par_type(),
-                    }))
+                    })
                 } else {
-                    Ok(None)
+                    None
                 }
             }
             Some((open_pos, open_par)) => {
                 self.warnings
                     .push(crate::Warning::MismatchedParentheses(open_par, close_par));
                 if par_stack.is_empty() {
-                    Ok(Some(GroupRange {
+                    Some(GroupRange {
                         start: open_pos + 1,
                         missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: ParType::Mixed,
-                    }))
+                    })
                 } else {
-                    Ok(None)
+                    None
                 }
             }
             None => {
                 self.errors
                     .push(crate::Error::UnexpectedParenthesis(close_par));
-                Ok(Some(GroupRange {
+                Some(GroupRange {
                     missing_start_par: true,
                     start: 0,
                     missing_end_par: false,
                     end: close_pos,
                     par_type: close_par.par_type(),
-                }))
+                })
             }
         }
     }
