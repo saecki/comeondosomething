@@ -1,4 +1,4 @@
-use crate::{Context, Val};
+use crate::Context;
 
 macro_rules! match_warn_case {
     (
@@ -88,20 +88,16 @@ impl Context {
                     "asin" => Token::Cmd(Cmd::Asin(range)),
                     "acos" => Token::Cmd(Cmd::Acos(range)),
                     "atan" => Token::Cmd(Cmd::Atan(range)),
-                    "π" | "pi" => Token::Num(Num {
-                        val: Val::PI,
-                        range,
-                    }),
-                    "τ" | "tau" => Token::Num(Num {
-                        val: Val::TAU,
-                        range,
-                    }),
-                    "e" => Token::Num(Num { val: Val::E, range }),
+                    "π" | "pi" => Token::Num(Num::new(Val::PI, range)),
+                    "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
+                    "e" => Token::Num(Num::new(Val::E, range )),
                     _ => {
-                        let val = if state.literal.split_once(".").is_some() {
-                            state.literal.parse::<f64>().ok().map(Val::Float).ok_or(crate::Error::InvalidNumberFormat(range))?
+                        let val = if let Ok(i) = literal.parse::<i128>() {
+                            Val::Int(i)
+                        } else if let Ok(f) = literal.parse::<f64>() {
+                             Val::Float(f)
                         } else {
-                            state.literal.parse::<i128>().ok().map(Val::Int).ok_or(crate::Error::InvalidNumberFormat(range))?
+                            return Err(crate::Error::InvalidNumberFormat(range));
                         };
                         Token::Num(Num { val, range })
                     }
@@ -186,11 +182,19 @@ pub struct Num {
     pub range: Range,
 }
 
-pub const fn num(val: Val, start: usize, end: usize) -> Num {
-    Num {
-        val,
-        range: Range::of(start, end),
+impl Num {
+    pub const fn new(val: Val, range: Range) -> Num {
+        Num { val, range }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Val {
+    Int(i128),
+    Float(f64),
+    TAU,
+    PI,
+    E,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -421,9 +425,9 @@ mod test {
         check(
             "432.432 + 24324.543",
             vec![
-                Token::Num(num(Val::Float(432.432), 0, 7)),
+                Token::Num(Num::new(Val::Float(432.432), Range::of(0, 7))),
                 Token::Op(Op::Add(Range::pos(8))),
-                Token::Num(num(Val::Float(24324.543), 10, 19)),
+                Token::Num(Num::new(Val::Float(24324.543), Range::of(10, 19))),
             ],
         );
     }
@@ -433,9 +437,9 @@ mod test {
         check(
             "604.453 *3562.543",
             vec![
-                Token::Num(num(Val::Float(604.453), 0, 7)),
+                Token::Num(Num::new(Val::Float(604.453), Range::of(0, 7))),
                 Token::Op(Op::Mul(Range::pos(8))),
-                Token::Num(num(Val::Float(3562.543), 9, 17)),
+                Token::Num(Num::new(Val::Float(3562.543), Range::of(9, 17))),
             ],
         );
     }
@@ -446,12 +450,12 @@ mod test {
             "(32+ 604.453)* 3562.543",
             vec![
                 Token::Par(Par::RoundOpen(Range::pos(0))),
-                Token::Num(num(Val::Int(32), 1, 3)),
+                Token::Num(Num::new(Val::Int(32), Range::of(1, 3))),
                 Token::Op(Op::Add(Range::pos(3))),
-                Token::Num(num(Val::Float(604.453), 5, 12)),
+                Token::Num(Num::new(Val::Float(604.453), Range::of(5, 12))),
                 Token::Par(Par::RoundClose(Range::pos(12))),
                 Token::Op(Op::Mul(Range::pos(13))),
-                Token::Num(num(Val::Float(3562.543), 15, 23)),
+                Token::Num(Num::new(Val::Float(3562.543), Range::of(15, 23))),
             ],
         );
     }

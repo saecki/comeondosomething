@@ -1,6 +1,6 @@
 use std::result;
 
-pub use calc::{Calc, Val};
+pub use calc::*;
 pub use display::*;
 pub use error::*;
 pub use group::*;

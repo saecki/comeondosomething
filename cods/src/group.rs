@@ -237,17 +237,19 @@ pub struct Group {
     pub par_type: ParType,
 }
 
-pub const fn group(items: Vec<Item>, start: usize, end: usize, par: ParType) -> Group {
-    Group {
-        items,
-        range: Range::of(start, end),
-        par_type: par,
+impl Group {
+    pub const fn new(items: Vec<Item>, range: Range, par: ParType) -> Self {
+        Self {
+            items,
+            range,
+            par_type: par,
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{num, Op, Range, Val};
+    use crate::{Op, Range, Val};
 
     use super::*;
 
@@ -260,9 +262,9 @@ mod test {
         assert_eq!(
             items,
             vec![
-                Item::Num(num(Val::Float(423.42), 0, 6)),
+                Item::Num(Num::new(Val::Float(423.42), Range::of(0, 6))),
                 Item::Op(Op::Mul(Range::pos(7))),
-                Item::Num(num(Val::Float(64.52), 9, 14)),
+                Item::Num(Num::new(Val::Float(64.52), Range::of(9, 14))),
             ]
         );
     }
@@ -276,18 +278,17 @@ mod test {
         assert_eq!(
             items,
             vec![
-                Item::Group(group(
+                Item::Group(Group::new(
                     vec![
-                        Item::Num(num(Val::Float(23.13), 1, 6)),
+                        Item::Num(Num::new(Val::Float(23.13), Range::of(1, 6))),
                         Item::Op(Op::Add(Range::pos(7))),
-                        Item::Num(num(Val::Float(543.23), 9, 15))
+                        Item::Num(Num::new(Val::Float(543.23), Range::of(9, 15)))
                     ],
-                    1,
-                    15,
+                    Range::of(1, 15),
                     ParType::Round,
                 )),
                 Item::Op(Op::Mul(Range::pos(17))),
-                Item::Num(num(Val::Int(34), 19, 21)),
+                Item::Num(Num::new(Val::Int(34), Range::of(19, 21))),
             ]
         );
     }

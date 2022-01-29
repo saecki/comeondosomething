@@ -2,16 +2,7 @@ use std::convert::TryFrom;
 use std::f64::consts;
 use std::fmt;
 
-use crate::{Num, Range};
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val {
-    Int(i128),
-    Float(f64),
-    TAU,
-    PI,
-    E,
-}
+use crate::{Num, Range, Val};
 
 impl fmt::Display for Val {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -124,7 +115,7 @@ impl Calc {
     }
 }
 
-pub fn neg(n: Num, range: Range) -> crate::Result<Num> {
+fn neg(n: Num, range: Range) -> crate::Result<Num> {
     let val = match n.val {
         Val::Int(i) => Val::Int(-i),
         v => Val::Float(-v.to_f64()),
@@ -132,7 +123,7 @@ pub fn neg(n: Num, range: Range) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
+fn add(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_add(b) {
             Some(v) => Val::Int(v),
@@ -144,7 +135,7 @@ pub fn add(n1: Num, n2: Num) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
+fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_sub(b) {
             Some(v) => Val::Int(v),
@@ -156,7 +147,7 @@ pub fn sub(n1: Num, n2: Num) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
+fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_mul(b) {
             Some(v) => Val::Int(v),
@@ -168,7 +159,7 @@ pub fn mul(n1: Num, n2: Num) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn div(n1: Num, n2: Num) -> crate::Result<Num> {
+fn div(n1: Num, n2: Num) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if b == 0 {
@@ -192,7 +183,7 @@ pub fn div(n1: Num, n2: Num) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn pow(n1: Num, n2: Num, range: Range) -> crate::Result<Num> {
+fn pow(n1: Num, n2: Num, range: Range) -> crate::Result<Num> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if let Ok(exp) = u32::try_from(b) {
@@ -215,70 +206,70 @@ pub fn pow(n1: Num, n2: Num, range: Range) -> crate::Result<Num> {
     Ok(Num { val, range })
 }
 
-pub fn ln(n: Num, range: Range) -> crate::Result<Num> {
+fn ln(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().ln());
     Ok(Num { val, range })
 }
 
-pub fn log(base: Num, n: Num, range: Range) -> crate::Result<Num> {
+fn log(base: Num, n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().log(base.val.to_f64()));
     Ok(Num { val, range })
 }
 
-pub fn sqrt(n: Num, range: Range) -> crate::Result<Num> {
+fn sqrt(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().sqrt());
     Ok(Num { val, range })
 }
 
-pub fn ncr(a: Num, b: Num, range: Range) -> crate::Result<Num> {
+fn ncr(a: Num, b: Num, range: Range) -> crate::Result<Num> {
     let divident = factorial(a, range)?;
     let divisor = mul(factorial(b, range)?, factorial(sub(a, b)?, range)?)?;
     let val = div(divident, divisor)?.val;
     Ok(Num { val, range })
 }
 
-pub fn sin(n: Num, range: Range) -> crate::Result<Num> {
+fn sin(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().sin());
     Ok(Num { val, range })
 }
 
-pub fn cos(n: Num, range: Range) -> crate::Result<Num> {
+fn cos(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().cos());
     Ok(Num { val, range })
 }
 
-pub fn tan(n: Num, range: Range) -> crate::Result<Num> {
+fn tan(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().tan());
     Ok(Num { val, range })
 }
 
-pub fn asin(n: Num, range: Range) -> crate::Result<Num> {
+fn asin(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().asin());
     Ok(Num { val, range })
 }
 
-pub fn acos(n: Num, range: Range) -> crate::Result<Num> {
+fn acos(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().acos());
     Ok(Num { val, range })
 }
 
-pub fn atan(n: Num, range: Range) -> crate::Result<Num> {
+fn atan(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().atan());
     Ok(Num { val, range })
 }
 
-pub fn degree(n: Num, range: Range) -> crate::Result<Num> {
+fn degree(n: Num, range: Range) -> crate::Result<Num> {
     let val = Val::Float(n.val.to_f64().to_radians());
     Ok(Num { val, range })
 }
 
-pub fn factorial(n: Num, range: Range) -> crate::Result<Num> {
+fn factorial(n: Num, range: Range) -> crate::Result<Num> {
     let val = match n.val {
         Val::Int(i) => {
             if i < 0 {
                 return Err(crate::Error::NegativeFactorial(n.range));
             } else {
-                Val::Int((1..=i).fold(1, |a, b| a * b))
+                Val::Int((1..=i).product())
             }
         }
         v => {
