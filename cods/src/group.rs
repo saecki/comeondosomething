@@ -1,9 +1,9 @@
 use std::ops;
 
-use crate::{Cmd, Context, Mod, Num, Op, Par, ParType, Range, Sep, Token};
+use crate::{Cmd, Context, Mod, Num, Op, Par, ParType, Range, Sep, Token, Var};
 
-impl Context {
-    pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
+impl<T: Var> Context<T> {
+    pub fn group(&mut self, tokens: &[Token<T>]) -> crate::Result<Vec<Item<T>>, T> {
         let mut items = Vec::new();
         let mut pos = 0;
 
@@ -56,7 +56,7 @@ impl Context {
         close_pos: usize,
         close_par: Par,
         par_stack: &mut Vec<(usize, Par)>,
-    ) -> crate::Result<Option<GroupRange>> {
+    ) -> crate::Result<Option<GroupRange>, T> {
         match par_stack.pop() {
             Some((open_pos, open_par)) if open_par.matches(close_par) => {
                 if par_stack.is_empty() {
@@ -133,7 +133,7 @@ impl GroupRange {
         }
     }
 
-    fn chars(&self, tokens: &[Token]) -> Range {
+    fn chars(&self, tokens: &[Token<impl Var>]) -> Range {
         let start = if self.missing_start_par {
             tokens[self.start].range().start
         } else {
@@ -151,17 +151,17 @@ impl GroupRange {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Item {
-    Group(Group),
-    Num(Num),
+pub enum Item<T: Var> {
+    Group(Group<T>),
+    Num(Num<T>),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
     Sep(Sep),
 }
 
-impl Item {
-    pub const fn try_from(token: &Token) -> Option<Self> {
+impl<T: Var> Item<T> {
+    pub fn try_from(token: &Token<T>) -> Option<Self> {
         match *token {
             Token::Num(n) => Some(Self::Num(n)),
             Token::Op(o) => Some(Self::Op(o)),
@@ -172,39 +172,39 @@ impl Item {
         }
     }
 
-    pub const fn op(&self) -> Option<Op> {
+    pub fn op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
             _ => None,
         }
     }
 
-    pub const fn modifier(&self) -> Option<Mod> {
+    pub fn modifier(&self) -> Option<Mod> {
         match self {
             Self::Mod(m) => Some(*m),
             _ => None,
         }
     }
 
-    pub const fn cmd(&self) -> Option<Cmd> {
+    pub fn cmd(&self) -> Option<Cmd> {
         match self {
             Self::Cmd(c) => Some(*c),
             _ => None,
         }
     }
 
-    pub const fn sep(&self) -> Option<Sep> {
+    pub fn sep(&self) -> Option<Sep> {
         match self {
             Self::Sep(c) => Some(*c),
             _ => None,
         }
     }
 
-    pub const fn is_op(&self) -> bool {
+    pub fn is_op(&self) -> bool {
         matches!(self, Self::Op(_))
     }
 
-    pub const fn is_sep(&self) -> bool {
+    pub fn is_sep(&self) -> bool {
         matches!(self, Self::Sep(_))
     }
 
@@ -220,7 +220,7 @@ impl Item {
     }
 }
 
-pub fn items_range(items: &[Item]) -> Option<Range> {
+pub fn items_range(items: &[Item<impl Var>]) -> Option<Range> {
     let first = items.first().map(|i| i.range());
     let last = items.last().map(|i| i.range());
 
@@ -231,14 +231,14 @@ pub fn items_range(items: &[Item]) -> Option<Range> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Group {
-    pub items: Vec<Item>,
+pub struct Group<T: Var> {
+    pub items: Vec<Item<T>>,
     pub range: Range,
     pub par_type: ParType,
 }
 
-impl Group {
-    pub const fn new(items: Vec<Item>, range: Range, par: ParType) -> Self {
+impl<T: Var> Group<T> {
+    pub fn new(items: Vec<Item<T>>, range: Range, par: ParType) -> Self {
         Self {
             items,
             range,
@@ -249,13 +249,13 @@ impl Group {
 
 #[cfg(test)]
 mod test {
-    use crate::{Op, Range, Val};
+    use crate::{Op, Range, Val, DummyVar};
 
     use super::*;
 
     #[test]
     fn no_parenthesis() {
-        let mut ctx = Context::default();
+        let mut ctx = Context::<DummyVar>::default();
         let tokens = ctx.tokenize("423.42 * 64.52").unwrap();
         let items = ctx.group(&tokens).unwrap();
 
@@ -271,7 +271,7 @@ mod test {
 
     #[test]
     fn add_parenthesis() {
-        let mut ctx = Context::default();
+        let mut ctx = Context::<DummyVar>::default();
         let tokens = ctx.tokenize("(23.13 + 543.23) * 34").unwrap();
         let items = ctx.group(&tokens).unwrap();
 

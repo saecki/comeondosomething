@@ -1,4 +1,4 @@
-use crate::Context;
+use crate::{Context, Var};
 
 macro_rules! match_warn_case {
     (
@@ -21,16 +21,25 @@ macro_rules! match_warn_case {
     }};
 }
 
-#[derive(Default)]
-struct Tokenizer {
-    tokens: Vec<Token>,
+struct Tokenizer<T: Var> {
+    tokens: Vec<Token<T>>,
     literal: String,
     char_index: usize,
 }
 
-impl Context {
-    pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
-        let mut state = Tokenizer::default();
+impl<T: Var> Tokenizer<T> {
+    fn new() -> Self {
+        Self {
+            tokens: Vec::new(),
+            literal: String::new(),
+            char_index: 0,
+        }
+    }
+}
+
+impl<T: Var> Context<T> {
+    pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token<T>>, T> {
+        let mut state = Tokenizer::new();
 
         for c in string.chars() {
             let range = Range::pos(state.char_index);
@@ -61,13 +70,13 @@ impl Context {
         Ok(state.tokens)
     }
 
-    fn new_token(&mut self, state: &mut Tokenizer, token: Token) -> crate::Result<()> {
+    fn new_token(&mut self, state: &mut Tokenizer<T>, token: Token<T>) -> crate::Result<(), T> {
         self.complete_literal(state)?;
         state.tokens.push(token);
         Ok(())
     }
 
-    fn complete_literal(&mut self, state: &mut Tokenizer) -> crate::Result<()> {
+    fn complete_literal(&mut self, state: &mut Tokenizer<T>) -> crate::Result<(), T> {
         if !state.literal.is_empty() {
             let start = state.char_index - state.literal.chars().count();
             let range = Range::of(start, state.char_index);
@@ -100,7 +109,9 @@ impl Context {
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
-                            Token::Num(Num { val, range })
+                            Token::Num(Num::new(val, range))
+                        } else if let Ok(v) = literal.parse::<T>() {
+                            Token::Num(Num::new(Val::Var(v), range))
                         } else {
                             return Err(crate::Error::UnknownValue(range));
                         }
@@ -117,8 +128,8 @@ impl Context {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Token {
-    Num(Num),
+pub enum Token<T: Var> {
+    Num(Num<T>),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
@@ -126,49 +137,49 @@ pub enum Token {
     Sep(Sep),
 }
 
-impl Token {
-    pub const fn is_num(&self) -> bool {
+impl<T: Var> Token<T> {
+    pub fn is_num(&self) -> bool {
         matches!(self, Self::Num(_))
     }
 
-    pub const fn is_op(&self) -> bool {
+    pub fn is_op(&self) -> bool {
         matches!(self, Self::Op(_))
     }
 
-    pub const fn is_cmd(&self) -> bool {
+    pub fn is_cmd(&self) -> bool {
         matches!(self, Self::Cmd(_))
     }
 
-    pub const fn is_par(&self) -> bool {
+    pub fn is_par(&self) -> bool {
         matches!(self, Self::Par(_))
     }
 
-    pub const fn is_sep(&self) -> bool {
+    pub fn is_sep(&self) -> bool {
         matches!(self, Self::Sep(_))
     }
 
-    pub const fn num(&self) -> Option<Num> {
+    pub fn num(&self) -> Option<Num<T>> {
         match self {
             Self::Num(n) => Some(*n),
             _ => None,
         }
     }
 
-    pub const fn op(&self) -> Option<Op> {
+    pub fn op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
             _ => None,
         }
     }
 
-    pub const fn par(&self) -> Option<Par> {
+    pub fn par(&self) -> Option<Par> {
         match self {
             Self::Par(p) => Some(*p),
             _ => None,
         }
     }
 
-    pub const fn range(&self) -> Range {
+    pub fn range(&self) -> Range {
         match self {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range(),
@@ -181,21 +192,22 @@ impl Token {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Num {
-    pub val: Val,
+pub struct Num<T: Var> {
+    pub val: Val<T>,
     pub range: Range,
 }
 
-impl Num {
-    pub const fn new(val: Val, range: Range) -> Num {
-        Num { val, range }
+impl<T: Var> Num<T> {
+    pub fn new(val: Val<T>, range: Range) -> Self {
+        Self { val, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val {
+pub enum Val<T: Var> {
     Int(i128),
     Float(f64),
+    Var(T),
     TAU,
     PI,
     E,
@@ -422,6 +434,8 @@ impl Range {
 
 #[cfg(test)]
 mod test {
+    use crate::DummyVar;
+
     use super::*;
 
     #[test]
@@ -464,8 +478,8 @@ mod test {
         );
     }
 
-    fn check(input: &str, output: Vec<Token>) {
-        let tokens = Context::default().tokenize(input).unwrap();
+    fn check(input: &str, output: Vec<Token<DummyVar>>) {
+        let tokens = Context::<DummyVar>::new().tokenize(input).unwrap();
         assert_eq!(tokens, output);
     }
 }

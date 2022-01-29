@@ -1,10 +1,10 @@
-use crate::{Cmd, LRed, LYellow, UserFacing};
+use crate::{Cmd, LRed, LYellow, UserFacing, Var};
 use crate::{Num, Op, Par, Range};
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, V> = std::result::Result<T, Error<V>>;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Error {
+pub enum Error<T: Var> {
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -24,14 +24,14 @@ pub enum Error {
     UnexpectedParenthesis(Par),
     UnknownValue(Range),
     InvalidNumberFormat(Range),
-    AddOverflow(Num, Num),
-    SubOverflow(Num, Num),
-    MulOverflow(Num, Num),
-    DivideByZero(Num, Num),
+    AddOverflow(Num<T>, Num<T>),
+    SubOverflow(Num<T>, Num<T>),
+    MulOverflow(Num<T>, Num<T>),
+    DivideByZero(Num<T>, Num<T>),
     NegativeFactorial(Range),
 }
 
-impl UserFacing<LRed> for Error {
+impl<T: Var> UserFacing<LRed> for Error<T> {
     fn description(&self) -> String {
         match self {
             Self::Parsing(_) => "A parsing error occured".into(),

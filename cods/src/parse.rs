@@ -1,14 +1,14 @@
 use std::mem::MaybeUninit;
 
-use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Warning};
+use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Warning, Var};
 
-impl Context {
-    pub fn parse(&mut self, items: &[Item]) -> crate::Result<Calc> {
+impl<T: Var> Context<T> {
+    pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
         let r = items_range(items).unwrap_or_else(|| Range::pos(0));
         self.parse_items(r, items)
     }
 
-    fn parse_items(&mut self, range: Range, items: &[Item]) -> crate::Result<Calc> {
+    fn parse_items(&mut self, range: Range, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
         if items.is_empty() {
             self.errors.push(crate::Error::MissingOperand(range));
             return Ok(Calc::Error(range));
@@ -230,9 +230,9 @@ impl Context {
     fn parse_cmd_args<const COUNT: usize>(
         &mut self,
         range: Range,
-        items: &[Item],
-    ) -> crate::Result<[Calc; COUNT]> {
-        let mut args: [Calc; COUNT] = array_of(|_| Calc::Error(range));
+        items: &[Item<T>],
+    ) -> crate::Result<[Calc<T>; COUNT], T> {
+        let mut args: [Calc<T>; COUNT] = array_of(|_| Calc::Error(range));
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
         let mut start = (0, range.start);
