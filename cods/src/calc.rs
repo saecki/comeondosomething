@@ -80,33 +80,33 @@ pub enum Calc {
 }
 
 impl Calc {
-    pub fn calc(&self) -> crate::Result<Val> {
-        Ok(self.calc_num()?.val)
+    pub fn eval(&self) -> crate::Result<Val> {
+        Ok(self.eval_num()?.val)
     }
 
     // TODO use checked variants of arithmetic operations
-    fn calc_num(&self) -> crate::Result<Num> {
+    fn eval_num(&self) -> crate::Result<Num> {
         match self {
             Self::Error(r) => Err(crate::Error::Parsing(*r)),
             Self::Num(n) => Ok(*n),
-            Self::Neg(a, r) => neg(a.calc_num()?, *r),
-            Self::Add(a, b) => add(a.calc_num()?, b.calc_num()?),
-            Self::Sub(a, b) => sub(a.calc_num()?, b.calc_num()?),
-            Self::Mul(a, b) => mul(a.calc_num()?, b.calc_num()?),
-            Self::Div(a, b) => div(a.calc_num()?, b.calc_num()?),
-            Self::Pow(a, b, r) => pow(a.calc_num()?, b.calc_num()?, *r),
-            Self::Ln(a, r) => ln(a.calc_num()?, *r),
-            Self::Log(a, b, r) => log(a.calc_num()?, b.calc_num()?, *r),
-            Self::Sqrt(a, r) => sqrt(a.calc_num()?, *r),
-            Self::Ncr(a, b, r) => ncr(a.calc_num()?, b.calc_num()?, *r),
-            Self::Sin(a, r) => sin(a.calc_num()?, *r),
-            Self::Cos(a, r) => cos(a.calc_num()?, *r),
-            Self::Tan(a, r) => tan(a.calc_num()?, *r),
-            Self::Asin(a, r) => asin(a.calc_num()?, *r),
-            Self::Acos(a, r) => acos(a.calc_num()?, *r),
-            Self::Atan(a, r) => atan(a.calc_num()?, *r),
-            Self::Degree(a, r) => degree(a.calc_num()?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
-            Self::Factorial(a, r) => factorial(a.calc_num()?, *r),
+            Self::Neg(a, r) => neg(a.eval_num()?, *r),
+            Self::Add(a, b) => add(a.eval_num()?, b.eval_num()?),
+            Self::Sub(a, b) => sub(a.eval_num()?, b.eval_num()?),
+            Self::Mul(a, b) => mul(a.eval_num()?, b.eval_num()?),
+            Self::Div(a, b) => div(a.eval_num()?, b.eval_num()?),
+            Self::Pow(a, b, r) => pow(a.eval_num()?, b.eval_num()?, *r),
+            Self::Ln(a, r) => ln(a.eval_num()?, *r),
+            Self::Log(a, b, r) => log(a.eval_num()?, b.eval_num()?, *r),
+            Self::Sqrt(a, r) => sqrt(a.eval_num()?, *r),
+            Self::Ncr(a, b, r) => ncr(a.eval_num()?, b.eval_num()?, *r),
+            Self::Sin(a, r) => sin(a.eval_num()?, *r),
+            Self::Cos(a, r) => cos(a.eval_num()?, *r),
+            Self::Tan(a, r) => tan(a.eval_num()?, *r),
+            Self::Asin(a, r) => asin(a.eval_num()?, *r),
+            Self::Acos(a, r) => acos(a.eval_num()?, *r),
+            Self::Atan(a, r) => atan(a.eval_num()?, *r),
+            Self::Degree(a, r) => degree(a.eval_num()?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            Self::Factorial(a, r) => factorial(a.eval_num()?, *r),
         }
         .map(|mut n| {
             n.val = n.val.maybe_int();

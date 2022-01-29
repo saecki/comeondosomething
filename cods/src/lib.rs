@@ -53,7 +53,7 @@ pub fn calc(string: impl AsRef<str>) -> result::Result<(Val, Vec<Warning>), Vec<
         return Err(ctx.errors);
     }
 
-    match calculation.calc() {
+    match calculation.eval() {
         Err(e) => Err(vec![e]),
         Ok(v) => Ok((v, ctx.warnings)),
     }
