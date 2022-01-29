@@ -22,6 +22,7 @@ pub enum Error {
     },
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
+    UnknownValue(Range),
     InvalidNumberFormat(Range),
     AddOverflow(Num, Num),
     SubOverflow(Num, Num),
@@ -64,6 +65,7 @@ impl UserFacing<LRed> for Error {
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
+            Self::UnknownValue(_) => "Unknown value".into(),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
             Self::AddOverflow(a, b) => {
                 format!("Addition of {} and {} would overflow", a.val, b.val)
@@ -92,6 +94,7 @@ impl UserFacing<LRed> for Error {
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range()],
             Self::UnexpectedParenthesis(p) => vec![p.range()],
+            Self::UnknownValue(r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],

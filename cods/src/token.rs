@@ -92,14 +92,18 @@ impl Context {
                     "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
                     "e" => Token::Num(Num::new(Val::E, range )),
                     _ => {
-                        let val = if let Ok(i) = literal.parse::<i128>() {
-                            Val::Int(i)
-                        } else if let Ok(f) = literal.parse::<f64>() {
-                             Val::Float(f)
+                        if literal.chars().next().unwrap().is_digit(10) {
+                            let val = if let Ok(i) = literal.parse::<i128>() {
+                                Val::Int(i)
+                            } else if let Ok(f) = literal.parse::<f64>() {
+                                 Val::Float(f)
+                            } else {
+                                return Err(crate::Error::InvalidNumberFormat(range));
+                            };
+                            Token::Num(Num { val, range })
                         } else {
-                            return Err(crate::Error::InvalidNumberFormat(range));
-                        };
-                        Token::Num(Num { val, range })
+                            return Err(crate::Error::UnknownValue(range));
+                        }
                     }
                 }
             };
