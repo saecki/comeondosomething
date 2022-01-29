@@ -246,7 +246,7 @@ fn degree<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Resul
     Ok(Num { val, range })
 }
 
-fn factorial<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn factorial<T: Var>(_: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = match n.val {
         Val::Int(i) => {
             if i < 0 {
@@ -255,14 +255,7 @@ fn factorial<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Re
                 Val::Int((1..=i).product())
             }
         }
-        v => {
-            let f = p.val_to_f64(v);
-            if f < 0.0 {
-                return Err(crate::Error::NegativeFactorial(n.range));
-            } else {
-                todo!("Factorial of fractions is not yet implemented")
-            }
-        }
+        _ => return Err(crate::Error::DecimalFactorial(n.range)),
     };
     Ok(Num { val, range })
 }

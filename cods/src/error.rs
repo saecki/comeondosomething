@@ -29,6 +29,7 @@ pub enum Error<T: Var> {
     MulOverflow(Num<T>, Num<T>),
     DivideByZero(Num<T>, Num<T>),
     NegativeFactorial(Range),
+    DecimalFactorial(Range),
 }
 
 impl<T: Var> UserFacing<LRed> for Error<T> {
@@ -80,6 +81,9 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
+            Self::DecimalFactorial(_) => {
+                "Attempted to calculate the factorial of a fraction".into()
+            }
         }
     }
 
@@ -101,6 +105,7 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::MulOverflow(a, b) => vec![a.range, b.range],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
+            Self::DecimalFactorial(r) => vec![*r],
         }
     }
 }
