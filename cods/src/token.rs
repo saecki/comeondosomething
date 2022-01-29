@@ -59,7 +59,6 @@ impl<T: Var> Context<T> {
                 ']' => self.new_token(&mut state, Token::Par(Par::SquareClose(range)))?,
                 '}' => self.new_token(&mut state, Token::Par(Par::CurlyClose(range)))?,
                 ',' => self.new_token(&mut state, Token::Sep(Sep::Comma(range)))?,
-                '_' | '\'' => (), // visual separator
                 c => state.literal.push(c),
             }
             state.char_index += 1;
