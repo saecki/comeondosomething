@@ -89,13 +89,7 @@ impl<T: Var> Context<T> {
             None => {
                 self.errors
                     .push(crate::Error::UnexpectedParenthesis(close_par));
-                Some(GroupRange {
-                    missing_start_par: true,
-                    start: 0,
-                    missing_end_par: false,
-                    end: close_pos,
-                    par_type: close_par.par_type(),
-                })
+                None
             }
         }
     }
@@ -249,7 +243,7 @@ impl<T: Var> Group<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Op, Range, Val, DummyVar};
+    use crate::{DummyVar, Op, Range, Val};
 
     use super::*;
 
