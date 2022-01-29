@@ -142,8 +142,8 @@ pub fn calc_with<T: Var>(
     let (calc, mut ctx) = parse(string);
 
     let calc = match calc {
-        Ok(c) => c,
-        Err(_) => return (Err(()), ctx),
+        Ok(c) if ctx.errors.is_empty() => c,
+        _ => return (Err(()), ctx),
     };
 
     match calc.eval(provider) {
