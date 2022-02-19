@@ -1,4 +1,4 @@
-use cods::{calc, PlainVal, Error, Range, Par};
+use cods::{calc, PlainVal, Error, Range, Par, parse, DummyVar};
 
 #[test]
 fn float() {
@@ -37,5 +37,14 @@ fn factorial_fraction() {
     assert_eq!(
         Error::DecimalFactorial(Range::of(0, 3)),
         calc("4.1!").1.errors[0],
+    );
+}
+
+#[test]
+fn signs() {
+    println!("{:#?}", parse::<DummyVar>("1 - 2 * -2"));
+    assert_eq!(
+        PlainVal::Int(5),
+        calc("1 - 2 * -2").0.unwrap(),
     );
 }

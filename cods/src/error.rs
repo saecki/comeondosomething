@@ -1,4 +1,4 @@
-use crate::{Cmd, LRed, LYellow, UserFacing, Var};
+use crate::{Cmd, LRed, LYellow, UserFacing, Var, Sign};
 use crate::{Num, Op, Par, Range};
 
 pub type Result<T, V> = std::result::Result<T, Error<V>>;
@@ -113,9 +113,9 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     ConfusingCase(Range, &'static str),
-    SignFollowingAddition(Range, Range, bool, usize),
-    SignFollowingSubtraction(Range, Range, bool, usize),
-    MultipleSigns(Range, bool),
+    SignFollowingAddition(Range, Range, Sign, usize),
+    SignFollowingSubtraction(Range, Range, Sign, usize),
+    MultipleSigns(Range, Sign),
     MismatchedParentheses(Par, Par),
     ConfusingCommandParentheses {
         cmd: Cmd,
@@ -130,7 +130,7 @@ impl UserFacing<LYellow> for Warning {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
             Self::SignFollowingAddition(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
-                let pos_neg = if *s {
+                let pos_neg = if s.is_positive() {
                     "consider removing them"
                 } else {
                     "consider making this a subtraction"
@@ -139,7 +139,7 @@ impl UserFacing<LYellow> for Warning {
             }
             Self::SignFollowingSubtraction(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
-                let pos_neg = if *s {
+                let pos_neg = if s.is_positive() {
                     "consider making this an addition"
                 } else {
                     "consider removing them"
@@ -147,7 +147,7 @@ impl UserFacing<LYellow> for Warning {
                 format!("Sign{} following a subtraction, {}", sign_s, pos_neg)
             }
             Self::MultipleSigns(_, s) => {
-                if *s {
+                if s.is_positive() {
                     "Multiple consecutive signs canceling each other out, consider removing them"
                         .into()
                 } else {
@@ -165,14 +165,14 @@ impl UserFacing<LYellow> for Warning {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],
             Self::SignFollowingAddition(or, sr, s, _) => {
-                if *s {
+                if s.is_positive() {
                     vec![*sr]
                 } else {
                     vec![*or, *sr]
                 }
             }
             Self::SignFollowingSubtraction(or, sr, s, _) => {
-                if *s {
+                if s.is_positive() {
                     vec![*or, *sr]
                 } else {
                     vec![*sr]

@@ -1,3 +1,5 @@
+use std::ops;
+
 use crate::{Context, Var};
 
 macro_rules! match_warn_case {
@@ -240,7 +242,7 @@ impl Op {
         }
     }
 
-    pub const fn sign(&self) -> Option<Sign> {
+    pub const fn as_sign(&self) -> Option<Sign> {
         match self {
             Self::Add(_) => Some(Sign::Positive),
             Self::Sub(_) => Some(Sign::Negative),
@@ -260,6 +262,17 @@ impl Op {
 pub enum Sign {
     Negative,
     Positive,
+}
+
+impl ops::Not for Sign {
+    type Output = Sign;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Self::Negative => Self::Positive,
+            Self::Positive => Self::Negative,
+        }
+    }
 }
 
 impl Sign {

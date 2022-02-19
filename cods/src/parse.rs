@@ -1,6 +1,7 @@
+use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Warning, Var};
+use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Sign, Var, Warning};
 
 impl<T: Var> Context<T> {
     pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
@@ -25,69 +26,87 @@ impl<T: Var> Context<T> {
             return Ok(Calc::Error(range));
         }
 
-        let mut last_op: Option<(usize, Op)> = None;
-        for op in items
+        let mut ops: Vec<(usize, Op)> = items
             .iter()
             .enumerate()
             .filter_map(|(i, t)| t.op().map(|o| (i, o)))
-        {
-            match last_op {
-                Some(l) => {
-                    if l.1.priority() >= op.1.priority() {
-                        last_op = Some(op);
-                    }
-                }
-                None => last_op = Some(op),
+            .collect();
+        ops.sort_unstable_by(|(i1, o1), (i2, o2)| {
+            if o1.priority() > o2.priority() {
+                // greater priority -> to the start
+                Ordering::Less
+            } else if o1.priority() < o2.priority() {
+                // lower priority -> to the end
+                Ordering::Greater
+            } else {
+                i1.cmp(i2)
             }
-        }
+        });
 
-        if let Some((last_i, last_o)) = last_op {
-            let mut i = last_i;
-            let mut op = last_o;
-            let mut sign = true;
+        let mut op_iter = ops.iter().rev();
 
-            while let Some(s) = op.sign() {
+        if let Some(&(mut first_i, mut first_o)) = op_iter.next() {
+            // at least one operator is present
+            let mut i = first_i;
+            let mut op = first_o;
+            let mut sign = Sign::Positive;
+
+            while let Some(s) = op.as_sign() {
                 if s.is_negative() {
                     sign = !sign;
                 }
 
                 if i == 0 {
-                    let a = &items[(last_i + 1)..];
+                    // operator is the first item -> sign
+                    let a = &items[(first_i + 1)..];
                     let ra = items_range(a).unwrap_or_else(|| Range::of(op.range().end, range.end));
                     let ca = self.parse_items(ra, a)?;
 
-                    if last_i != i {
-                        let sign_range = Range::span(op.range(), last_o.range());
+                    if first_i != i {
+                        let sign_range = Range::span(op.range(), first_o.range());
                         self.warnings.push(Warning::MultipleSigns(sign_range, sign));
                     }
 
-                    if sign {
+                    if sign.is_positive() {
                         return Ok(ca);
                     } else {
                         return Ok(Calc::Neg(Box::new(ca), Range::span(op.range(), ra)));
                     }
-                } else if let Some(o) = items[i - 1].op() {
-                    i -= 1;
-                    op = o;
+                } else if items[i - 1].is_op() {
+                    // adjacent item is an operator
+                    if let Some(&(next_i, next_o)) = op_iter.next() {
+                        if next_i != i - 1 {
+                            // adjacent operator isn't next in line -> reset state
+                            first_i = next_i;
+                            first_o = next_o;
+                            i = next_i;
+                            op = next_o;
+                            sign = Sign::Positive;
+                        } else {
+                            i = next_i;
+                            op = next_o;
+                        }
+                    }
                 } else {
+                    // neither the first item, nor following another operator -> seems like an operator
                     break;
                 }
             }
 
-            if last_i != i {
-                let sign_range = Range::span(items[i + 1].range(), last_o.range());
+            if first_i != i {
+                let sign_range = Range::span(items[i + 1].range(), first_o.range());
                 match op {
                     Op::Add(_) => self.warnings.push(Warning::SignFollowingAddition(
                         op.range(),
                         sign_range,
                         sign,
-                        last_i - i,
+                        first_i - i,
                     )),
                     Op::Sub(_) => self.warnings.push(Warning::SignFollowingSubtraction(
                         op.range(),
                         sign_range,
                         sign,
-                        last_i - i,
+                        first_i - i,
                     )),
                     Op::Mul(_) => (),
                     Op::Div(_) => (),
@@ -96,32 +115,35 @@ impl<T: Var> Context<T> {
             }
 
             let a = &items[0..i];
-            let ra = items_range(a).unwrap_or_else(|| Range::of(range.start, op.range().start));
-            let ca = Box::new(self.parse_items(ra, a)?);
+            let range_a =
+                items_range(a).unwrap_or_else(|| Range::of(range.start, op.range().start));
+            let calc_a = Box::new(self.parse_items(range_a, a)?);
 
-            let b = &items[(last_i + 1)..];
-            let rb = items_range(b).unwrap_or_else(|| Range::of(op.range().end, range.end));
-            let cb = Box::new(self.parse_items(rb, b)?);
+            let b = &items[(first_i + 1)..];
+            let range_b = items_range(b).unwrap_or_else(|| Range::of(op.range().end, range.end));
+            let calc_b = Box::new(self.parse_items(range_b, b)?);
 
             return match op {
                 Op::Add(_) | Op::Sub(_) => {
-                    if sign {
-                        Ok(Calc::Add(ca, cb))
+                    // all + and - signs/operators were accumulated
+                    if sign.is_positive() {
+                        Ok(Calc::Add(calc_a, calc_b))
                     } else {
-                        Ok(Calc::Sub(ca, cb))
+                        Ok(Calc::Sub(calc_a, calc_b))
                     }
                 }
                 _ => {
-                    let cb = if sign {
-                        cb
+                    // negate if nessecary
+                    let calc_b = if sign.is_positive() {
+                        calc_b
                     } else {
-                        Box::new(Calc::Neg(cb, rb))
+                        Box::new(Calc::Neg(calc_b, range_b))
                     };
                     match op {
                         Op::Add(_) | Op::Sub(_) => unreachable!(),
-                        Op::Mul(_) => Ok(Calc::Mul(ca, cb)),
-                        Op::Div(_) => Ok(Calc::Div(ca, cb)),
-                        Op::Pow(_) => Ok(Calc::Pow(ca, cb, Range::span(ra, rb))),
+                        Op::Mul(_) => Ok(Calc::Mul(calc_a, calc_b)),
+                        Op::Div(_) => Ok(Calc::Div(calc_a, calc_b)),
+                        Op::Pow(_) => Ok(Calc::Pow(calc_a, calc_b, Range::span(range_a, range_b))),
                     }
                 }
             };
