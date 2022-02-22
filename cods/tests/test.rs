@@ -1,27 +1,80 @@
-use cods::{calc, PlainVal, Error, Range, Par, parse, DummyVar};
+use cods::{calc, Error, Par, PlainVal, Range, UserFacing};
+
+fn assert(expected: PlainVal, expr: &str) {
+    match calc(expr) {
+        (Ok(val), _) => assert_eq!(expected, val),
+        (Err(_), ctx) => {
+            for w in ctx.warnings.iter().rev() {
+                eprintln!("{}\n", w.display(expr));
+            }
+            for w in ctx.errors.iter().rev() {
+                eprintln!("{}\n", w.display(expr));
+            }
+            panic!();
+        }
+    }
+}
 
 #[test]
 fn float() {
-    assert_eq!(
+    assert(
         PlainVal::Float(20713257.3385426),
-        calc("234.4234 + 6345.423 * 3264.2462").0.unwrap(),
+        "234.4234 + 6345.423 * 3264.2462",
     );
 }
 
 #[test]
 fn int() {
-    assert_eq!(
+    assert(
         PlainVal::Int(-9717750),
-        calc("6 + 3452 − (3252 × 5324) + (((2342 × 3242) ÷ 4234) × 4234) − 324").0.unwrap(),
+        "6 + 3452 − (3252 × 5324) + (((2342 × 3242) ÷ 4234) × 4234) − 324",
     );
 }
 
 #[test]
 fn unicode_ops() {
-    assert_eq!(
+    assert(
         PlainVal::Float(41968480425.587155963),
-        calc("(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234").0.unwrap(),
+        "(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234",
     );
+}
+
+#[test]
+fn signs() {
+    assert(PlainVal::Int(5), "1 - 2 * -2");
+}
+
+#[test]
+fn factorial() {
+    assert(
+        PlainVal::Int(8 * 7 * 6 * 5 * 4 * 3 * 2 * 1),
+        "8!"
+    );
+}
+
+#[test]
+fn squareroot() {
+    assert(PlainVal::Int(25), "sqrt(625)");
+}
+
+#[test]
+fn binomial_coefficient() {
+    assert(PlainVal::Int(15), "ncr(6, 2)");
+}
+
+#[test]
+fn ln() {
+    assert(PlainVal::Int(27), "ln(e^27)");
+}
+
+#[test]
+fn log2() {
+    assert(PlainVal::Int(3), "log(2, 8)");
+}
+
+#[test]
+fn log10() {
+    assert(PlainVal::Int(5), "log(10, 100000)");
 }
 
 #[test]
@@ -32,19 +85,11 @@ fn unmatched_par() {
     );
 }
 
+
 #[test]
 fn factorial_fraction() {
     assert_eq!(
         Error::DecimalFactorial(Range::of(0, 3)),
         calc("4.1!").1.errors[0],
-    );
-}
-
-#[test]
-fn signs() {
-    println!("{:#?}", parse::<DummyVar>("1 - 2 * -2"));
-    assert_eq!(
-        PlainVal::Int(5),
-        calc("1 - 2 * -2").0.unwrap(),
     );
 }
