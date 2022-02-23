@@ -155,7 +155,12 @@ fn rem<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<N
             if b == 0 {
                 return Err(crate::Error::RemainderByZero(n1, n2));
             } else {
-                Val::Int(a % b)
+                let r = a % b;
+                if (r > 0 && b < 0) || (r < 0 && b > 0) {
+                    Val::Int(r + b)
+                } else {
+                    Val::Int(r)
+                }
             }
         }
         _ => return Err(crate::Error::DecimalRemainder(n1, n2)),

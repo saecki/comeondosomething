@@ -46,7 +46,17 @@ fn signs() {
 
 #[test]
 fn remainder() {
-    assert(PlainVal::Int(2), "23 % -7");
+    assert(PlainVal::Int(2), "8 % 3");
+}
+
+#[test]
+fn negative_remainder1() {
+    assert(PlainVal::Int(1), "(-8) % 3");
+}
+
+#[test]
+fn negative_remainder2() {
+    assert(PlainVal::Int(-2), "8 % -5");
 }
 
 #[test]
