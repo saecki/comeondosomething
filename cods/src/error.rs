@@ -1,4 +1,4 @@
-use crate::{Cmd, LRed, LYellow, UserFacing, Var, Sign};
+use crate::{Cmd, LRed, LYellow, Sign, UserFacing, Var};
 use crate::{Num, Op, Par, Range};
 
 pub type Result<T, V> = std::result::Result<T, Error<V>>;
@@ -28,6 +28,8 @@ pub enum Error<T: Var> {
     SubOverflow(Num<T>, Num<T>),
     MulOverflow(Num<T>, Num<T>),
     DivideByZero(Num<T>, Num<T>),
+    RemainderByZero(Num<T>, Num<T>),
+    DecimalRemainder(Num<T>, Num<T>),
     NegativeFactorial(Range),
     DecimalFactorial(Range),
 }
@@ -78,6 +80,12 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
                 format!("Multiplication of {} and {} would overflow", a.val, b.val)
             }
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
+            Self::RemainderByZero(_, _) => {
+                "Attempted to get the remainder of a division by 0".into()
+            }
+            Self::DecimalRemainder(_, _) => {
+                "Attempted to get the remainder of a division of fractions".into()
+            }
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
@@ -104,6 +112,8 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
+            Self::RemainderByZero(a, b) => vec![a.range, b.range],
+            Self::DecimalRemainder(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
             Self::DecimalFactorial(r) => vec![*r],
         }

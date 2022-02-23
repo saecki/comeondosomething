@@ -45,11 +45,13 @@ fn signs() {
 }
 
 #[test]
+fn remainder() {
+    assert(PlainVal::Int(2), "23 % -7");
+}
+
+#[test]
 fn factorial() {
-    assert(
-        PlainVal::Int(8 * 7 * 6 * 5 * 4 * 3 * 2 * 1),
-        "8!"
-    );
+    assert(PlainVal::Int(8 * 7 * 6 * 5 * 4 * 3 * 2 * 1), "8!");
 }
 
 #[test]
@@ -84,7 +86,6 @@ fn unmatched_par() {
         calc("4 ) + 5)").1.errors[0],
     );
 }
-
 
 #[test]
 fn factorial_fraction() {

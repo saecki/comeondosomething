@@ -28,6 +28,7 @@ pub enum Calc<T: Var> {
     Sub(Box<Calc<T>>, Box<Calc<T>>),
     Mul(Box<Calc<T>>, Box<Calc<T>>),
     Div(Box<Calc<T>>, Box<Calc<T>>),
+    Rem(Box<Calc<T>>, Box<Calc<T>>),
     Pow(Box<Calc<T>>, Box<Calc<T>>, Range),
     Ln(Box<Calc<T>>, Range),
     Log(Box<Calc<T>>, Box<Calc<T>>, Range),
@@ -58,6 +59,7 @@ impl<T: Var> Calc<T> {
             Self::Sub(a, b) => sub(p, a.eval_num(p)?, b.eval_num(p)?),
             Self::Mul(a, b) => mul(p, a.eval_num(p)?, b.eval_num(p)?),
             Self::Div(a, b) => div(p, a.eval_num(p)?, b.eval_num(p)?),
+            Self::Rem(a, b) => rem(p, a.eval_num(p)?, b.eval_num(p)?),
             Self::Pow(a, b, r) => pow(p, a.eval_num(p)?, b.eval_num(p)?, *r),
             Self::Ln(a, r) => ln(p, a.eval_num(p)?, *r),
             Self::Log(a, b, r) => log(p, a.eval_num(p)?, b.eval_num(p)?, *r),
@@ -142,6 +144,21 @@ fn div<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Nu
                 Val::Float(p.val_to_f64(a) / divisor)
             }
         }
+    };
+    let range = Range::span(n1.range, n2.range);
+    Ok(Num { val, range })
+}
+
+fn rem<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    let val = match (n1.val, n2.val) {
+        (Val::Int(a), Val::Int(b)) => {
+            if b == 0 {
+                return Err(crate::Error::RemainderByZero(n1, n2));
+            } else {
+                Val::Int(a % b)
+            }
+        }
+        _ => return Err(crate::Error::DecimalRemainder(n1, n2)),
     };
     let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })

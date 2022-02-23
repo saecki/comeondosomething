@@ -51,6 +51,7 @@ impl<T: Var> Context<T> {
                 '-' | '−' => self.new_token(&mut state, Token::Op(Op::Sub(range)))?,
                 '*' | '×' => self.new_token(&mut state, Token::Op(Op::Mul(range)))?,
                 '/' | '÷' => self.new_token(&mut state, Token::Op(Op::Div(range)))?,
+                '%' => self.new_token(&mut state, Token::Op(Op::Rem(range)))?,
                 '°' => self.new_token(&mut state, Token::Mod(Mod::Degree(range)))?,
                 '!' => self.new_token(&mut state, Token::Mod(Mod::Factorial(range)))?,
                 '^' => self.new_token(&mut state, Token::Op(Op::Pow(range)))?,
@@ -220,6 +221,7 @@ pub enum Op {
     Sub(Range),
     Mul(Range),
     Div(Range),
+    Rem(Range),
     Pow(Range),
 }
 
@@ -227,17 +229,18 @@ impl Op {
     pub const fn priority(&self) -> usize {
         match self {
             Self::Pow(_) => 2,
-            Self::Mul(_) | Self::Div(_) => 1,
+            Self::Mul(_) | Self::Div(_) | Self::Rem(_) => 1,
             Self::Add(_) | Self::Sub(_) => 0,
         }
     }
 
     pub const fn range(&self) -> Range {
         match *self {
-            Self::Mul(r) => r,
-            Self::Div(r) => r,
             Self::Add(r) => r,
             Self::Sub(r) => r,
+            Self::Mul(r) => r,
+            Self::Div(r) => r,
+            Self::Rem(r) => r,
             Self::Pow(r) => r,
         }
     }
@@ -246,14 +249,14 @@ impl Op {
         match self {
             Self::Add(_) => Some(Sign::Positive),
             Self::Sub(_) => Some(Sign::Negative),
-            Self::Mul(_) | Self::Div(_) | Self::Pow(_) => None,
+            Self::Mul(_) | Self::Div(_) | Self::Rem(_) | Self::Pow(_) => None,
         }
     }
 
     pub const fn is_sign(&self) -> bool {
         match self {
             Self::Add(_) | Self::Sub(_) => true,
-            Self::Mul(_) | Self::Div(_) | Self::Pow(_) => false,
+            Self::Mul(_) | Self::Div(_) | Self::Rem(_) | Self::Pow(_) => false,
         }
     }
 }
