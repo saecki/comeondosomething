@@ -32,14 +32,12 @@ impl<T: Var> Context<T> {
             .filter_map(|(i, t)| t.op().map(|o| (i, o)))
             .collect();
         ops.sort_unstable_by(|(i1, o1), (i2, o2)| {
-            if o1.priority() > o2.priority() {
+            match o1.priority().cmp(&o2.priority()) {
                 // greater priority -> to the start
-                Ordering::Less
-            } else if o1.priority() < o2.priority() {
+                Ordering::Greater => Ordering::Less,
                 // lower priority -> to the end
-                Ordering::Greater
-            } else {
-                i1.cmp(i2)
+                Ordering::Less => Ordering::Greater,
+                Ordering::Equal => i1.cmp(i2),
             }
         });
 
