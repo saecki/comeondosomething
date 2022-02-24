@@ -99,6 +99,7 @@ impl<T: Var> Context<T> {
                     "asin" => Token::Cmd(Cmd::Asin(range)),
                     "acos" => Token::Cmd(Cmd::Acos(range)),
                     "atan" => Token::Cmd(Cmd::Atan(range)),
+                    "mod" => Token::Op(Op::Rem(range)),
                     "π" | "pi" => Token::Num(Num::new(Val::PI, range)),
                     "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
                     "e" => Token::Num(Num::new(Val::E, range )),
