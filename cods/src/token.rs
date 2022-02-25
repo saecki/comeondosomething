@@ -165,21 +165,21 @@ impl<T: Var> Token<T> {
         matches!(self, Self::Sep(_))
     }
 
-    pub fn num(&self) -> Option<Num<T>> {
+    pub fn as_num(&self) -> Option<Num<T>> {
         match self {
             Self::Num(n) => Some(*n),
             _ => None,
         }
     }
 
-    pub fn op(&self) -> Option<Op> {
+    pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
             _ => None,
         }
     }
 
-    pub fn par(&self) -> Option<Par> {
+    pub fn as_par(&self) -> Option<Par> {
         match self {
             Self::Par(p) => Some(*p),
             _ => None,

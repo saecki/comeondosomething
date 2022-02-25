@@ -11,7 +11,7 @@ impl<T: Var> Context<T> {
         let pars = tokens
             .iter()
             .enumerate()
-            .filter_map(|(i, t)| t.par().map(|o| (i, o)));
+            .filter_map(|(i, t)| t.as_par().map(|o| (i, o)));
 
         for (i, p) in pars {
             if p.is_opening() {
@@ -166,28 +166,28 @@ impl<T: Var> Item<T> {
         }
     }
 
-    pub fn op(&self) -> Option<Op> {
+    pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
             _ => None,
         }
     }
 
-    pub fn modifier(&self) -> Option<Mod> {
+    pub fn as_mod(&self) -> Option<Mod> {
         match self {
             Self::Mod(m) => Some(*m),
             _ => None,
         }
     }
 
-    pub fn cmd(&self) -> Option<Cmd> {
+    pub fn as_cmd(&self) -> Option<Cmd> {
         match self {
             Self::Cmd(c) => Some(*c),
             _ => None,
         }
     }
 
-    pub fn sep(&self) -> Option<Sep> {
+    pub fn as_sep(&self) -> Option<Sep> {
         match self {
             Self::Sep(c) => Some(*c),
             _ => None,

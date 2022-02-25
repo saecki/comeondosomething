@@ -29,7 +29,7 @@ impl<T: Var> Context<T> {
         let mut ops: Vec<(usize, Op)> = items
             .iter()
             .enumerate()
-            .filter_map(|(i, t)| t.op().map(|o| (i, o)))
+            .filter_map(|(i, t)| t.as_op().map(|o| (i, o)))
             .collect();
         ops.sort_unstable_by(|(i1, o1), (i2, o2)| {
             match o1.priority().cmp(&o2.priority()) {
@@ -154,7 +154,7 @@ impl<T: Var> Context<T> {
         let modifier = items
             .iter()
             .enumerate()
-            .find_map(|(i, t)| t.modifier().map(|o| (i, o)));
+            .find_map(|(i, t)| t.as_mod().map(|o| (i, o)));
 
         if let Some((i, m)) = modifier {
             let a = &items[0..i];
@@ -267,7 +267,7 @@ impl<T: Var> Context<T> {
         let mut ti = 0;
 
         for i in items.iter() {
-            if let Some(s) = i.sep() {
+            if let Some(s) = i.as_sep() {
                 let r = Range::of(start.1, s.range().start);
                 if parsed_args < COUNT {
                     let is = &items[(start.0)..ti];
