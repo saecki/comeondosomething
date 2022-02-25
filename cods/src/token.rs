@@ -100,6 +100,7 @@ impl<T: Var> Context<T> {
                     "acos" => Token::Cmd(Cmd::Acos(range)),
                     "atan" => Token::Cmd(Cmd::Atan(range)),
                     "gcd" => Token::Cmd(Cmd::Gcd(range)),
+                    "div" => Token::Op(Op::IntDiv(range)),
                     "mod" => Token::Op(Op::Rem(range)),
                     "π" | "pi" => Token::Num(Num::new(Val::PI, range)),
                     "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
@@ -223,6 +224,7 @@ pub enum Op {
     Sub(Range),
     Mul(Range),
     Div(Range),
+    IntDiv(Range),
     Rem(Range),
     Pow(Range),
 }
@@ -231,7 +233,7 @@ impl Op {
     pub const fn priority(&self) -> usize {
         match self {
             Self::Pow(_) => 2,
-            Self::Mul(_) | Self::Div(_) | Self::Rem(_) => 1,
+            Self::Mul(_) | Self::Div(_) | Self::IntDiv(_) | Self::Rem(_) => 1,
             Self::Add(_) | Self::Sub(_) => 0,
         }
     }
@@ -242,6 +244,7 @@ impl Op {
             Self::Sub(r) => r,
             Self::Mul(r) => r,
             Self::Div(r) => r,
+            Self::IntDiv(r) => r,
             Self::Rem(r) => r,
             Self::Pow(r) => r,
         }
@@ -251,15 +254,12 @@ impl Op {
         match self {
             Self::Add(_) => Some(Sign::Positive),
             Self::Sub(_) => Some(Sign::Negative),
-            Self::Mul(_) | Self::Div(_) | Self::Rem(_) | Self::Pow(_) => None,
+            Self::Mul(_) | Self::Div(_) | Self::IntDiv(_) | Self::Rem(_) | Self::Pow(_) => None,
         }
     }
 
     pub const fn is_sign(&self) -> bool {
-        match self {
-            Self::Add(_) | Self::Sub(_) => true,
-            Self::Mul(_) | Self::Div(_) | Self::Rem(_) | Self::Pow(_) => false,
-        }
+        self.as_sign().is_some()
     }
 }
 

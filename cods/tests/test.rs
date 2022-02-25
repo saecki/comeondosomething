@@ -45,6 +45,11 @@ fn signs() {
 }
 
 #[test]
+fn euclid_div() {
+    assert(PlainVal::Int(2), "8 div 3");
+}
+
+#[test]
 fn remainder() {
     assert(PlainVal::Int(2), "8 % 3");
 }

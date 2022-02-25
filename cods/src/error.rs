@@ -28,6 +28,7 @@ pub enum Error<T: Var> {
     SubOverflow(Num<T>, Num<T>),
     MulOverflow(Num<T>, Num<T>),
     DivideByZero(Num<T>, Num<T>),
+    FractionEuclidDiv(Num<T>, Num<T>),
     RemainderByZero(Num<T>, Num<T>),
     FractionRemainder(Num<T>, Num<T>),
     FractionGcd(Num<T>, Num<T>),
@@ -81,6 +82,9 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
                 format!("Multiplication of {} and {} would overflow", a.val, b.val)
             }
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
+            Self::FractionEuclidDiv(_, _) => {
+                "Attempted calculate the division with remainder of fractions".into()
+            }
             Self::RemainderByZero(_, _) => {
                 "Attempted to get the remainder of a division by 0".into()
             }
@@ -116,6 +120,7 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
+            Self::FractionEuclidDiv(a, b) => vec![a.range, b.range],
             Self::RemainderByZero(a, b) => vec![a.range, b.range],
             Self::FractionRemainder(a, b) => vec![a.range, b.range],
             Self::FractionGcd(a, b) => vec![a.range, b.range],

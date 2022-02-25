@@ -108,6 +108,7 @@ impl<T: Var> Context<T> {
                     )),
                     Op::Mul(_) => (),
                     Op::Div(_) => (),
+                    Op::IntDiv(_) => (),
                     Op::Rem(_) => (),
                     Op::Pow(_) => (),
                 }
@@ -142,6 +143,7 @@ impl<T: Var> Context<T> {
                         Op::Add(_) | Op::Sub(_) => unreachable!(),
                         Op::Mul(_) => Ok(Calc::Mul(calc_a, calc_b)),
                         Op::Div(_) => Ok(Calc::Div(calc_a, calc_b)),
+                        Op::IntDiv(_) => Ok(Calc::IntDiv(calc_a, calc_b)),
                         Op::Rem(_) => Ok(Calc::Rem(calc_a, calc_b)),
                         Op::Pow(_) => Ok(Calc::Pow(calc_a, calc_b, Range::span(range_a, range_b))),
                     }
