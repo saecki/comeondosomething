@@ -162,7 +162,7 @@ fn int_div<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Resu
                 Val::Int(a / b)
             }
         }
-        _ => return Err(crate::Error::FractionEuclidDiv(n1, n2))
+        _ => return Err(crate::Error::FractionEuclidDiv(n1, n2)),
     };
     let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
@@ -282,7 +282,12 @@ fn atan<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<
     Ok(Num { val, range })
 }
 
-fn gcd<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn gcd<T: Var>(
+    _p: &impl Provider<T>,
+    n1: Num<T>,
+    n2: Num<T>,
+    range: Range,
+) -> crate::Result<Num<T>, T> {
     fn euclid(m: i128, n: i128) -> (i128, i128) {
         if m == 0 {
             return (0, 1);
@@ -300,7 +305,6 @@ fn gcd<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>, range: Range) -> c
             (x, y)
         }
     }
-
 
     match (n1.val, n2.val) {
         (Val::Int(m), Val::Int(n)) => {

@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Sign, Var, Warning, OpType};
+use crate::{
+    items_range, Calc, Cmd, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var, Warning,
+};
 
 impl<T: Var> Context<T> {
     pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
@@ -115,8 +117,7 @@ impl<T: Var> Context<T> {
             }
 
             let a = &items[0..i];
-            let range_a =
-                items_range(a).unwrap_or_else(|| Range::of(range.start, op.range.start));
+            let range_a = items_range(a).unwrap_or_else(|| Range::of(range.start, op.range.start));
             let calc_a = Box::new(self.parse_items(range_a, a)?);
 
             let b = &items[(first_i + 1)..];
