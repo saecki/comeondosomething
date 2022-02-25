@@ -206,7 +206,7 @@ impl<T: Var> Item<T> {
         match self {
             Self::Group(g) => g.range,
             Self::Num(n) => n.range,
-            Self::Op(o) => o.range(),
+            Self::Op(o) => o.range,
             Self::Cmd(c) => c.range(),
             Self::Mod(m) => m.range(),
             Self::Sep(s) => s.range(),
@@ -243,7 +243,7 @@ impl<T: Var> Group<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::{DummyVar, Op, Range, Val};
+    use crate::{DummyVar, Op, OpType, Range, Val};
 
     use super::*;
 
@@ -257,7 +257,7 @@ mod test {
             items,
             vec![
                 Item::Num(Num::new(Val::Float(423.42), Range::of(0, 6))),
-                Item::Op(Op::Mul(Range::pos(7))),
+                Item::Op(Op::new(OpType::Mul, Range::pos(7))),
                 Item::Num(Num::new(Val::Float(64.52), Range::of(9, 14))),
             ]
         );
@@ -275,13 +275,13 @@ mod test {
                 Item::Group(Group::new(
                     vec![
                         Item::Num(Num::new(Val::Float(23.13), Range::of(1, 6))),
-                        Item::Op(Op::Add(Range::pos(7))),
+                        Item::Op(Op::new(OpType::Add, Range::pos(7))),
                         Item::Num(Num::new(Val::Float(543.23), Range::of(9, 15)))
                     ],
                     Range::of(1, 15),
                     ParType::Round,
                 )),
-                Item::Op(Op::Mul(Range::pos(17))),
+                Item::Op(Op::new(OpType::Mul, Range::pos(17))),
                 Item::Num(Num::new(Val::Int(34), Range::of(19, 21))),
             ]
         );

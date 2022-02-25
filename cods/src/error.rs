@@ -112,7 +112,7 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::MissingClosingParenthesis(p) => vec![p.range()],
             Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
-            Self::UnexpectedOperator(o) => vec![o.range()],
+            Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedParenthesis(p) => vec![p.range()],
             Self::UnknownValue(r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],

@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Sign, Var, Warning};
+use crate::{items_range, Calc, Cmd, Context, Item, Mod, Op, ParType, Range, Sign, Var, Warning, OpType};
 
 impl<T: Var> Context<T> {
     pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
@@ -57,18 +57,18 @@ impl<T: Var> Context<T> {
                 if i == 0 {
                     // operator is the first item -> sign
                     let a = &items[(first_i + 1)..];
-                    let ra = items_range(a).unwrap_or_else(|| Range::of(op.range().end, range.end));
+                    let ra = items_range(a).unwrap_or_else(|| Range::of(op.range.end, range.end));
                     let ca = self.parse_items(ra, a)?;
 
                     if first_i != i {
-                        let sign_range = Range::span(op.range(), first_o.range());
+                        let sign_range = Range::span(op.range, first_o.range);
                         self.warnings.push(Warning::MultipleSigns(sign_range, sign));
                     }
 
                     if sign.is_positive() {
                         return Ok(ca);
                     } else {
-                        return Ok(Calc::Neg(Box::new(ca), Range::span(op.range(), ra)));
+                        return Ok(Calc::Neg(Box::new(ca), Range::span(op.range, ra)));
                     }
                 } else if items[i - 1].is_op() {
                     // adjacent item is an operator
@@ -92,39 +92,39 @@ impl<T: Var> Context<T> {
             }
 
             if first_i != i {
-                let sign_range = Range::span(items[i + 1].range(), first_o.range());
-                match op {
-                    Op::Add(_) => self.warnings.push(Warning::SignFollowingAddition(
-                        op.range(),
+                let sign_range = Range::span(items[i + 1].range(), first_o.range);
+                match op.typ {
+                    OpType::Add => self.warnings.push(Warning::SignFollowingAddition(
+                        op.range,
                         sign_range,
                         sign,
                         first_i - i,
                     )),
-                    Op::Sub(_) => self.warnings.push(Warning::SignFollowingSubtraction(
-                        op.range(),
+                    OpType::Sub => self.warnings.push(Warning::SignFollowingSubtraction(
+                        op.range,
                         sign_range,
                         sign,
                         first_i - i,
                     )),
-                    Op::Mul(_) => (),
-                    Op::Div(_) => (),
-                    Op::IntDiv(_) => (),
-                    Op::Rem(_) => (),
-                    Op::Pow(_) => (),
+                    OpType::Mul => (),
+                    OpType::Div => (),
+                    OpType::IntDiv => (),
+                    OpType::Rem => (),
+                    OpType::Pow => (),
                 }
             }
 
             let a = &items[0..i];
             let range_a =
-                items_range(a).unwrap_or_else(|| Range::of(range.start, op.range().start));
+                items_range(a).unwrap_or_else(|| Range::of(range.start, op.range.start));
             let calc_a = Box::new(self.parse_items(range_a, a)?);
 
             let b = &items[(first_i + 1)..];
-            let range_b = items_range(b).unwrap_or_else(|| Range::of(op.range().end, range.end));
+            let range_b = items_range(b).unwrap_or_else(|| Range::of(op.range.end, range.end));
             let calc_b = Box::new(self.parse_items(range_b, b)?);
 
-            return match op {
-                Op::Add(_) | Op::Sub(_) => {
+            return match op.typ {
+                OpType::Add | OpType::Sub => {
                     // all + and - signs/operators were accumulated
                     if sign.is_positive() {
                         Ok(Calc::Add(calc_a, calc_b))
@@ -139,13 +139,13 @@ impl<T: Var> Context<T> {
                     } else {
                         Box::new(Calc::Neg(calc_b, range_b))
                     };
-                    match op {
-                        Op::Add(_) | Op::Sub(_) => unreachable!(),
-                        Op::Mul(_) => Ok(Calc::Mul(calc_a, calc_b)),
-                        Op::Div(_) => Ok(Calc::Div(calc_a, calc_b)),
-                        Op::IntDiv(_) => Ok(Calc::IntDiv(calc_a, calc_b)),
-                        Op::Rem(_) => Ok(Calc::Rem(calc_a, calc_b)),
-                        Op::Pow(_) => Ok(Calc::Pow(calc_a, calc_b, Range::span(range_a, range_b))),
+                    match op.typ {
+                        OpType::Add | OpType::Sub => unreachable!(),
+                        OpType::Mul => Ok(Calc::Mul(calc_a, calc_b)),
+                        OpType::Div => Ok(Calc::Div(calc_a, calc_b)),
+                        OpType::IntDiv => Ok(Calc::IntDiv(calc_a, calc_b)),
+                        OpType::Rem => Ok(Calc::Rem(calc_a, calc_b)),
+                        OpType::Pow => Ok(Calc::Pow(calc_a, calc_b, Range::span(range_a, range_b))),
                     }
                 }
             };
