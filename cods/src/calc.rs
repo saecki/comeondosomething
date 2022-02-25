@@ -40,6 +40,7 @@ pub enum Calc<T: Var> {
     Asin(Box<Calc<T>>, Range),
     Acos(Box<Calc<T>>, Range),
     Atan(Box<Calc<T>>, Range),
+    Gcd(Box<Calc<T>>, Box<Calc<T>>, Range),
     Degree(Box<Calc<T>>, Range),
     Factorial(Box<Calc<T>>, Range),
 }
@@ -71,6 +72,7 @@ impl<T: Var> Calc<T> {
             Self::Asin(a, r) => asin(p, a.eval_num(p)?, *r),
             Self::Acos(a, r) => acos(p, a.eval_num(p)?, *r),
             Self::Atan(a, r) => atan(p, a.eval_num(p)?, *r),
+            Self::Gcd(a, b, r) => gcd(p, a.eval_num(p)?, b.eval_num(p)?, *r),
             Self::Degree(a, r) => degree(p, a.eval_num(p)?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
             Self::Factorial(a, r) => factorial(p, a.eval_num(p)?, *r),
         }
@@ -163,7 +165,7 @@ fn rem<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<N
                 }
             }
         }
-        _ => return Err(crate::Error::DecimalRemainder(n1, n2)),
+        _ => return Err(crate::Error::FractionRemainder(n1, n2)),
     };
     let range = Range::span(n1.range, n2.range);
     Ok(Num { val, range })
@@ -263,6 +265,36 @@ fn atan<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<
     Ok(Num { val, range })
 }
 
+fn gcd<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn euclid(m: i128, n: i128) -> (i128, i128) {
+        if m == 0 {
+            return (0, 1);
+        } else if n == 0 {
+            return (1, 0);
+        } else if m > n {
+            let (x, y) = euclid(n, m);
+            (y, x)
+        } else if n % m == 0 {
+            (1, 0)
+        } else {
+            let (x1, y1) = euclid(n % m, m);
+            let x = y1 - x1 * (n / m);
+            let y = x1;
+            (x, y)
+        }
+    }
+
+
+    match (n1.val, n2.val) {
+        (Val::Int(m), Val::Int(n)) => {
+            let (x, y) = euclid(m, n);
+            let val = Val::Int(x * m + y * n);
+            Ok(Num { val, range })
+        }
+        _ => Err(crate::Error::FractionGcd(n1, n2)),
+    }
+}
+
 fn degree<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).to_radians());
     Ok(Num { val, range })
@@ -277,7 +309,7 @@ fn factorial<T: Var>(_: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Re
                 Val::Int((1..=i).product())
             }
         }
-        _ => return Err(crate::Error::DecimalFactorial(n.range)),
+        _ => return Err(crate::Error::FractionFactorial(n.range)),
     };
     Ok(Num { val, range })
 }

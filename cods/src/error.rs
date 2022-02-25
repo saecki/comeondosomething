@@ -29,9 +29,10 @@ pub enum Error<T: Var> {
     MulOverflow(Num<T>, Num<T>),
     DivideByZero(Num<T>, Num<T>),
     RemainderByZero(Num<T>, Num<T>),
-    DecimalRemainder(Num<T>, Num<T>),
+    FractionRemainder(Num<T>, Num<T>),
+    FractionGcd(Num<T>, Num<T>),
     NegativeFactorial(Range),
-    DecimalFactorial(Range),
+    FractionFactorial(Range),
 }
 
 impl<T: Var> UserFacing<LRed> for Error<T> {
@@ -83,13 +84,16 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::RemainderByZero(_, _) => {
                 "Attempted to get the remainder of a division by 0".into()
             }
-            Self::DecimalRemainder(_, _) => {
+            Self::FractionRemainder(_, _) => {
                 "Attempted to get the remainder of a division of fractions".into()
+            }
+            Self::FractionGcd(_, _) => {
+                "Attempted to get the greatest common divisor of fractions".into()
             }
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
-            Self::DecimalFactorial(_) => {
+            Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
         }
@@ -113,9 +117,10 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::MulOverflow(a, b) => vec![a.range, b.range],
             Self::DivideByZero(a, b) => vec![a.range, b.range],
             Self::RemainderByZero(a, b) => vec![a.range, b.range],
-            Self::DecimalRemainder(a, b) => vec![a.range, b.range],
+            Self::FractionRemainder(a, b) => vec![a.range, b.range],
+            Self::FractionGcd(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
-            Self::DecimalFactorial(r) => vec![*r],
+            Self::FractionFactorial(r) => vec![*r],
         }
     }
 }

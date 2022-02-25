@@ -99,6 +99,7 @@ impl<T: Var> Context<T> {
                     "asin" => Token::Cmd(Cmd::Asin(range)),
                     "acos" => Token::Cmd(Cmd::Acos(range)),
                     "atan" => Token::Cmd(Cmd::Atan(range)),
+                    "gcd" => Token::Cmd(Cmd::Gcd(range)),
                     "mod" => Token::Op(Op::Rem(range)),
                     "π" | "pi" => Token::Num(Num::new(Val::PI, range)),
                     "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
@@ -302,6 +303,7 @@ pub enum Cmd {
     Asin(Range),
     Acos(Range),
     Atan(Range),
+    Gcd(Range),
 }
 
 impl Cmd {
@@ -318,6 +320,7 @@ impl Cmd {
             Self::Asin(r) => r,
             Self::Acos(r) => r,
             Self::Atan(r) => r,
+            Self::Gcd(r) => r,
         }
     }
 }

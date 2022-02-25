@@ -60,6 +60,17 @@ fn negative_remainder2() {
 }
 
 #[test]
+fn gcd() {
+    assert(PlainVal::Int(3), "gcd(6, 9)");
+}
+
+#[test]
+fn gcd0() {
+    assert(PlainVal::Int(4), "gcd(4, 0)");
+    assert(PlainVal::Int(5), "gcd(0, 5)");
+}
+
+#[test]
 fn factorial() {
     assert(PlainVal::Int(8 * 7 * 6 * 5 * 4 * 3 * 2 * 1), "8!");
 }
@@ -100,7 +111,7 @@ fn unmatched_par() {
 #[test]
 fn factorial_fraction() {
     assert_eq!(
-        Error::DecimalFactorial(Range::of(0, 3)),
+        Error::FractionFactorial(Range::of(0, 3)),
         calc("4.1!").1.errors[0],
     );
 }

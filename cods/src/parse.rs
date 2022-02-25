@@ -230,6 +230,10 @@ impl<T: Var> Context<T> {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Atan(Box::new(val), r)
                             }
+                            Cmd::Gcd(_) => {
+                                let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Gcd(Box::new(a), Box::new(b), r)
+                            }
                         })
                     }
                     i => {
