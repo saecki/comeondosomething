@@ -47,16 +47,14 @@ impl<T: Var> Context<T> {
             let range = Range::pos(state.char_index);
             match c {
                 ' ' | '\n' | '\r' => self.complete_literal(&mut state)?,
-                '+' => self.new_token(&mut state, Token::Op(Op::new(OpType::Add, range)))?,
-                '-' | '−' => {
-                    self.new_token(&mut state, Token::Op(Op::new(OpType::Sub, range)))?
-                }
-                '*' | '×' => self.new_token(&mut state, Token::Op(Op::new(OpType::Mul, range)))?,
-                '/' | '÷' => self.new_token(&mut state, Token::Op(Op::new(OpType::Div, range)))?,
-                '%' => self.new_token(&mut state, Token::Op(Op::new(OpType::Rem, range)))?,
+                '+' => self.new_token(&mut state, Token::op(OpType::Add, range))?,
+                '-' | '−' => self.new_token(&mut state, Token::op(OpType::Sub, range))?,
+                '*' | '×' => self.new_token(&mut state, Token::op(OpType::Mul, range))?,
+                '/' | '÷' => self.new_token(&mut state, Token::op(OpType::Div, range))?,
+                '%' => self.new_token(&mut state, Token::op(OpType::Rem, range))?,
                 '°' => self.new_token(&mut state, Token::Mod(Mod::Degree(range)))?,
                 '!' => self.new_token(&mut state, Token::Mod(Mod::Factorial(range)))?,
-                '^' => self.new_token(&mut state, Token::Op(Op::new(OpType::Pow, range)))?,
+                '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
                 '(' => self.new_token(&mut state, Token::Par(Par::RoundOpen(range)))?,
                 '[' => self.new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
                 '{' => self.new_token(&mut state, Token::Par(Par::CurlyOpen(range)))?,
@@ -102,11 +100,11 @@ impl<T: Var> Context<T> {
                     "acos" => Token::Cmd(Cmd::Acos(range)),
                     "atan" => Token::Cmd(Cmd::Atan(range)),
                     "gcd" => Token::Cmd(Cmd::Gcd(range)),
-                    "div" => Token::Op(Op::new(OpType::IntDiv, range)),
-                    "mod" => Token::Op(Op::new(OpType::Rem, range)),
-                    "π" | "pi" => Token::Num(Num::new(Val::PI, range)),
-                    "τ" | "tau" => Token::Num(Num::new(Val::TAU, range)),
-                    "e" => Token::Num(Num::new(Val::E, range )),
+                    "div" => Token::op(OpType::IntDiv, range),
+                    "mod" => Token::op(OpType::Rem, range),
+                    "π" | "pi" => Token::num(Val::PI, range),
+                    "τ" | "tau" => Token::num(Val::TAU, range),
+                    "e" => Token::num(Val::E, range ),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let val = if let Ok(i) = literal.parse::<i128>() {
@@ -116,9 +114,9 @@ impl<T: Var> Context<T> {
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
-                            Token::Num(Num::new(val, range))
+                            Token::num(val, range)
                         } else if let Ok(v) = literal.parse::<T>() {
-                            Token::Num(Num::new(Val::Var(v), range))
+                            Token::num(Val::Var(v), range)
                         } else {
                             return Err(crate::Error::UnknownValue(range));
                         }
@@ -145,6 +143,14 @@ pub enum Token<T: Var> {
 }
 
 impl<T: Var> Token<T> {
+    pub fn num(val: Val<T>, range: Range) -> Self {
+        Token::Num(Num::new(val, range))
+    }
+
+    pub fn op(typ: OpType, range: Range) -> Self {
+        Token::Op(Op::new(typ, range))
+    }
+
     pub fn is_num(&self) -> bool {
         matches!(self, Self::Num(_))
     }
@@ -478,9 +484,9 @@ mod test {
         check(
             "432.432 + 24324.543",
             vec![
-                Token::Num(Num::new(Val::Float(432.432), Range::of(0, 7))),
-                Token::Op(Op::new(OpType::Add, Range::pos(8))),
-                Token::Num(Num::new(Val::Float(24324.543), Range::of(10, 19))),
+                Token::num(Val::Float(432.432), Range::of(0, 7)),
+                Token::op(OpType::Add, Range::pos(8)),
+                Token::num(Val::Float(24324.543), Range::of(10, 19)),
             ],
         );
     }
@@ -490,9 +496,9 @@ mod test {
         check(
             "604.453 *3562.543",
             vec![
-                Token::Num(Num::new(Val::Float(604.453), Range::of(0, 7))),
-                Token::Op(Op::new(OpType::Mul, Range::pos(8))),
-                Token::Num(Num::new(Val::Float(3562.543), Range::of(9, 17))),
+                Token::num(Val::Float(604.453), Range::of(0, 7)),
+                Token::op(OpType::Mul, Range::pos(8)),
+                Token::num(Val::Float(3562.543), Range::of(9, 17)),
             ],
         );
     }
@@ -503,12 +509,12 @@ mod test {
             "(32+ 604.453)* 3562.543",
             vec![
                 Token::Par(Par::RoundOpen(Range::pos(0))),
-                Token::Num(Num::new(Val::Int(32), Range::of(1, 3))),
-                Token::Op(Op::new(OpType::Add, Range::pos(3))),
-                Token::Num(Num::new(Val::Float(604.453), Range::of(5, 12))),
+                Token::num(Val::Int(32), Range::of(1, 3)),
+                Token::op(OpType::Add, Range::pos(3)),
+                Token::num(Val::Float(604.453), Range::of(5, 12)),
                 Token::Par(Par::RoundClose(Range::pos(12))),
-                Token::Op(Op::new(OpType::Mul, Range::pos(13))),
-                Token::Num(Num::new(Val::Float(3562.543), Range::of(15, 23))),
+                Token::op(OpType::Mul, Range::pos(13)),
+                Token::num(Val::Float(3562.543), Range::of(15, 23)),
             ],
         );
     }
