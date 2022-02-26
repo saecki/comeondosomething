@@ -88,18 +88,18 @@ impl<T: Var> Context<T> {
                 self,
                 range,
                 match literal {
-                    "pow" => Token::Cmd(Cmd::Pow(range)),
-                    "ln" => Token::Cmd(Cmd::Ln(range)),
-                    "log" => Token::Cmd(Cmd::Log(range)),
-                    "sqrt" => Token::Cmd(Cmd::Sqrt(range)),
-                    "nCr" => Token::Cmd(Cmd::Ncr(range)),
-                    "sin" => Token::Cmd(Cmd::Sin(range)),
-                    "cos" => Token::Cmd(Cmd::Cos(range)),
-                    "tan" => Token::Cmd(Cmd::Tan(range)),
-                    "asin" => Token::Cmd(Cmd::Asin(range)),
-                    "acos" => Token::Cmd(Cmd::Acos(range)),
-                    "atan" => Token::Cmd(Cmd::Atan(range)),
-                    "gcd" => Token::Cmd(Cmd::Gcd(range)),
+                    "pow" => Token::cmd(CmdType::Pow, range),
+                    "ln" => Token::cmd(CmdType::Ln, range),
+                    "log" => Token::cmd(CmdType::Log, range),
+                    "sqrt" => Token::cmd(CmdType::Sqrt, range),
+                    "nCr" => Token::cmd(CmdType::Ncr, range),
+                    "sin" => Token::cmd(CmdType::Sin, range),
+                    "cos" => Token::cmd(CmdType::Cos, range),
+                    "tan" => Token::cmd(CmdType::Tan, range),
+                    "asin" => Token::cmd(CmdType::Asin, range),
+                    "acos" => Token::cmd(CmdType::Acos, range),
+                    "atan" => Token::cmd(CmdType::Atan, range),
+                    "gcd" => Token::cmd(CmdType::Gcd, range),
                     "div" => Token::op(OpType::IntDiv, range),
                     "mod" => Token::op(OpType::Rem, range),
                     "π" | "pi" => Token::num(Val::PI, range),
@@ -151,6 +151,10 @@ impl<T: Var> Token<T> {
         Token::Op(Op::new(typ, range))
     }
 
+    pub fn cmd(typ: CmdType, range: Range) -> Self {
+        Token::Cmd(Cmd::new(typ, range))
+    }
+
     pub fn is_num(&self) -> bool {
         matches!(self, Self::Num(_))
     }
@@ -196,7 +200,7 @@ impl<T: Var> Token<T> {
         match self {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Cmd(c) => c.range(),
+            Self::Cmd(c) => c.range,
             Self::Mod(m) => m.range(),
             Self::Par(p) => p.range(),
             Self::Sep(s) => s.range(),
@@ -313,38 +317,31 @@ impl Sign {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Cmd {
-    Pow(Range),
-    Ln(Range),
-    Log(Range),
-    Sqrt(Range),
-    Ncr(Range),
-    Sin(Range),
-    Cos(Range),
-    Tan(Range),
-    Asin(Range),
-    Acos(Range),
-    Atan(Range),
-    Gcd(Range),
+pub struct Cmd {
+    pub typ: CmdType,
+    pub range: Range,
 }
 
 impl Cmd {
-    pub const fn range(&self) -> Range {
-        match *self {
-            Self::Pow(r) => r,
-            Self::Ln(r) => r,
-            Self::Log(r) => r,
-            Self::Sqrt(r) => r,
-            Self::Ncr(r) => r,
-            Self::Sin(r) => r,
-            Self::Cos(r) => r,
-            Self::Tan(r) => r,
-            Self::Asin(r) => r,
-            Self::Acos(r) => r,
-            Self::Atan(r) => r,
-            Self::Gcd(r) => r,
-        }
+    pub const fn new(typ: CmdType, range: Range) -> Self {
+        Self { typ, range }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CmdType {
+    Pow,
+    Ln,
+    Log,
+    Sqrt,
+    Ncr,
+    Sin,
+    Cos,
+    Tan,
+    Asin,
+    Acos,
+    Atan,
+    Gcd,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

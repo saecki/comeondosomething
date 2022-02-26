@@ -204,7 +204,7 @@ impl UserFacing<LYellow> for Warning {
                 cmd,
                 open_par,
                 close_par,
-            } => vec![cmd.range(), *open_par, *close_par],
+            } => vec![cmd.range, *open_par, *close_par],
         }
     }
 }

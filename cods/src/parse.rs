@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, Cmd, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var, Warning,
+    items_range, Calc, CmdType, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var,
+    Warning,
 };
 
 impl<T: Var> Context<T> {
@@ -20,7 +21,7 @@ impl<T: Var> Context<T> {
                 Item::Group(g) => return self.parse_items(g.range, &g.items),
                 Item::Num(n) => return Ok(Calc::Num(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
-                Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range().end)),
+                Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range.end)),
                 Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range().start)),
                 Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range().start)),
             };
@@ -187,60 +188,60 @@ impl<T: Var> Context<T> {
                                 });
                         }
 
-                        let r = Range::span(cmd.range(), g.range);
-                        Ok(match cmd {
-                            Cmd::Pow(_) => {
+                        let r = Range::span(cmd.range, g.range);
+                        Ok(match cmd.typ {
+                            CmdType::Pow => {
                                 let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Pow(Box::new(base), Box::new(exp), r)
                             }
-                            Cmd::Ln(_) => {
+                            CmdType::Ln => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Ln(Box::new(val), r)
                             }
-                            Cmd::Log(_) => {
+                            CmdType::Log => {
                                 let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Log(Box::new(base), Box::new(val), r)
                             }
-                            Cmd::Sqrt(_) => {
+                            CmdType::Sqrt => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Sqrt(Box::new(val), r)
                             }
-                            Cmd::Ncr(_) => {
+                            CmdType::Ncr => {
                                 let [n, k] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Ncr(Box::new(n), Box::new(k), r)
                             }
-                            Cmd::Sin(_) => {
+                            CmdType::Sin => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Sin(Box::new(val), r)
                             }
-                            Cmd::Cos(_) => {
+                            CmdType::Cos => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Cos(Box::new(val), r)
                             }
-                            Cmd::Tan(_) => {
+                            CmdType::Tan => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Tan(Box::new(val), r)
                             }
-                            Cmd::Asin(_) => {
+                            CmdType::Asin => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Asin(Box::new(val), r)
                             }
-                            Cmd::Acos(_) => {
+                            CmdType::Acos => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Acos(Box::new(val), r)
                             }
-                            Cmd::Atan(_) => {
+                            CmdType::Atan => {
                                 let [val] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Atan(Box::new(val), r)
                             }
-                            Cmd::Gcd(_) => {
+                            CmdType::Gcd => {
                                 let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Gcd(Box::new(a), Box::new(b), r)
                             }
                         })
                     }
                     i => {
-                        let range = Range::of(cmd.range().end, i.range().start);
+                        let range = Range::of(cmd.range.end, i.range().start);
                         self.errors
                             .push(crate::Error::MissingCommandParenthesis(range));
                         Ok(Calc::Error(range))
