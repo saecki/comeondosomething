@@ -1,10 +1,10 @@
-use crate::{Cmd, LRed, LYellow, Sep, SepType, Sign, UserFacing, Var};
+use crate::{Cmd, Ext, LRed, LYellow, Sep, SepType, Sign, UserFacing};
 use crate::{Num, Op, Par, Range};
 
 pub type Result<T, V> = std::result::Result<T, Error<V>>;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Error<T: Var> {
+pub enum Error<T: Ext> {
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -36,7 +36,7 @@ pub enum Error<T: Var> {
     FractionFactorial(Range),
 }
 
-impl<T: Var> UserFacing<LRed> for Error<T> {
+impl<T: Ext> UserFacing<LRed> for Error<T> {
     fn description(&self) -> String {
         match self {
             Self::Parsing(_) => "A parsing error occured".into(),

@@ -1,7 +1,7 @@
 use std::fmt::{Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
-use crate::{Context, Var};
+use crate::{Context, Ext};
 
 macro_rules! match_warn_case {
     (
@@ -24,13 +24,13 @@ macro_rules! match_warn_case {
     }};
 }
 
-struct Tokenizer<T: Var> {
+struct Tokenizer<T: Ext> {
     tokens: Vec<Token<T>>,
     literal: String,
     char_index: usize,
 }
 
-impl<T: Var> Tokenizer<T> {
+impl<T: Ext> Tokenizer<T> {
     fn new() -> Self {
         Self {
             tokens: Vec::new(),
@@ -40,7 +40,7 @@ impl<T: Var> Tokenizer<T> {
     }
 }
 
-impl<T: Var> Context<T> {
+impl<T: Ext> Context<T> {
     pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token<T>>, T> {
         let mut state = Tokenizer::new();
 
@@ -120,7 +120,7 @@ impl<T: Var> Context<T> {
                             };
                             Token::num(val, range)
                         } else if let Ok(v) = literal.parse::<T>() {
-                            Token::num(Val::Var(v), range)
+                            Token::num(Val::Ext(v), range)
                         } else {
                             return Err(crate::Error::UnknownValue(range));
                         }
@@ -137,7 +137,7 @@ impl<T: Var> Context<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Token<T: Var> {
+pub enum Token<T: Ext> {
     Num(Num<T>),
     Op(Op),
     Cmd(Cmd),
@@ -146,7 +146,7 @@ pub enum Token<T: Var> {
     Sep(Sep),
 }
 
-impl<T: Var> Token<T> {
+impl<T: Ext> Token<T> {
     pub fn num(val: Val<T>, range: Range) -> Self {
         Self::Num(Num::new(val, range))
     }
@@ -225,22 +225,22 @@ impl<T: Var> Token<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Num<T: Var> {
+pub struct Num<T: Ext> {
     pub val: Val<T>,
     pub range: Range,
 }
 
-impl<T: Var> Num<T> {
+impl<T: Ext> Num<T> {
     pub fn new(val: Val<T>, range: Range) -> Self {
         Self { val, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val<T: Var> {
+pub enum Val<T: Ext> {
+    Ext(T),
     Int(i128),
     Float(f64),
-    Var(T),
     TAU,
     PI,
     E,
@@ -522,7 +522,7 @@ impl Range {
 
 #[cfg(test)]
 mod test {
-    use crate::DummyVar;
+    use crate::ExtDummy;
 
     use super::*;
 
@@ -566,8 +566,8 @@ mod test {
         );
     }
 
-    fn check(input: &str, output: Vec<Token<DummyVar>>) {
-        let tokens = Context::<DummyVar>::new().tokenize(input).unwrap();
+    fn check(input: &str, output: Vec<Token<ExtDummy>>) {
+        let tokens = Context::<ExtDummy>::new().tokenize(input).unwrap();
         assert_eq!(tokens, output);
     }
 }

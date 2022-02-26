@@ -1,8 +1,8 @@
 use std::ops;
 
-use crate::{Cmd, Context, Mod, Num, Op, Par, ParKind, Range, Sep, Token, Var};
+use crate::{Cmd, Context, Ext, Mod, Num, Op, Par, ParKind, Range, Sep, Token};
 
-impl<T: Var> Context<T> {
+impl<T: Ext> Context<T> {
     pub fn group(&mut self, tokens: &[Token<T>]) -> crate::Result<Vec<Item<T>>, T> {
         let mut items = Vec::new();
         let mut pos = 0;
@@ -127,7 +127,7 @@ impl GroupRange {
         }
     }
 
-    fn chars(&self, tokens: &[Token<impl Var>]) -> Range {
+    fn chars(&self, tokens: &[Token<impl Ext>]) -> Range {
         let start = if self.missing_start_par {
             tokens[self.start].range().start
         } else {
@@ -145,7 +145,7 @@ impl GroupRange {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Item<T: Var> {
+pub enum Item<T: Ext> {
     Group(Group<T>),
     Num(Num<T>),
     Op(Op),
@@ -154,7 +154,7 @@ pub enum Item<T: Var> {
     Sep(Sep),
 }
 
-impl<T: Var> Item<T> {
+impl<T: Ext> Item<T> {
     pub fn try_from(token: &Token<T>) -> Option<Self> {
         match *token {
             Token::Num(n) => Some(Self::Num(n)),
@@ -214,7 +214,7 @@ impl<T: Var> Item<T> {
     }
 }
 
-pub fn items_range(items: &[Item<impl Var>]) -> Option<Range> {
+pub fn items_range(items: &[Item<impl Ext>]) -> Option<Range> {
     let first = items.first().map(|i| i.range());
     let last = items.last().map(|i| i.range());
 
@@ -225,13 +225,13 @@ pub fn items_range(items: &[Item<impl Var>]) -> Option<Range> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Group<T: Var> {
+pub struct Group<T: Ext> {
     pub items: Vec<Item<T>>,
     pub range: Range,
     pub par_kind: ParKind,
 }
 
-impl<T: Var> Group<T> {
+impl<T: Ext> Group<T> {
     pub fn new(items: Vec<Item<T>>, range: Range, par: ParKind) -> Self {
         Self {
             items,
@@ -243,13 +243,13 @@ impl<T: Var> Group<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::{DummyVar, Op, OpType, Range, Val};
+    use crate::{ExtDummy, Op, OpType, Range, Val};
 
     use super::*;
 
     #[test]
     fn no_parenthesis() {
-        let mut ctx = Context::<DummyVar>::default();
+        let mut ctx = Context::<ExtDummy>::default();
         let tokens = ctx.tokenize("423.42 * 64.52").unwrap();
         let items = ctx.group(&tokens).unwrap();
 
@@ -265,7 +265,7 @@ mod test {
 
     #[test]
     fn add_parenthesis() {
-        let mut ctx = Context::<DummyVar>::default();
+        let mut ctx = Context::<ExtDummy>::default();
         let tokens = ctx.tokenize("(23.13 + 543.23) * 34").unwrap();
         let items = ctx.group(&tokens).unwrap();
 

@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use crate::{Num, Provider, Range, Val, Var};
+use crate::{Ext, Num, Provider, Range, Val};
 
-impl<T: Var> Val<T> {
+impl<T: Ext> Val<T> {
     pub fn maybe_int(self) -> Self {
         match self {
             Self::Float(f) => {
@@ -20,7 +20,7 @@ impl<T: Var> Val<T> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Calc<T: Var> {
+pub enum Calc<T: Ext> {
     Error(Range),
     Num(Num<T>),
     Neg(Box<Calc<T>>, Range),
@@ -48,12 +48,11 @@ pub enum Calc<T: Var> {
     Factorial(Box<Calc<T>>, Range),
 }
 
-impl<T: Var> Calc<T> {
+impl<T: Ext> Calc<T> {
     pub fn eval(&self, provider: &impl Provider<T>) -> crate::Result<Val<T>, T> {
         Ok(self.eval_num(provider)?.val)
     }
 
-    // TODO use checked variants of arithmetic operations
     fn eval_num(&self, p: &impl Provider<T>) -> crate::Result<Num<T>, T> {
         match self {
             Self::Error(r) => Err(crate::Error::Parsing(*r)),
@@ -95,7 +94,7 @@ impl<T: Var> Calc<T> {
     }
 }
 
-fn eval_nums<T: Var>(p: &impl Provider<T>, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
+fn eval_nums<T: Ext>(p: &impl Provider<T>, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
     let mut nums = Vec::with_capacity(args.len());
     for a in args {
         nums.push(a.eval_num(p)?);
@@ -103,7 +102,7 @@ fn eval_nums<T: Var>(p: &impl Provider<T>, args: &[Calc<T>]) -> crate::Result<Ve
     Ok(nums)
 }
 
-fn neg<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn neg<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = match n.val {
         Val::Int(i) => Val::Int(-i),
         v => Val::Float(-p.val_to_f64(v)),
@@ -111,7 +110,7 @@ fn neg<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<N
     Ok(Num { val, range })
 }
 
-fn add<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn add<T: Ext>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_add(b) {
             Some(v) => Val::Int(v),
@@ -123,7 +122,7 @@ fn add<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Nu
     Ok(Num { val, range })
 }
 
-fn sub<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn sub<T: Ext>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_sub(b) {
             Some(v) => Val::Int(v),
@@ -135,7 +134,7 @@ fn sub<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Nu
     Ok(Num { val, range })
 }
 
-fn mul<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn mul<T: Ext>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => match a.checked_mul(b) {
             Some(v) => Val::Int(v),
@@ -147,7 +146,7 @@ fn mul<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Nu
     Ok(Num { val, range })
 }
 
-fn div<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn div<T: Ext>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if b == 0 {
@@ -171,7 +170,7 @@ fn div<T: Var>(p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Nu
     Ok(Num { val, range })
 }
 
-fn int_div<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn int_div<T: Ext>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if b == 0 {
@@ -186,7 +185,7 @@ fn int_div<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Resu
     Ok(Num { val, range })
 }
 
-fn rem<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+fn rem<T: Ext>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
     let val = match (n1.val, n2.val) {
         (Val::Int(a), Val::Int(b)) => {
             if b == 0 {
@@ -206,7 +205,7 @@ fn rem<T: Var>(_p: &impl Provider<T>, n1: Num<T>, n2: Num<T>) -> crate::Result<N
     Ok(Num { val, range })
 }
 
-fn pow<T: Var>(
+fn pow<T: Ext>(
     p: &impl Provider<T>,
     n1: Num<T>,
     n2: Num<T>,
@@ -234,12 +233,12 @@ fn pow<T: Var>(
     Ok(Num { val, range })
 }
 
-fn ln<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn ln<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).ln());
     Ok(Num { val, range })
 }
 
-fn log<T: Var>(
+fn log<T: Ext>(
     p: &impl Provider<T>,
     base: Num<T>,
     n: Num<T>,
@@ -249,12 +248,12 @@ fn log<T: Var>(
     Ok(Num { val, range })
 }
 
-fn sqrt<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn sqrt<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).sqrt());
     Ok(Num { val, range })
 }
 
-fn ncr<T: Var>(
+fn ncr<T: Ext>(
     p: &impl Provider<T>,
     a: Num<T>,
     b: Num<T>,
@@ -270,37 +269,37 @@ fn ncr<T: Var>(
     Ok(Num { val, range })
 }
 
-fn sin<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn sin<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).sin());
     Ok(Num { val, range })
 }
 
-fn cos<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn cos<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).cos());
     Ok(Num { val, range })
 }
 
-fn tan<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn tan<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).tan());
     Ok(Num { val, range })
 }
 
-fn asin<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn asin<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).asin());
     Ok(Num { val, range })
 }
 
-fn acos<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn acos<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).acos());
     Ok(Num { val, range })
 }
 
-fn atan<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn atan<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).atan());
     Ok(Num { val, range })
 }
 
-fn gcd<T: Var>(
+fn gcd<T: Ext>(
     _p: &impl Provider<T>,
     n1: Num<T>,
     n2: Num<T>,
@@ -334,7 +333,7 @@ fn gcd<T: Var>(
     }
 }
 
-fn min<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+fn min<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
     let min = args
         .iter()
         .min_by(|a, b| {
@@ -347,7 +346,7 @@ fn min<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::
     Ok(Num::new(min.val, range))
 }
 
-fn max<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+fn max<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
     let max = args
         .iter()
         .max_by(|a, b| {
@@ -360,12 +359,12 @@ fn max<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::
     Ok(Num::new(max.val, range))
 }
 
-fn degree<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn degree<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = Val::Float(p.val_to_f64(n.val).to_radians());
     Ok(Num { val, range })
 }
 
-fn factorial<T: Var>(_: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+fn factorial<T: Ext>(_: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = match n.val {
         Val::Int(i) => {
             if i < 0 {
