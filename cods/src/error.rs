@@ -83,16 +83,16 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             }
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
             Self::FractionEuclidDiv(_, _) => {
-                "Attempted calculate the division with remainder of fractions".into()
+                "Attempted divide fractions with remainder".into()
             }
             Self::RemainderByZero(_, _) => {
-                "Attempted to get the remainder of a division by 0".into()
+                "Attempted to calculate the remainder with a divisor of 0".into()
             }
             Self::FractionRemainder(_, _) => {
-                "Attempted to get the remainder of a division of fractions".into()
+                "Attempted to calculate the remainder of a division of fractions".into()
             }
             Self::FractionGcd(_, _) => {
-                "Attempted to get the greatest common divisor of fractions".into()
+                "Attempted to calculate the greatest common divisor of fractions".into()
             }
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
