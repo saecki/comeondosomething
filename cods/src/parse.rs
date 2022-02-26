@@ -2,7 +2,7 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CmdType, Context, Item, ModType, Op, OpType, ParType, Range, Sign, Var,
+    items_range, Calc, CmdType, Context, Item, ModType, Op, OpType, ParKind, Range, Sign, Var,
     Warning,
 };
 
@@ -179,7 +179,7 @@ impl<T: Var> Context<T> {
             if let Item::Cmd(cmd) = items[0] {
                 return match &items[1] {
                     Item::Group(g) => {
-                        if g.par_type != ParType::Round {
+                        if g.par_kind != ParKind::Round {
                             self.warnings
                                 .push(crate::Warning::ConfusingCommandParentheses {
                                     cmd,

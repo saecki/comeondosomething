@@ -55,12 +55,12 @@ impl<T: Var> Context<T> {
                 '°' => self.new_token(&mut state, Token::mood(ModType::Degree, range))?,
                 '!' => self.new_token(&mut state, Token::mood(ModType::Factorial, range))?,
                 '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
-                '(' => self.new_token(&mut state, Token::Par(Par::RoundOpen(range)))?,
-                '[' => self.new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
-                '{' => self.new_token(&mut state, Token::Par(Par::CurlyOpen(range)))?,
-                ')' => self.new_token(&mut state, Token::Par(Par::RoundClose(range)))?,
-                ']' => self.new_token(&mut state, Token::Par(Par::SquareClose(range)))?,
-                '}' => self.new_token(&mut state, Token::Par(Par::CurlyClose(range)))?,
+                '(' => self.new_token(&mut state, Token::par(ParType::RoundOpen, range))?,
+                '[' => self.new_token(&mut state, Token::par(ParType::SquareOpen, range))?,
+                '{' => self.new_token(&mut state, Token::par(ParType::CurlyOpen, range))?,
+                ')' => self.new_token(&mut state, Token::par(ParType::RoundClose, range))?,
+                ']' => self.new_token(&mut state, Token::par(ParType::SquareClose, range))?,
+                '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
                 ',' => self.new_token(&mut state, Token::Sep(Sep::Comma(range)))?,
                 c => state.literal.push(c),
             }
@@ -156,9 +156,13 @@ impl<T: Var> Token<T> {
     pub fn cmd(typ: CmdType, range: Range) -> Self {
         Self::Cmd(Cmd::new(typ, range))
     }
-    
+
     pub fn mood(typ: ModType, range: Range) -> Self {
         Self::Mod(Mod::new(typ, range))
+    }
+
+    pub fn par(typ: ParType, range: Range) -> Self {
+        Self::Par(Par::new(typ, range))
     }
 
     pub fn is_num(&self) -> bool {
@@ -208,7 +212,7 @@ impl<T: Var> Token<T> {
             Self::Op(o) => o.range,
             Self::Cmd(c) => c.range,
             Self::Mod(m) => m.range,
-            Self::Par(p) => p.range(),
+            Self::Par(p) => p.range,
             Self::Sep(s) => s.range(),
         }
     }
@@ -371,56 +375,71 @@ pub enum ModType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Par {
-    RoundOpen(Range),
-    RoundClose(Range),
-    SquareOpen(Range),
-    SquareClose(Range),
-    CurlyOpen(Range),
-    CurlyClose(Range),
+pub struct Par {
+    pub typ: ParType,
+    pub range: Range,
+}
+
+impl Deref for Par {
+    type Target = ParType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl DerefMut for Par {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.typ
+    }
 }
 
 impl Par {
+    pub const fn new(typ: ParType, range: Range) -> Self {
+        Self { typ, range }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParType {
+    RoundOpen,
+    RoundClose,
+    SquareOpen,
+    SquareClose,
+    CurlyOpen,
+    CurlyClose,
+}
+
+impl ParType {
     pub const fn is_opening(&self) -> bool {
         match self {
-            Self::RoundOpen(_) | Self::SquareOpen(_) | Self::CurlyOpen(_) => true,
-            Self::RoundClose(_) | Self::SquareClose(_) | Self::CurlyClose(_) => false,
+            Self::RoundOpen | Self::SquareOpen | Self::CurlyOpen => true,
+            Self::RoundClose | Self::SquareClose | Self::CurlyClose => false,
         }
     }
 
     pub const fn matches(&self, other: Self) -> bool {
         match self {
-            Self::RoundOpen(_) => matches!(other, Par::RoundClose(_)),
-            Self::RoundClose(_) => matches!(other, Par::RoundOpen(_)),
-            Self::SquareOpen(_) => matches!(other, Par::SquareClose(_)),
-            Self::SquareClose(_) => matches!(other, Par::SquareOpen(_)),
-            Self::CurlyOpen(_) => matches!(other, Par::CurlyClose(_)),
-            Self::CurlyClose(_) => matches!(other, Par::CurlyOpen(_)),
+            Self::RoundOpen => matches!(other, Self::RoundClose),
+            Self::RoundClose => matches!(other, Self::RoundOpen),
+            Self::SquareOpen => matches!(other, Self::SquareClose),
+            Self::SquareClose => matches!(other, Self::SquareOpen),
+            Self::CurlyOpen => matches!(other, Self::CurlyClose),
+            Self::CurlyClose => matches!(other, Self::CurlyOpen),
         }
     }
 
-    pub const fn range(&self) -> Range {
-        match *self {
-            Self::RoundOpen(r) => r,
-            Self::RoundClose(r) => r,
-            Self::SquareOpen(r) => r,
-            Self::SquareClose(r) => r,
-            Self::CurlyOpen(r) => r,
-            Self::CurlyClose(r) => r,
-        }
-    }
-
-    pub const fn par_type(&self) -> ParType {
+    pub const fn par_type(&self) -> ParKind {
         match self {
-            Self::RoundOpen(_) | Self::RoundClose(_) => ParType::Round,
-            Self::SquareOpen(_) | Self::SquareClose(_) => ParType::Square,
-            Self::CurlyOpen(_) | Self::CurlyClose(_) => ParType::Curly,
+            Self::RoundOpen | Self::RoundClose => ParKind::Round,
+            Self::SquareOpen | Self::SquareClose => ParKind::Square,
+            Self::CurlyOpen | Self::CurlyClose => ParKind::Curly,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ParType {
+pub enum ParKind {
     Round,
     Square,
     Curly,
@@ -516,11 +535,11 @@ mod test {
         check(
             "(32+ 604.453)* 3562.543",
             vec![
-                Token::Par(Par::RoundOpen(Range::pos(0))),
+                Token::par(ParType::RoundOpen, Range::pos(0)),
                 Token::num(Val::Int(32), Range::of(1, 3)),
                 Token::op(OpType::Add, Range::pos(3)),
                 Token::num(Val::Float(604.453), Range::of(5, 12)),
-                Token::Par(Par::RoundClose(Range::pos(12))),
+                Token::par(ParType::RoundClose, Range::pos(12)),
                 Token::op(OpType::Mul, Range::pos(13)),
                 Token::num(Val::Float(3562.543), Range::of(15, 23)),
             ],

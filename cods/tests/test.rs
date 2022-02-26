@@ -1,4 +1,4 @@
-use cods::{calc, Error, Par, PlainVal, Range, UserFacing};
+use cods::{calc, Error, Par, ParType, PlainVal, Range, UserFacing};
 
 fn assert(expected: PlainVal, expr: &str) {
     match calc(expr) {
@@ -118,7 +118,7 @@ fn max() {
 #[test]
 fn unmatched_par() {
     assert_eq!(
-        Error::UnexpectedParenthesis(Par::RoundClose(Range::pos(2))),
+        Error::UnexpectedParenthesis(Par::new(ParType::RoundClose, Range::pos(2))),
         calc("4 ) + 5)").1.errors[0],
     );
 }

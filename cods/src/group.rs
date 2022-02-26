@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{Cmd, Context, Mod, Num, Op, Par, ParType, Range, Sep, Token, Var};
+use crate::{Cmd, Context, Mod, Num, Op, Par, ParKind, Range, Sep, Token, Var};
 
 impl<T: Var> Context<T> {
     pub fn group(&mut self, tokens: &[Token<T>]) -> crate::Result<Vec<Item<T>>, T> {
@@ -24,7 +24,7 @@ impl<T: Var> Context<T> {
                 items.push(Item::Group(Group {
                     items: self.group(&tokens[group_range.tokens()])?,
                     range: group_range.chars(tokens),
-                    par_type: group_range.par_type,
+                    par_kind: group_range.par_type,
                 }));
                 pos = group_range.tokens_after(0).start;
             }
@@ -36,11 +36,11 @@ impl<T: Var> Context<T> {
             let prev_tokens = tokens[pos..i].iter().filter_map(Item::try_from);
             items.extend(prev_tokens);
 
-            let range = Range::of(p.range().end, tokens.last().unwrap().range().end);
+            let range = Range::of(p.range.end, tokens.last().unwrap().range().end);
             items.push(Item::Group(Group {
                 items: self.group(&tokens[(i + 1)..])?,
                 range,
-                par_type: p.par_type(),
+                par_kind: p.par_type(),
             }));
         } else {
             let remaining_tokens = tokens[pos..].iter().filter_map(Item::try_from);
@@ -58,7 +58,7 @@ impl<T: Var> Context<T> {
         par_stack: &mut Vec<(usize, Par)>,
     ) -> Option<GroupRange> {
         match par_stack.pop() {
-            Some((open_pos, open_par)) if open_par.matches(close_par) => {
+            Some((open_pos, open_par)) if open_par.matches(close_par.typ) => {
                 if par_stack.is_empty() {
                     Some(GroupRange {
                         start: open_pos + 1,
@@ -80,7 +80,7 @@ impl<T: Var> Context<T> {
                         missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
-                        par_type: ParType::Mixed,
+                        par_type: ParKind::Mixed,
                     })
                 } else {
                     None
@@ -103,7 +103,7 @@ struct GroupRange {
     missing_end_par: bool,
     /// excluding
     end: usize,
-    par_type: ParType,
+    par_type: ParKind,
 }
 
 impl GroupRange {
@@ -228,15 +228,15 @@ pub fn items_range(items: &[Item<impl Var>]) -> Option<Range> {
 pub struct Group<T: Var> {
     pub items: Vec<Item<T>>,
     pub range: Range,
-    pub par_type: ParType,
+    pub par_kind: ParKind,
 }
 
 impl<T: Var> Group<T> {
-    pub fn new(items: Vec<Item<T>>, range: Range, par: ParType) -> Self {
+    pub fn new(items: Vec<Item<T>>, range: Range, par: ParKind) -> Self {
         Self {
             items,
             range,
-            par_type: par,
+            par_kind: par,
         }
     }
 }
@@ -279,7 +279,7 @@ mod test {
                         Item::Num(Num::new(Val::Float(543.23), Range::of(9, 15)))
                     ],
                     Range::of(1, 15),
-                    ParType::Round,
+                    ParKind::Round,
                 )),
                 Item::Op(Op::new(OpType::Mul, Range::pos(17))),
                 Item::Num(Num::new(Val::Int(34), Range::of(19, 21))),

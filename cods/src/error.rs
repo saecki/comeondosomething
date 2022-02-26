@@ -109,11 +109,11 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
             Self::MissingCommandParenthesis(r) => vec![*r],
-            Self::MissingClosingParenthesis(p) => vec![p.range()],
+            Self::MissingClosingParenthesis(p) => vec![p.range],
             Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
-            Self::UnexpectedParenthesis(p) => vec![p.range()],
+            Self::UnexpectedParenthesis(p) => vec![p.range],
             Self::UnknownValue(r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
@@ -199,7 +199,7 @@ impl UserFacing<LYellow> for Warning {
                 }
             }
             Self::MultipleSigns(r, _) => vec![*r],
-            Self::MismatchedParentheses(a, b) => vec![a.range(), b.range()],
+            Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
             Self::ConfusingCommandParentheses {
                 cmd,
                 open_par,
