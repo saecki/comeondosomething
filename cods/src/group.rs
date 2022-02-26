@@ -208,7 +208,7 @@ impl<T: Var> Item<T> {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range,
             Self::Cmd(c) => c.range,
-            Self::Mod(m) => m.range(),
+            Self::Mod(m) => m.range,
             Self::Sep(s) => s.range(),
         }
     }

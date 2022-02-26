@@ -2,7 +2,8 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CmdType, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var, Warning,
+    items_range, Calc, CmdType, Context, Item, ModType, Op, OpType, ParType, Range, Sign, Var,
+    Warning,
 };
 
 impl<T: Var> Context<T> {
@@ -21,7 +22,7 @@ impl<T: Var> Context<T> {
                 Item::Num(n) => return Ok(Calc::Num(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
                 Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range.end)),
-                Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range().start)),
+                Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range.start)),
                 Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range().start)),
             };
             self.errors.push(err);
@@ -159,18 +160,18 @@ impl<T: Var> Context<T> {
 
         if let Some((i, m)) = modifier {
             let a = &items[0..i];
-            let ar = items_range(a).unwrap_or_else(|| Range::of(range.start, m.range().start));
+            let ar = items_range(a).unwrap_or_else(|| Range::of(range.start, m.range.start));
             let ac = Box::new(self.parse_items(ar, a)?);
 
             if let Some(i) = items.get(i + 1) {
-                let r = Range::between(m.range(), i.range());
+                let r = Range::between(m.range, i.range());
                 self.errors.push(crate::Error::MissingOperator(r));
                 return Ok(Calc::Error(range));
             }
 
-            return Ok(match m {
-                Mod::Degree(r) => Calc::Degree(ac, r),
-                Mod::Factorial(r) => Calc::Factorial(ac, r),
+            return Ok(match m.typ {
+                ModType::Degree => Calc::Degree(ac, m.range),
+                ModType::Factorial => Calc::Factorial(ac, m.range),
             });
         }
 

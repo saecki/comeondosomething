@@ -52,8 +52,8 @@ impl<T: Var> Context<T> {
                 '*' | '×' => self.new_token(&mut state, Token::op(OpType::Mul, range))?,
                 '/' | '÷' => self.new_token(&mut state, Token::op(OpType::Div, range))?,
                 '%' => self.new_token(&mut state, Token::op(OpType::Rem, range))?,
-                '°' => self.new_token(&mut state, Token::Mod(Mod::Degree(range)))?,
-                '!' => self.new_token(&mut state, Token::Mod(Mod::Factorial(range)))?,
+                '°' => self.new_token(&mut state, Token::mood(ModType::Degree, range))?,
+                '!' => self.new_token(&mut state, Token::mood(ModType::Factorial, range))?,
                 '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
                 '(' => self.new_token(&mut state, Token::Par(Par::RoundOpen(range)))?,
                 '[' => self.new_token(&mut state, Token::Par(Par::SquareOpen(range)))?,
@@ -146,15 +146,19 @@ pub enum Token<T: Var> {
 
 impl<T: Var> Token<T> {
     pub fn num(val: Val<T>, range: Range) -> Self {
-        Token::Num(Num::new(val, range))
+        Self::Num(Num::new(val, range))
     }
 
     pub fn op(typ: OpType, range: Range) -> Self {
-        Token::Op(Op::new(typ, range))
+        Self::Op(Op::new(typ, range))
     }
 
     pub fn cmd(typ: CmdType, range: Range) -> Self {
-        Token::Cmd(Cmd::new(typ, range))
+        Self::Cmd(Cmd::new(typ, range))
+    }
+    
+    pub fn mood(typ: ModType, range: Range) -> Self {
+        Self::Mod(Mod::new(typ, range))
     }
 
     pub fn is_num(&self) -> bool {
@@ -203,7 +207,7 @@ impl<T: Var> Token<T> {
             Self::Num(n) => n.range,
             Self::Op(o) => o.range,
             Self::Cmd(c) => c.range,
-            Self::Mod(m) => m.range(),
+            Self::Mod(m) => m.range,
             Self::Par(p) => p.range(),
             Self::Sep(s) => s.range(),
         }
@@ -349,18 +353,21 @@ pub enum CmdType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mod {
-    Degree(Range),
-    Factorial(Range),
+pub struct Mod {
+    pub typ: ModType,
+    pub range: Range,
 }
 
 impl Mod {
-    pub const fn range(&self) -> Range {
-        match *self {
-            Self::Degree(r) => r,
-            Self::Factorial(r) => r,
-        }
+    pub const fn new(typ: ModType, range: Range) -> Self {
+        Self { typ, range }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModType {
+    Degree,
+    Factorial,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
