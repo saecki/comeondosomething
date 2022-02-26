@@ -23,7 +23,7 @@ impl<T: Var> Context<T> {
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
                 Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range.end)),
                 Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range.start)),
-                Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range().start)),
+                Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range.start)),
             };
             self.errors.push(err);
             return Ok(Calc::Error(range));
@@ -283,14 +283,14 @@ impl<T: Var> Context<T> {
 
         for i in items.iter() {
             if let Some(s) = i.as_sep() {
-                let r = Range::of(start.1, s.range().start);
+                let r = Range::of(start.1, s.range.start);
                 if parsed_args < max {
                     let is = &items[(start.0)..ti];
                     args.push(self.parse_items(r, is)?);
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, s.range().end);
+                start = (ti + 1, s.range.end);
                 parsed_args += 1;
             }
             ti += 1;
@@ -343,14 +343,14 @@ impl<T: Var> Context<T> {
 
         for i in items.iter() {
             if let Some(s) = i.as_sep() {
-                let r = Range::of(start.1, s.range().start);
+                let r = Range::of(start.1, s.range.start);
                 if parsed_args < COUNT {
                     let is = &items[(start.0)..ti];
                     args[parsed_args] = self.parse_items(r, is)?;
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, s.range().end);
+                start = (ti + 1, s.range.end);
                 parsed_args += 1;
             }
             ti += 1;

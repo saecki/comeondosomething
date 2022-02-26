@@ -61,7 +61,7 @@ impl<T: Var> Context<T> {
                 ')' => self.new_token(&mut state, Token::par(ParType::RoundClose, range))?,
                 ']' => self.new_token(&mut state, Token::par(ParType::SquareClose, range))?,
                 '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
-                ',' => self.new_token(&mut state, Token::Sep(Sep::Comma(range)))?,
+                ',' => self.new_token(&mut state, Token::sep(SepType::Comma, range))?,
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -165,6 +165,10 @@ impl<T: Var> Token<T> {
         Self::Par(Par::new(typ, range))
     }
 
+    pub fn sep(typ: SepType, range: Range) -> Self {
+        Self::Sep(Sep::new(typ, range))
+    }
+
     pub fn is_num(&self) -> bool {
         matches!(self, Self::Num(_))
     }
@@ -213,7 +217,7 @@ impl<T: Var> Token<T> {
             Self::Cmd(c) => c.range,
             Self::Mod(m) => m.range,
             Self::Par(p) => p.range,
-            Self::Sep(s) => s.range(),
+            Self::Sep(s) => s.range,
         }
     }
 }
@@ -447,16 +451,20 @@ pub enum ParKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sep {
-    Comma(Range),
+pub struct Sep {
+    pub typ: SepType,
+    pub range: Range,
 }
 
 impl Sep {
-    pub const fn range(&self) -> Range {
-        match *self {
-            Self::Comma(r) => r,
-        }
+    pub const fn new(typ: SepType, range: Range) -> Self {
+        Self { typ, range }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SepType {
+    Comma,
 }
 
 /// Range of character indices
