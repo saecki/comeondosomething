@@ -1,3 +1,4 @@
+use std::fmt::{Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
 use crate::{Context, Var};
@@ -62,6 +63,7 @@ impl<T: Var> Context<T> {
                 ']' => self.new_token(&mut state, Token::par(ParType::SquareClose, range))?,
                 '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
                 ',' => self.new_token(&mut state, Token::sep(SepType::Comma, range))?,
+                ';' => self.new_token(&mut state, Token::sep(SepType::Semicolon, range))?,
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -465,6 +467,16 @@ impl Sep {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SepType {
     Comma,
+    Semicolon,
+}
+
+impl Display for SepType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Comma => f.write_char(','),
+            Self::Semicolon => f.write_char(';'),
+        }
+    }
 }
 
 /// Range of character indices

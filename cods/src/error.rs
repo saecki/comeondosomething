@@ -1,4 +1,4 @@
-use crate::{Cmd, LRed, LYellow, Sign, UserFacing, Var};
+use crate::{Cmd, LRed, LYellow, Sep, SepType, Sign, UserFacing, Var};
 use crate::{Num, Op, Par, Range};
 
 pub type Result<T, V> = std::result::Result<T, Error<V>>;
@@ -82,9 +82,7 @@ impl<T: Var> UserFacing<LRed> for Error<T> {
                 format!("Multiplication of {} and {} would overflow", a.val, b.val)
             }
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
-            Self::FractionEuclidDiv(_, _) => {
-                "Attempted divide fractions with remainder".into()
-            }
+            Self::FractionEuclidDiv(_, _) => "Attempted divide fractions with remainder".into(),
             Self::RemainderByZero(_, _) => {
                 "Attempted to calculate the remainder with a divisor of 0".into()
             }
@@ -142,6 +140,10 @@ pub enum Warning {
         open_par: Range,
         close_par: Range,
     },
+    ConfusingSeparator {
+        sep: Sep,
+        expected: SepType,
+    },
 }
 
 impl UserFacing<LYellow> for Warning {
@@ -178,6 +180,9 @@ impl UserFacing<LYellow> for Warning {
             Self::ConfusingCommandParentheses { .. } => {
                 "Commands should use round parentheses".into()
             }
+            Self::ConfusingSeparator { sep, expected } => {
+                format!("Confusing separator, expected {expected} found {}", sep.typ)
+            }
         }
     }
 
@@ -205,6 +210,7 @@ impl UserFacing<LYellow> for Warning {
                 open_par,
                 close_par,
             } => vec![cmd.range, *open_par, *close_par],
+            Self::ConfusingSeparator { sep, .. } => vec![sep.range],
         }
     }
 }

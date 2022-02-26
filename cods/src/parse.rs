@@ -2,8 +2,8 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CmdType, Context, Item, ModType, Op, OpType, ParKind, Range, Sign, Var,
-    Warning,
+    items_range, Calc, CmdType, Context, Item, ModType, Op, OpType, ParKind, Range, SepType, Sign,
+    Var, Warning,
 };
 
 impl<T: Var> Context<T> {
@@ -282,7 +282,15 @@ impl<T: Var> Context<T> {
         let mut ti = 0;
 
         for i in items.iter() {
-            if let Some(s) = i.as_sep() {
+            if let Item::Sep(s) = i {
+                match s.typ {
+                    SepType::Comma => (),
+                    SepType::Semicolon => self.warnings.push(crate::Warning::ConfusingSeparator {
+                        sep: *s,
+                        expected: SepType::Comma,
+                    }),
+                }
+
                 let r = Range::of(start.1, s.range.start);
                 if parsed_args < max {
                     let is = &items[(start.0)..ti];
@@ -342,7 +350,15 @@ impl<T: Var> Context<T> {
         let mut ti = 0;
 
         for i in items.iter() {
-            if let Some(s) = i.as_sep() {
+            if let Item::Sep(s) = i {
+                match s.typ {
+                    SepType::Comma => (),
+                    SepType::Semicolon => self.warnings.push(crate::Warning::ConfusingSeparator {
+                        sep: *s,
+                        expected: SepType::Comma,
+                    }),
+                }
+
                 let r = Range::of(start.1, s.range.start);
                 if parsed_args < COUNT {
                     let is = &items[(start.0)..ti];
