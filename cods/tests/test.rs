@@ -106,6 +106,16 @@ fn log10() {
 }
 
 #[test]
+fn min() {
+    assert(PlainVal::Int(3), "min(3, 7, 5)");
+}
+
+#[test]
+fn max() {
+    assert(PlainVal::Int(7), "max(3, 7, 5)");
+}
+
+#[test]
 fn unmatched_par() {
     assert_eq!(
         Error::UnexpectedParenthesis(Par::RoundClose(Range::pos(2))),

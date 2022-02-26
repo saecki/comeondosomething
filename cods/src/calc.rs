@@ -42,6 +42,8 @@ pub enum Calc<T: Var> {
     Acos(Box<Calc<T>>, Range),
     Atan(Box<Calc<T>>, Range),
     Gcd(Box<Calc<T>>, Box<Calc<T>>, Range),
+    Min(Vec<Calc<T>>, Range),
+    Max(Vec<Calc<T>>, Range),
     Degree(Box<Calc<T>>, Range),
     Factorial(Box<Calc<T>>, Range),
 }
@@ -75,6 +77,14 @@ impl<T: Var> Calc<T> {
             Self::Acos(a, r) => acos(p, a.eval_num(p)?, *r),
             Self::Atan(a, r) => atan(p, a.eval_num(p)?, *r),
             Self::Gcd(a, b, r) => gcd(p, a.eval_num(p)?, b.eval_num(p)?, *r),
+            Self::Min(args, r) => {
+                let nums = eval_nums(p, args)?;
+                min(p, nums, *r)
+            }
+            Self::Max(args, r) => {
+                let nums = eval_nums(p, args)?;
+                max(p, nums, *r)
+            }
             Self::Degree(a, r) => degree(p, a.eval_num(p)?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
             Self::Factorial(a, r) => factorial(p, a.eval_num(p)?, *r),
         }
@@ -83,6 +93,14 @@ impl<T: Var> Calc<T> {
             n
         })
     }
+}
+
+fn eval_nums<T: Var>(p: &impl Provider<T>, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
+    let mut nums = Vec::with_capacity(args.len());
+    for a in args {
+        nums.push(a.eval_num(p)?);
+    }
+    Ok(nums)
 }
 
 fn neg<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
@@ -314,6 +332,32 @@ fn gcd<T: Var>(
         }
         _ => Err(crate::Error::FractionGcd(n1, n2)),
     }
+}
+
+fn min<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+    let min = args
+        .iter()
+        .min_by(|a, b| {
+            p.val_to_f64(a.val)
+                .partial_cmp(&p.val_to_f64(b.val))
+                .expect("")
+        })
+        .expect("Iterator should at least contain 1 element");
+
+    Ok(Num::new(min.val, range))
+}
+
+fn max<T: Var>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+    let max = args
+        .iter()
+        .max_by(|a, b| {
+            p.val_to_f64(a.val)
+                .partial_cmp(&p.val_to_f64(b.val))
+                .expect("")
+        })
+        .expect("Iterator should at least contain 1 element");
+
+    Ok(Num::new(max.val, range))
 }
 
 fn degree<T: Var>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {

@@ -1,9 +1,8 @@
-use std::cmp::Ordering;
+use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CmdType, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var,
-    Warning,
+    items_range, Calc, CmdType, Context, Item, Mod, Op, OpType, ParType, Range, Sign, Var, Warning,
 };
 
 impl<T: Var> Context<T> {
@@ -238,6 +237,16 @@ impl<T: Var> Context<T> {
                                 let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
                                 Calc::Gcd(Box::new(a), Box::new(b), r)
                             }
+                            CmdType::Min => {
+                                let args =
+                                    self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
+                                Calc::Min(args, r)
+                            }
+                            CmdType::Max => {
+                                let args =
+                                    self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
+                                Calc::Max(args, r)
+                            }
                         })
                     }
                     i => {
@@ -255,6 +264,69 @@ impl<T: Var> Context<T> {
             items[1].range().start,
         )));
         Ok(Calc::Error(range))
+    }
+
+    fn parse_dyn_cmd_args(
+        &mut self,
+        min: usize,
+        max: usize,
+        range: Range,
+        items: &[Item<T>],
+    ) -> crate::Result<Vec<Calc<T>>, T> {
+        let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
+        let mut args = Vec::with_capacity(cmp::min(arg_count, max));
+        let mut unexpected_args = Vec::new();
+        let mut parsed_args = 0;
+        let mut start = (0, range.start);
+        let mut ti = 0;
+
+        for i in items.iter() {
+            if let Some(s) = i.as_sep() {
+                let r = Range::of(start.1, s.range().start);
+                if parsed_args < max {
+                    let is = &items[(start.0)..ti];
+                    args.push(self.parse_items(r, is)?);
+                } else {
+                    unexpected_args.push(r);
+                }
+                start = (ti + 1, s.range().end);
+                parsed_args += 1;
+            }
+            ti += 1;
+        }
+
+        if let Some(i) = items.last() {
+            if !i.is_sep() {
+                let r = Range::of(start.1, range.end);
+                if parsed_args < max {
+                    let is = &items[(start.0)..ti];
+                    args.push(self.parse_items(r, is)?);
+                } else {
+                    unexpected_args.push(r);
+                }
+                parsed_args += 1;
+            }
+        }
+
+        if !unexpected_args.is_empty() {
+            self.errors.push(crate::Error::UnexpectedCommandArguments {
+                ranges: unexpected_args,
+                expected: max,
+                found: parsed_args,
+            });
+        } else if parsed_args < min {
+            let range = match items.last() {
+                Some(i) => Range::of(i.range().end, range.end),
+                None => Range::pos(range.end),
+            };
+            self.errors.push(crate::Error::MissingCommandArguments {
+                range,
+                expected: min,
+                found: parsed_args,
+            });
+        }
+
+        Ok(args)
     }
 
     fn parse_cmd_args<const COUNT: usize>(

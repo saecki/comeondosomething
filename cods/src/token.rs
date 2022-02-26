@@ -100,6 +100,8 @@ impl<T: Var> Context<T> {
                     "acos" => Token::cmd(CmdType::Acos, range),
                     "atan" => Token::cmd(CmdType::Atan, range),
                     "gcd" => Token::cmd(CmdType::Gcd, range),
+                    "min" => Token::cmd(CmdType::Min, range),
+                    "max" => Token::cmd(CmdType::Max, range),
                     "div" => Token::op(OpType::IntDiv, range),
                     "mod" => Token::op(OpType::Rem, range),
                     "π" | "pi" => Token::num(Val::PI, range),
@@ -342,6 +344,8 @@ pub enum CmdType {
     Acos,
     Atan,
     Gcd,
+    Min,
+    Max,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
