@@ -344,9 +344,9 @@ fn gcd<T: Ext>(
 ) -> crate::Result<Num<T>, T> {
     fn euclid(m: i128, n: i128) -> (i128, i128) {
         if m == 0 {
-            return (0, 1);
+            (0, 1)
         } else if n == 0 {
-            return (1, 0);
+            (1, 0)
         } else if m > n {
             let (x, y) = euclid(n, m);
             (y, x)
