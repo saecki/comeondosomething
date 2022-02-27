@@ -112,9 +112,9 @@ impl<T: Ext> Context<T> {
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let val = if let Ok(i) = literal.parse::<i128>() {
-                                Val::Int(i)
+                                Val::int(i)
                             } else if let Ok(f) = literal.parse::<f64>() {
-                                 Val::Float(f)
+                                 Val::float(f)
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
@@ -239,6 +239,25 @@ impl<T: Ext> Num<T> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Val<T: Ext> {
     Ext(T),
+    Plain(PlainVal),
+}
+
+impl<T: Ext> Val<T> {
+    pub const TAU: Self = Self::Plain(PlainVal::TAU);
+    pub const PI: Self = Self::Plain(PlainVal::PI);
+    pub const E: Self = Self::Plain(PlainVal::E);
+
+    pub fn int(i: i128) -> Self {
+        Self::Plain(PlainVal::Int(i))
+    }
+
+    pub fn float(f: f64) -> Self {
+        Self::Plain(PlainVal::Float(f))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PlainVal {
     Int(i128),
     Float(f64),
     TAU,
@@ -531,9 +550,9 @@ mod test {
         check(
             "432.432 + 24324.543",
             vec![
-                Token::num(Val::Float(432.432), Range::of(0, 7)),
+                Token::num(Val::float(432.432), Range::of(0, 7)),
                 Token::op(OpType::Add, Range::pos(8)),
-                Token::num(Val::Float(24324.543), Range::of(10, 19)),
+                Token::num(Val::float(24324.543), Range::of(10, 19)),
             ],
         );
     }
@@ -543,9 +562,9 @@ mod test {
         check(
             "604.453 *3562.543",
             vec![
-                Token::num(Val::Float(604.453), Range::of(0, 7)),
+                Token::num(Val::float(604.453), Range::of(0, 7)),
                 Token::op(OpType::Mul, Range::pos(8)),
-                Token::num(Val::Float(3562.543), Range::of(9, 17)),
+                Token::num(Val::float(3562.543), Range::of(9, 17)),
             ],
         );
     }
@@ -556,12 +575,12 @@ mod test {
             "(32+ 604.453)* 3562.543",
             vec![
                 Token::par(ParType::RoundOpen, Range::pos(0)),
-                Token::num(Val::Int(32), Range::of(1, 3)),
+                Token::num(Val::int(32), Range::of(1, 3)),
                 Token::op(OpType::Add, Range::pos(3)),
-                Token::num(Val::Float(604.453), Range::of(5, 12)),
+                Token::num(Val::float(604.453), Range::of(5, 12)),
                 Token::par(ParType::RoundClose, Range::pos(12)),
                 Token::op(OpType::Mul, Range::pos(13)),
-                Token::num(Val::Float(3562.543), Range::of(15, 23)),
+                Token::num(Val::float(3562.543), Range::of(15, 23)),
             ],
         );
     }

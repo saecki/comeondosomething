@@ -1,13 +1,13 @@
 use core::fmt;
 use std::str::FromStr;
 
-use crate::{Ext, Provider};
+use crate::{Ext, Provider, PlainVal};
 
 pub struct DummyProvider;
 
 impl Provider<ExtDummy> for DummyProvider {
-    fn ext_to_f64(&self, _ext: ExtDummy) -> f64 {
-        0.0
+    fn ext_to_plain_val(&self, _ext: ExtDummy) -> PlainVal {
+        unreachable!()
     }
 }
 

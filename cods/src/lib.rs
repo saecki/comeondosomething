@@ -1,4 +1,3 @@
-use std::f64::consts;
 use std::{fmt, result};
 
 pub use calc::*;
@@ -36,15 +35,6 @@ impl<T: Ext> Context<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum PlainVal {
-    Int(i128),
-    Float(f64),
-    TAU,
-    PI,
-    E,
-}
-
 impl fmt::Display for PlainVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -69,39 +59,11 @@ impl fmt::Display for PlainVal {
     }
 }
 
-impl PlainVal {
-    pub fn to_f64(&self) -> f64 {
-        match self {
-            Self::Int(i) => *i as f64,
-            Self::Float(f) => *f,
-            Self::TAU => consts::TAU,
-            Self::PI => consts::PI,
-            Self::E => consts::E,
-        }
-    }
-}
-
 impl<T: Ext> fmt::Display for Val<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Val::Int(n) => write!(f, "{}", n),
-            Val::Float(n) => {
-                if n.is_infinite() {
-                    if n.is_sign_positive() {
-                        write!(f, "infinity")
-                    } else {
-                        write!(f, "-infinity")
-                    }
-                } else if n.is_nan() {
-                    write!(f, "undefined")
-                } else {
-                    write!(f, "{}", n)
-                }
-            }
-            Val::Ext(v) => write!(f, "{}", v),
-            Val::TAU => write!(f, "τ"),
-            Val::PI => write!(f, "π"),
-            Val::E => write!(f, "e"),
+            Val::Plain(p) => write!(f, "{}", p),
+            Val::Ext(e) => write!(f, "{}", e),
         }
     }
 }
@@ -109,11 +71,7 @@ impl<T: Ext> fmt::Display for Val<T> {
 pub fn calc(string: &str) -> (result::Result<PlainVal, ()>, Context<ExtDummy>) {
     let (calc, ctx) = calc_with(&DummyProvider, string);
     let calc = calc.map(|v| match v {
-        Val::Int(i) => PlainVal::Int(i),
-        Val::Float(f) => PlainVal::Float(f),
-        Val::TAU => PlainVal::TAU,
-        Val::PI => PlainVal::PI,
-        Val::E => PlainVal::E,
+        Val::Plain(p) => p,
         Val::Ext(_) => unreachable!(),
     });
     (calc, ctx)
