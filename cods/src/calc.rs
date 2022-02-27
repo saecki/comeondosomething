@@ -408,12 +408,20 @@ fn clamp<T: Ext>(
     range: Range,
 ) -> crate::Result<Num<T>, T> {
     let val = match (p.to_int(num.val), p.to_int(min.val), p.to_int(max.val)) {
-        (Some(val), Some(min), Some(max)) => Val::int(val.clamp(min, max)),
+        (Some(v), Some(lo), Some(hi)) => {
+            if lo > hi {
+                return Err(crate::Error::InvalidClampBounds(min, max));
+            }
+            Val::int(v.clamp(lo, hi))
+        }
         _ => {
-            let val = p.to_f64(num.val);
-            let min = p.to_f64(min.val);
-            let max = p.to_f64(max.val);
-            Val::float(val.clamp(min, max))
+            let v = p.to_f64(num.val);
+            let lo = p.to_f64(min.val);
+            let hi = p.to_f64(max.val);
+            if !(lo <= hi) { // floating point weirdness
+                return Err(crate::Error::InvalidClampBounds(min, max));
+            }
+            Val::float(v.clamp(lo, hi))
         }
     };
     Ok(Num::new(val, range))

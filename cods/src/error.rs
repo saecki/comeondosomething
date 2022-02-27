@@ -34,6 +34,7 @@ pub enum Error<T: Ext> {
     FractionGcd(Num<T>, Num<T>),
     NegativeFactorial(Range),
     FractionFactorial(Range),
+    InvalidClampBounds(Num<T>, Num<T>),
 }
 
 impl<T: Ext> UserFacing<LRed> for Error<T> {
@@ -98,6 +99,12 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
+            Self::InvalidClampBounds(min, max) => {
+                format!(
+                    "Invalid clamp bounds '{}' is greater than '{}'",
+                    min.val, max.val
+                )
+            }
         }
     }
 
@@ -124,6 +131,7 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::FractionGcd(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
             Self::FractionFactorial(r) => vec![*r],
+            Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
         }
     }
 }

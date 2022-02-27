@@ -1,4 +1,4 @@
-use cods::{calc, Error, Par, ParType, PlainVal, Range, UserFacing};
+use cods::{calc, Error, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
 
 fn assert(expected: PlainVal, expr: &str) {
     match calc(expr) {
@@ -143,5 +143,27 @@ fn factorial_fraction() {
     assert_eq!(
         Error::FractionFactorial(Range::of(0, 3)),
         calc("4.1!").1.errors[0],
+    );
+}
+
+#[test]
+fn clamp_bounds() {
+    assert_eq!(
+        Error::InvalidClampBounds(
+            Num::new(Val::int(5), Range::pos(9)),
+            Num::new(Val::int(4), Range::pos(12)),
+        ),
+        calc("clamp(0, 5, 4)").1.errors[0],
+    );
+}
+
+#[test]
+fn clamp_bounds_float() {
+    assert_eq!(
+        Error::InvalidClampBounds(
+            Num::new(Val::float(5.3), Range::of(9, 12)),
+            Num::new(Val::float(4.5), Range::of(14, 17)),
+        ),
+        calc("clamp(0, 5.3, 4.5)").1.errors[0],
     );
 }
