@@ -7,7 +7,7 @@ macro_rules! cprintln {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
         print!("{}", <$col>::normal());
         print!($pat, $($args,)*);
-        println!("{}", ANSI_ESC);
+        println!("{ANSI_ESC}");
     }}
 }
 
@@ -16,7 +16,7 @@ macro_rules! cprint {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
         print!("{}", <$col>::normal());
         print!($pat, $($args,)*);
-        print!("{}", ANSI_ESC);
+        print!("{ANSI_ESC}");
     }}
 }
 
@@ -25,7 +25,7 @@ macro_rules! bprintln {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
         print!("{}", <$col>::bold());
         print!($pat, $($args,)*);
-        println!("{}", ANSI_ESC);
+        println!("{ANSI_ESC}");
     }}
 }
 
@@ -34,7 +34,7 @@ macro_rules! bprint {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
         print!("{}", <$col>::bold());
         print!($pat, $($args,)*);
-        print!("{}", ANSI_ESC);
+        print!("{ANSI_ESC}");
     }}
 }
 

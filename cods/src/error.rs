@@ -52,10 +52,7 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
                 let arg_s = if missing == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!(
-                    "Missing {} command argument{}, {} {} required, but only {} {} found",
-                    missing, arg_s, expected, are_is, found, were_was,
-                )
+                format!("Missing {missing} command argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
             Self::UnexpectedCommandArguments {
                 expected, found, ..
@@ -64,10 +61,7 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
                 let arg_s = if over == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!(
-                    "Found {} unexpected command argument{}, only {} {} required, but {} {} found",
-                    over, arg_s, expected, are_is, found, were_was,
-                )
+                format!("Found {over} unexpected command argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
@@ -157,24 +151,24 @@ pub enum Warning {
 impl UserFacing<LYellow> for Warning {
     fn description(&self) -> String {
         match self {
-            Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{}'", lit),
+            Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{lit}'"),
             Self::SignFollowingAddition(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
-                let pos_neg = if s.is_positive() {
+                let suggestion = if s.is_positive() {
                     "consider removing them"
                 } else {
                     "consider making this a subtraction"
                 };
-                format!("Sign{} following an addition, {}", sign_s, pos_neg)
+                format!("Sign{sign_s} following an addition, {suggestion}")
             }
             Self::SignFollowingSubtraction(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
-                let pos_neg = if s.is_positive() {
+                let suggestion = if s.is_positive() {
                     "consider making this an addition"
                 } else {
                     "consider removing them"
                 };
-                format!("Sign{} following a subtraction, {}", sign_s, pos_neg)
+                format!("Sign{sign_s} following a subtraction, {suggestion}")
             }
             Self::MultipleSigns(_, s) => {
                 if s.is_positive() {

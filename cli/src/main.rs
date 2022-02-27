@@ -60,7 +60,7 @@ fn calc_file(path: Option<String>) {
             while let Some((i, c)) = iter.next() {
                 println!("# {}", i + 1);
                 println!("------------------");
-                println!("{}", c);
+                println!("{c}");
                 print_calc(c);
                 println!();
 
@@ -68,7 +68,7 @@ fn calc_file(path: Option<String>) {
             }
         }
         Err(_) => {
-            bprintln!(LRed, "Error reading file: {}", p);
+            bprintln!(LRed, "Error reading file: {p}");
             exit(1);
         }
     }
@@ -150,7 +150,7 @@ fn print_calc(input: &str) {
             for w in ctx.errors.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            println!("= {}", v);
+            println!("= {v}");
         }
         (Err(_), ctx) => {
             for w in ctx.warnings.iter().rev() {
@@ -193,5 +193,5 @@ fn help() {
 }
 
 fn version() {
-    println!("{}", env!("CARGO_PKG_VERSION"));
+    println!(env!("CARGO_PKG_VERSION"));
 }

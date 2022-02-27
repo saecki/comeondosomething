@@ -3,7 +3,7 @@ name = "cods-cli"
 version = "0.1.0"
 authors = ["Saecki <tobiasschmitz2001@gmail.com>"]
 description = "A cli calculator"
-edition = "2018"
+edition = "2021"
 
 [[bin]]
 name = "cods"
