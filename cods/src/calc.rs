@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::f64::consts;
 
@@ -368,7 +369,13 @@ fn gcd<T: Ext>(
 fn min<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
     let min = args
         .iter()
-        .min_by(|a, b| p.to_f64(a.val).partial_cmp(&p.to_f64(b.val)).expect(""))
+        .min_by(|a, b| {
+            if p.to_f64(a.val) > p.to_f64(b.val) {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        })
         .expect("Iterator should at least contain 1 element");
 
     Ok(Num::new(min.val, range))
@@ -377,7 +384,13 @@ fn min<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::
 fn max<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
     let max = args
         .iter()
-        .max_by(|a, b| p.to_f64(a.val).partial_cmp(&p.to_f64(b.val)).expect(""))
+        .max_by(|a, b| {
+            if p.to_f64(a.val) < p.to_f64(b.val) {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        })
         .expect("Iterator should at least contain 1 element");
 
     Ok(Num::new(max.val, range))
