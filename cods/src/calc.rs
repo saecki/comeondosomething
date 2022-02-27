@@ -77,6 +77,7 @@ pub enum Calc<T: Ext> {
     Gcd(Box<Calc<T>>, Box<Calc<T>>, Range),
     Min(Vec<Calc<T>>, Range),
     Max(Vec<Calc<T>>, Range),
+    Clamp(Box<Calc<T>>, Box<Calc<T>>, Box<Calc<T>>, Range),
     Degree(Box<Calc<T>>, Range),
     Factorial(Box<Calc<T>>, Range),
 }
@@ -116,6 +117,9 @@ impl<T: Ext> Calc<T> {
             Self::Max(args, r) => {
                 let nums = eval_nums(p, args)?;
                 max(p, nums, *r)
+            }
+            Self::Clamp(val, min, max, r) => {
+                clamp(p, val.eval_num(p)?, min.eval_num(p)?, max.eval_num(p)?, *r)
             }
             Self::Degree(a, r) => degree(p, a.eval_num(p)?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
             Self::Factorial(a, r) => factorial(p, a.eval_num(p)?, *r),
@@ -394,6 +398,25 @@ fn max<T: Ext>(p: &impl Provider<T>, args: Vec<Num<T>>, range: Range) -> crate::
         .expect("Iterator should at least contain 1 element");
 
     Ok(Num::new(max.val, range))
+}
+
+fn clamp<T: Ext>(
+    p: &impl Provider<T>,
+    num: Num<T>,
+    min: Num<T>,
+    max: Num<T>,
+    range: Range,
+) -> crate::Result<Num<T>, T> {
+    let val = match (p.to_int(num.val), p.to_int(min.val), p.to_int(max.val)) {
+        (Some(val), Some(min), Some(max)) => Val::int(val.clamp(min, max)),
+        _ => {
+            let val = p.to_f64(num.val);
+            let min = p.to_f64(min.val);
+            let max = p.to_f64(max.val);
+            Val::float(val.clamp(min, max))
+        }
+    };
+    Ok(Num::new(val, range))
 }
 
 fn degree<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {

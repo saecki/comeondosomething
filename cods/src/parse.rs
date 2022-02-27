@@ -248,6 +248,10 @@ impl<T: Ext> Context<T> {
                                     self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
                                 Calc::Max(args, r)
                             }
+                            CmdType::Clamp => {
+                                let [val, min, max] = self.parse_cmd_args(g.range, &g.items)?;
+                                Calc::Clamp(Box::new(val), Box::new(min), Box::new(max), r)
+                            }
                         })
                     }
                     i => {

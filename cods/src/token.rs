@@ -104,6 +104,7 @@ impl<T: Ext> Context<T> {
                     "gcd" => Token::cmd(CmdType::Gcd, range),
                     "min" => Token::cmd(CmdType::Min, range),
                     "max" => Token::cmd(CmdType::Max, range),
+                    "clamp" => Token::cmd(CmdType::Clamp, range),
                     "div" => Token::op(OpType::IntDiv, range),
                     "mod" => Token::op(OpType::Rem, range),
                     "π" | "pi" => Token::num(Val::PI, range),
@@ -379,6 +380,7 @@ pub enum CmdType {
     Gcd,
     Min,
     Max,
+    Clamp,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

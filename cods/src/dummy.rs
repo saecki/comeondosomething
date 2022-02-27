@@ -1,7 +1,7 @@
 use core::fmt;
 use std::str::FromStr;
 
-use crate::{Ext, Provider, PlainVal};
+use crate::{Ext, PlainVal, Provider};
 
 pub struct DummyProvider;
 

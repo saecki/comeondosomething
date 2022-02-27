@@ -116,6 +116,21 @@ fn max() {
 }
 
 #[test]
+fn clamp() {
+    assert(PlainVal::Int(9), "clamp(9, -2, 23)");
+}
+
+#[test]
+fn clamp_low() {
+    assert(PlainVal::Int(-5), "clamp(-12, -5, 5)");
+}
+
+#[test]
+fn clamp_high() {
+    assert(PlainVal::Int(7), "clamp(31, 0, 7)");
+}
+
+#[test]
 fn unmatched_par() {
     assert_eq!(
         Error::UnexpectedParenthesis(Par::new(ParType::RoundClose, Range::pos(2))),

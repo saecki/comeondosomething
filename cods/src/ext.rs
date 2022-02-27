@@ -18,7 +18,6 @@ pub trait Provider<T: Ext> {
         self.to_plain_val(val).to_f64()
     }
 
-
     /// Convert any value that isn't a fraction to [`Self::Int`];
     fn to_int(&self, val: Val<T>) -> Option<i128> {
         match val {
