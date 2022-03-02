@@ -342,29 +342,16 @@ fn gcd<T: Ext>(
     n2: Num<T>,
     range: Range,
 ) -> crate::Result<Num<T>, T> {
-    fn euclid(m: i128, n: i128) -> (i128, i128) {
-        if m == 0 {
-            (0, 1)
-        } else if n == 0 {
-            (1, 0)
-        } else if m > n {
-            let (x, y) = euclid(n, m);
-            (y, x)
-        } else if n % m == 0 {
-            (1, 0)
-        } else {
-            let (x1, y1) = euclid(n % m, m);
-            let x = y1 - x1 * (n / m);
-            let y = x1;
-            (x, y)
-        }
-    }
-
     match (p.to_int(n1.val), p.to_int(n2.val)) {
-        (Some(m), Some(n)) => {
-            let (x, y) = euclid(m, n);
-            let val = Val::int(x * m + y * n);
-            Ok(Num { val, range })
+        (Some(mut a), Some(mut b)) => {
+            let mut _t = 0;
+            while b != 0 {
+                _t = b;
+                b = a % b;
+                a = _t;
+            }
+            let val = Val::int(a);
+            Ok(Num::new(val, range))
         }
         _ => Err(crate::Error::FractionGcd(n1, n2)),
     }
@@ -418,7 +405,8 @@ fn clamp<T: Ext>(
             let v = p.to_f64(num.val);
             let lo = p.to_f64(min.val);
             let hi = p.to_f64(max.val);
-            if !(lo <= hi) { // floating point weirdness
+            if !(lo <= hi) {
+                // floating point weirdness
                 return Err(crate::Error::InvalidClampBounds(min, max));
             }
             Val::float(v.clamp(lo, hi))
