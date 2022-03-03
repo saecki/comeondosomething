@@ -439,14 +439,21 @@ fn degree<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Resul
 
 fn factorial<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
     let val = match p.to_int(n.val) {
-        Some(i) => {
-            if i < 0 {
-                return Err(crate::Error::NegativeFactorial(n.range));
+        Some(a) => {
+            if a < 0 {
+                return Err(crate::Error::NegativeFactorial(n));
             } else {
-                Val::int((1..=i).product())
+                let mut val: i128 = 1;
+                for i in 1..=a {
+                    match val.checked_mul(i) {
+                        Some(v) => val = v,
+                        None => return Err(crate::Error::FactorialOverflow(n)),
+                    }
+                }
+                Val::int(val)
             }
         }
-        _ => return Err(crate::Error::FractionFactorial(n.range)),
+        _ => return Err(crate::Error::FractionFactorial(n)),
     };
     Ok(Num { val, range })
 }

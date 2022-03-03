@@ -81,10 +81,26 @@ fn factorial() {
 }
 
 #[test]
+fn factorial_overflow() {
+    assert_eq!(
+        Error::FactorialOverflow(Num::new(Val::int(34), Range::of(0, 2))),
+        calc("34!").1.errors[0],
+    );
+}
+
+#[test]
 fn factorial_fraction() {
     assert_eq!(
-        Error::FractionFactorial(Range::of(0, 3)),
+        Error::FractionFactorial(Num::new(Val::float(4.1), Range::of(0, 3))),
         calc("4.1!").1.errors[0],
+    );
+}
+
+#[test]
+fn factorial_negative() {
+    assert_eq!(
+        Error::NegativeFactorial(Num::new(Val::int(-3), Range::of(1, 3))),
+        calc("(-3)!").1.errors[0],
     );
 }
 

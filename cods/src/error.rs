@@ -35,8 +35,9 @@ pub enum Error<T: Ext> {
     NegativeNcr(Num<T>, Num<T>),
     InvalidNcr(Num<T>, Num<T>),
     FractionNcr(Num<T>, Num<T>),
-    NegativeFactorial(Range),
-    FractionFactorial(Range),
+    FactorialOverflow(Num<T>),
+    NegativeFactorial(Num<T>),
+    FractionFactorial(Num<T>),
     InvalidClampBounds(Num<T>, Num<T>),
 }
 
@@ -102,6 +103,9 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
+            Self::FactorialOverflow(a) => {
+                format!("Factorial of {} would overflow", a.val)
+            }
             Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
@@ -138,8 +142,9 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::FractionNcr(a, b) => vec![a.range, b.range],
             Self::NegativeNcr(a, b) => vec![a.range, b.range],
             Self::InvalidNcr(a, b) => vec![a.range, b.range],
-            Self::NegativeFactorial(r) => vec![*r],
-            Self::FractionFactorial(r) => vec![*r],
+            Self::FactorialOverflow(a) => vec![a.range],
+            Self::NegativeFactorial(a) => vec![a.range],
+            Self::FractionFactorial(a) => vec![a.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
         }
     }
