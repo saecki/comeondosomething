@@ -32,6 +32,9 @@ pub enum Error<T: Ext> {
     RemainderByZero(Num<T>, Num<T>),
     FractionRemainder(Num<T>, Num<T>),
     FractionGcd(Num<T>, Num<T>),
+    NegativeNcr(Num<T>, Num<T>),
+    InvalidNcr(Num<T>, Num<T>),
+    FractionNcr(Num<T>, Num<T>),
     NegativeFactorial(Range),
     FractionFactorial(Range),
     InvalidClampBounds(Num<T>, Num<T>),
@@ -87,6 +90,15 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::FractionGcd(_, _) => {
                 "Attempted to calculate the greatest common divisor of fractions".into()
             }
+            Self::FractionNcr(_, _) => {
+                "Attempted to calculate the binomial coefficent of fractions".into()
+            }
+            Self::NegativeNcr(_, _) => {
+                "Attempted to calculate the binomial coefficent with r < 0".into()
+            }
+            Self::InvalidNcr(_, _) => {
+                "Attempted to calculate the binomial coefficent with n < r".into()
+            }
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
@@ -123,6 +135,9 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::RemainderByZero(a, b) => vec![a.range, b.range],
             Self::FractionRemainder(a, b) => vec![a.range, b.range],
             Self::FractionGcd(a, b) => vec![a.range, b.range],
+            Self::FractionNcr(a, b) => vec![a.range, b.range],
+            Self::NegativeNcr(a, b) => vec![a.range, b.range],
+            Self::InvalidNcr(a, b) => vec![a.range, b.range],
             Self::NegativeFactorial(r) => vec![*r],
             Self::FractionFactorial(r) => vec![*r],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],

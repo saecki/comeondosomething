@@ -81,13 +81,48 @@ fn factorial() {
 }
 
 #[test]
+fn factorial_fraction() {
+    assert_eq!(
+        Error::FractionFactorial(Range::of(0, 3)),
+        calc("4.1!").1.errors[0],
+    );
+}
+
+#[test]
 fn squareroot() {
     assert(PlainVal::Int(25), "sqrt(625)");
 }
 
 #[test]
 fn binomial_coefficient() {
-    assert(PlainVal::Int(15), "ncr(6, 2)");
+    assert(PlainVal::Int(15), "nCr(6, 2)");
+}
+
+#[test]
+fn binomial_coefficient_zero() {
+    assert(PlainVal::Int(1), "nCr(23, 0)");
+}
+
+#[test]
+fn binomial_coefficient_invalid() {
+    assert_eq!(
+        Error::InvalidNcr(
+            Num::new(Val::int(3), Range::pos(4)),
+            Num::new(Val::int(4), Range::pos(7))
+        ),
+        calc("nCr(3, 4)").1.errors[0],
+    );
+}
+
+#[test]
+fn binomial_coefficient_negative() {
+    assert_eq!(
+        Error::NegativeNcr(
+            Num::new(Val::int(5), Range::pos(4)),
+            Num::new(Val::int(-3), Range::of(7, 9))
+        ),
+        calc("nCr(5, -3)").1.errors[0],
+    );
 }
 
 #[test]
@@ -131,22 +166,6 @@ fn clamp_high() {
 }
 
 #[test]
-fn unmatched_par() {
-    assert_eq!(
-        Error::UnexpectedParenthesis(Par::new(ParType::RoundClose, Range::pos(2))),
-        calc("4 ) + 5)").1.errors[0],
-    );
-}
-
-#[test]
-fn factorial_fraction() {
-    assert_eq!(
-        Error::FractionFactorial(Range::of(0, 3)),
-        calc("4.1!").1.errors[0],
-    );
-}
-
-#[test]
 fn clamp_bounds() {
     assert_eq!(
         Error::InvalidClampBounds(
@@ -165,5 +184,13 @@ fn clamp_bounds_float() {
             Num::new(Val::float(4.5), Range::of(14, 17)),
         ),
         calc("clamp(0, 5.3, 4.5)").1.errors[0],
+    );
+}
+
+#[test]
+fn unmatched_par() {
+    assert_eq!(
+        Error::UnexpectedParenthesis(Par::new(ParType::RoundClose, Range::pos(2))),
+        calc("4 ) + 5)").1.errors[0],
     );
 }

@@ -292,17 +292,34 @@ fn sqrt<T: Ext>(p: &impl Provider<T>, n: Num<T>, range: Range) -> crate::Result<
 
 fn ncr<T: Ext>(
     p: &impl Provider<T>,
-    a: Num<T>,
-    b: Num<T>,
+    n1: Num<T>,
+    n2: Num<T>,
     range: Range,
 ) -> crate::Result<Num<T>, T> {
-    let divident = factorial(p, a, range)?;
-    let divisor = mul(
-        p,
-        factorial(p, b, range)?,
-        factorial(p, sub(p, a, b)?, range)?,
-    )?;
-    let val = div(p, divident, divisor)?.val;
+    let val = match (p.to_int(n1.val), p.to_int(n2.val)) {
+        (Some(n), Some(mut r)) => {
+            if r < 0 {
+                return Err(crate::Error::NegativeNcr(n1, n2));
+            }
+            if n < r {
+                return Err(crate::Error::InvalidNcr(n1, n2));
+            }
+
+            // symmetrical: nCr(9, 2) == nCr(9, 7)
+            if r > n - r {
+                r = n - r;
+            }
+
+            let mut val = 1;
+            for i in 1..=r {
+                val *= n - r + i;
+                val /= i;
+            }
+
+            Val::int(val)
+        }
+        _ => return Err(crate::Error::FractionNcr(n1, n2)),
+    };
     Ok(Num { val, range })
 }
 
