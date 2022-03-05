@@ -6,8 +6,12 @@ use crate::{Ext, PlainVal, Provider};
 pub struct DummyProvider;
 
 impl Provider<ExtDummy> for DummyProvider {
-    fn ext_to_plain_val(&self, _ext: ExtDummy) -> PlainVal {
+    fn plain_val(&self, _ext: ExtDummy) -> PlainVal {
         unreachable!()
+    }
+    
+    fn parse(&self, _literal: &str) -> Option<ExtDummy> {
+        None
     }
 }
 

@@ -1,8 +1,8 @@
 use std::ops;
 
-use crate::{Cmd, Context, Ext, Mod, Num, Op, Par, ParKind, Range, Sep, Token};
+use crate::{Cmd, Context, Ext, Mod, Num, Op, Par, ParKind, Provider, Range, Sep, Token};
 
-impl<T: Ext> Context<T> {
+impl<T: Ext, P: Provider<T>> Context<T, P> {
     pub fn group(&mut self, tokens: &[Token<T>]) -> crate::Result<Vec<Item<T>>, T> {
         let mut items = Vec::new();
         let mut pos = 0;
@@ -243,13 +243,13 @@ impl<T: Ext> Group<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::{ExtDummy, Op, OpType, Range, Val};
+    use crate::{DummyProvider, Op, OpType, Range, Val};
 
     use super::*;
 
     #[test]
     fn no_parenthesis() {
-        let mut ctx = Context::<ExtDummy>::default();
+        let mut ctx = Context::new(DummyProvider);
         let tokens = ctx.tokenize("423.42 * 64.52").unwrap();
         let items = ctx.group(&tokens).unwrap();
 
@@ -265,7 +265,7 @@ mod test {
 
     #[test]
     fn add_parenthesis() {
-        let mut ctx = Context::<ExtDummy>::default();
+        let mut ctx = Context::new(DummyProvider);
         let tokens = ctx.tokenize("(23.13 + 543.23) * 34").unwrap();
         let items = ctx.group(&tokens).unwrap();
 

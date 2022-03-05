@@ -2,11 +2,11 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CmdType, Context, Ext, Item, ModType, Op, OpType, ParKind, Range, SepType,
-    Sign, Warning,
+    items_range, Calc, CmdType, Context, Ext, Item, ModType, Op, OpType, ParKind, Provider, Range,
+    SepType, Sign, Warning,
 };
 
-impl<T: Ext> Context<T> {
+impl<T: Ext, P: Provider<T>> Context<T, P> {
     pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
         let r = items_range(items).unwrap_or_else(|| Range::pos(0));
         self.parse_items(r, items)
@@ -293,6 +293,7 @@ impl<T: Ext> Context<T> {
                         sep: *s,
                         expected: SepType::Comma,
                     }),
+                    SepType::Equals => return Err(crate::Error::UnexpectedAssignment(s.range)),
                 }
 
                 let r = Range::of(start.1, s.range.start);
@@ -361,6 +362,7 @@ impl<T: Ext> Context<T> {
                         sep: *s,
                         expected: SepType::Comma,
                     }),
+                    SepType::Equals => return Err(crate::Error::UnexpectedAssignment(s.range)),
                 }
 
                 let r = Range::of(start.1, s.range.start);

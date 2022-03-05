@@ -1,7 +1,7 @@
 use std::fmt::{Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
-use crate::{Context, Ext};
+use crate::{Context, Ext, Provider};
 
 macro_rules! match_warn_case {
     (
@@ -40,7 +40,7 @@ impl<T: Ext> Tokenizer<T> {
     }
 }
 
-impl<T: Ext> Context<T> {
+impl<T: Ext, P: Provider<T>> Context<T, P> {
     pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token<T>>, T> {
         let mut state = Tokenizer::new();
 
@@ -120,7 +120,7 @@ impl<T: Ext> Context<T> {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
                             Token::num(val, range)
-                        } else if let Ok(v) = literal.parse::<T>() {
+                        } else if let Some(v) = self.provider.parse(literal) {
                             Token::num(Val::Ext(v), range)
                         } else {
                             return Err(crate::Error::UnknownValue(range));
@@ -241,6 +241,7 @@ impl<T: Ext> Num<T> {
 pub enum Val<T: Ext> {
     Ext(T),
     Plain(PlainVal),
+    Var(VarId),
 }
 
 impl<T: Ext> Val<T> {
@@ -264,6 +265,14 @@ pub enum PlainVal {
     TAU,
     PI,
     E,
+}
+
+pub type VarId = usize;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Var<T: Ext> {
+    pub name: String,
+    pub value: Option<Val<T>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -489,6 +498,7 @@ impl Sep {
 pub enum SepType {
     Comma,
     Semicolon,
+    Equals,
 }
 
 impl Display for SepType {
@@ -496,6 +506,7 @@ impl Display for SepType {
         match self {
             Self::Comma => f.write_char(','),
             Self::Semicolon => f.write_char(';'),
+            Self::Equals => f.write_char('='),
         }
     }
 }
@@ -543,7 +554,7 @@ impl Range {
 
 #[cfg(test)]
 mod test {
-    use crate::ExtDummy;
+    use crate::{DummyProvider, ExtDummy};
 
     use super::*;
 
@@ -588,7 +599,7 @@ mod test {
     }
 
     fn check(input: &str, output: Vec<Token<ExtDummy>>) {
-        let tokens = Context::<ExtDummy>::new().tokenize(input).unwrap();
+        let tokens = Context::new(DummyProvider).tokenize(input).unwrap();
         assert_eq!(tokens, output);
     }
 }

@@ -2,7 +2,7 @@ use std::env::args;
 use std::io;
 use std::process::exit;
 
-use cods::{bprintln, Color, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC};
+use cods::{bprintln, Color, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC, Context};
 
 fn main() {
     let mut args = args().skip(1);
@@ -142,23 +142,25 @@ fn calc_args(first: String, args: impl Iterator<Item = String>) {
 }
 
 fn print_calc(input: &str) {
-    match cods::calc(input) {
-        (Ok(v), ctx) => {
+    let mut ctx = Context::default();
+    match ctx.calc(input) {
+        Ok(v) => {
             for w in ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            for w in ctx.errors.iter().rev() {
-                println!("{}\n", w.display(input));
+            for e in ctx.errors.iter().rev() {
+                println!("{}\n", e.display(input));
             }
             println!("= {v}");
         }
-        (Err(_), ctx) => {
+        Err(e) => {
             for w in ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            for w in ctx.errors.iter().rev() {
-                println!("{}\n", w.display(input));
+            for e in ctx.errors.iter().rev() {
+                println!("{}\n", e.display(input));
             }
+            println!("{}\n", e.display(input));
         }
     }
 }

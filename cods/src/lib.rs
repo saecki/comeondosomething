@@ -1,4 +1,4 @@
-use std::{fmt, result};
+use std::fmt;
 
 pub use calc::*;
 pub use display::*;
@@ -20,15 +20,24 @@ mod parse;
 mod style;
 mod token;
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Context<T: Ext> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Context<T: Ext, P: Provider<T>> {
+    pub provider: P,
+    pub vars: Vec<Var<T>>,
     pub errors: Vec<crate::Error<T>>,
     pub warnings: Vec<crate::Warning>,
 }
 
-impl<T: Ext> Context<T> {
-    pub fn new() -> Self {
+impl Default for Context<ExtDummy, DummyProvider> {
+    fn default() -> Self {
+        Self::new(DummyProvider)
+    }
+}
+impl<T: Ext, P: Provider<T>> Context<T, P> {
+    pub fn new(provider: P) -> Self {
         Self {
+            provider,
+            vars: Vec::new(),
             errors: Vec::new(),
             warnings: Vec::new(),
         }
@@ -59,70 +68,26 @@ impl fmt::Display for PlainVal {
     }
 }
 
-impl<T: Ext> fmt::Display for Val<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Val::Plain(p) => write!(f, "{}", p),
-            Val::Ext(e) => write!(f, "{}", e),
+pub fn calc(string: &str) -> crate::Result<PlainVal, ExtDummy> {
+    let mut ctx = Context::new(DummyProvider);
+    ctx.calc(string)
+}
+
+impl<T: Ext, P: Provider<T>> Context<T, P> {
+    pub fn calc(&mut self, string: &str) -> crate::Result<PlainVal, T> {
+        let calc = self.parse_str(string)?;
+        if !self.errors.is_empty() {
+            return Err(self.errors.remove(0));
         }
+
+        let val = self.eval(&calc)?;
+        Ok(val)
     }
-}
 
-pub fn calc(string: &str) -> (result::Result<PlainVal, ()>, Context<ExtDummy>) {
-    let (calc, ctx) = calc_with(&DummyProvider, string);
-    let calc = calc.map(|v| match v {
-        Val::Plain(p) => p,
-        Val::Ext(_) => unreachable!(),
-    });
-    (calc, ctx)
-}
-
-pub fn calc_with<T: Ext>(
-    provider: &impl Provider<T>,
-    string: &str,
-) -> (result::Result<Val<T>, ()>, Context<T>) {
-    let (calc, mut ctx) = parse(string);
-
-    let calc = match calc {
-        Ok(c) if ctx.errors.is_empty() => c,
-        _ => return (Err(()), ctx),
-    };
-
-    match calc.eval(provider) {
-        Err(e) => {
-            ctx.errors.push(e);
-            (Err(()), ctx)
-        }
-        Ok(v) => (Ok(v), ctx),
+    pub fn parse_str(&mut self, string: &str) -> crate::Result<Calc<T>, T> {
+        let tokens = self.tokenize(string.as_ref())?;
+        let items = self.group(&tokens)?;
+        let calc = self.parse(&items)?;
+        Ok(calc)
     }
-}
-
-pub fn parse<T: Ext>(string: &str) -> (result::Result<Calc<T>, ()>, Context<T>) {
-    let mut ctx = Context::new();
-
-    let tokens = match ctx.tokenize(string.as_ref()) {
-        Err(e) => {
-            ctx.errors.push(e);
-            return (Err(()), ctx);
-        }
-        Ok(t) => t,
-    };
-
-    let items = match ctx.group(&tokens) {
-        Err(e) => {
-            ctx.errors.push(e);
-            return (Err(()), ctx);
-        }
-        Ok(i) => i,
-    };
-
-    let calc = match ctx.parse(&items) {
-        Err(e) => {
-            ctx.errors.push(e);
-            return (Err(()), ctx);
-        }
-        Ok(c) => c,
-    };
-
-    (Ok(calc), ctx)
 }

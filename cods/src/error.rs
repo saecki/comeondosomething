@@ -22,7 +22,9 @@ pub enum Error<T: Ext> {
     },
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
+    UnexpectedAssignment(Range),
     UnknownValue(Range),
+    UndefinedVar(String, Range),
     InvalidNumberFormat(Range),
     AddOverflow(Num<T>, Num<T>),
     SubOverflow(Num<T>, Num<T>),
@@ -69,17 +71,13 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
+            Self::UnexpectedAssignment(_) => "Unexpected Assignment".into(),
             Self::UnknownValue(_) => "Unknown value".into(),
+            Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
-            Self::AddOverflow(a, b) => {
-                format!("Addition of {} and {} would overflow", a.val, b.val)
-            }
-            Self::SubOverflow(a, b) => {
-                format!("Subtraction of {} and {} would overflow", a.val, b.val)
-            }
-            Self::MulOverflow(a, b) => {
-                format!("Multiplication of {} and {} would overflow", a.val, b.val)
-            }
+            Self::AddOverflow(_, _) => "Addition would overflow".into(),
+            Self::SubOverflow(_, _) => "Subtraction would overflow".into(),
+            Self::MulOverflow(_, _) => "Multiplication would overflow".into(),
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
             Self::FractionEuclidDiv(_, _) => "Attempted divide fractions with remainder".into(),
             Self::RemainderByZero(_, _) => {
@@ -103,17 +101,14 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
-            Self::FactorialOverflow(a) => {
-                format!("Factorial of {} would overflow", a.val)
+            Self::FactorialOverflow(_) => {
+                "Factorial would overflow".into()
             }
             Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
-            Self::InvalidClampBounds(min, max) => {
-                format!(
-                    "Invalid clamp bounds '{}' is greater than '{}'",
-                    min.val, max.val
-                )
+            Self::InvalidClampBounds(_, _) => {
+                "Invalid clamp bounds min is greater than max".into()
             }
         }
     }
@@ -129,7 +124,9 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedParenthesis(p) => vec![p.range],
+            Self::UnexpectedAssignment(r) => vec![*r],
             Self::UnknownValue(r) => vec![*r],
+            Self::UndefinedVar(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],

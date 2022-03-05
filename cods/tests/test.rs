@@ -1,9 +1,10 @@
-use cods::{calc, Error, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
+use cods::{Context, Error, ExtDummy, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
 
 fn assert(expected: PlainVal, expr: &str) {
-    match calc(expr) {
-        (Ok(val), _) => assert_eq!(expected, val),
-        (Err(_), ctx) => {
+    let mut ctx = Context::default();
+    match ctx.calc(expr) {
+        Ok(val) => assert_eq!(expected, val),
+        Err(_) => {
             for w in ctx.warnings.iter().rev() {
                 eprintln!("{}\n", w.display(expr));
             }
@@ -12,6 +13,14 @@ fn assert(expected: PlainVal, expr: &str) {
             }
             panic!();
         }
+    }
+}
+
+fn assert_err(expected: Error<ExtDummy>, expr: &str) {
+    let mut ctx = Context::default();
+    match ctx.calc(expr) {
+        Ok(_) => panic!("Expected error: {expected:?}"),
+        Err(e) => assert_eq!(expected, e),
     }
 }
 
@@ -82,25 +91,25 @@ fn factorial() {
 
 #[test]
 fn factorial_overflow() {
-    assert_eq!(
+    assert_err(
         Error::FactorialOverflow(Num::new(Val::int(34), Range::of(0, 2))),
-        calc("34!").1.errors[0],
+        "34!",
     );
 }
 
 #[test]
 fn factorial_fraction() {
-    assert_eq!(
+    assert_err(
         Error::FractionFactorial(Num::new(Val::float(4.1), Range::of(0, 3))),
-        calc("4.1!").1.errors[0],
+        "4.1!",
     );
 }
 
 #[test]
 fn factorial_negative() {
-    assert_eq!(
+    assert_err(
         Error::NegativeFactorial(Num::new(Val::int(-3), Range::of(1, 3))),
-        calc("(-3)!").1.errors[0],
+        "(-3)!",
     );
 }
 
@@ -121,23 +130,23 @@ fn binomial_coefficient_zero() {
 
 #[test]
 fn binomial_coefficient_invalid() {
-    assert_eq!(
+    assert_err(
         Error::InvalidNcr(
             Num::new(Val::int(3), Range::pos(4)),
-            Num::new(Val::int(4), Range::pos(7))
+            Num::new(Val::int(4), Range::pos(7)),
         ),
-        calc("nCr(3, 4)").1.errors[0],
+        "nCr(3, 4)",
     );
 }
 
 #[test]
 fn binomial_coefficient_negative() {
-    assert_eq!(
+    assert_err(
         Error::NegativeNcr(
             Num::new(Val::int(5), Range::pos(4)),
-            Num::new(Val::int(-3), Range::of(7, 9))
+            Num::new(Val::int(-3), Range::of(7, 9)),
         ),
-        calc("nCr(5, -3)").1.errors[0],
+        "nCr(5, -3)",
     );
 }
 
@@ -183,30 +192,30 @@ fn clamp_high() {
 
 #[test]
 fn clamp_bounds() {
-    assert_eq!(
+    assert_err(
         Error::InvalidClampBounds(
             Num::new(Val::int(5), Range::pos(9)),
             Num::new(Val::int(4), Range::pos(12)),
         ),
-        calc("clamp(0, 5, 4)").1.errors[0],
+        "clamp(0, 5, 4)",
     );
 }
 
 #[test]
 fn clamp_bounds_float() {
-    assert_eq!(
+    assert_err(
         Error::InvalidClampBounds(
             Num::new(Val::float(5.3), Range::of(9, 12)),
             Num::new(Val::float(4.5), Range::of(14, 17)),
         ),
-        calc("clamp(0, 5.3, 4.5)").1.errors[0],
+        "clamp(0, 5.3, 4.5)",
     );
 }
 
 #[test]
 fn unmatched_par() {
-    assert_eq!(
+    assert_err(
         Error::UnexpectedParenthesis(Par::new(ParType::RoundClose, Range::pos(2))),
-        calc("4 ) + 5)").1.errors[0],
+        "4 ) + 5)",
     );
 }
