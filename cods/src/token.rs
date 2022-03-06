@@ -64,6 +64,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
                 ',' => self.new_token(&mut state, Token::sep(SepType::Comma, range))?,
                 ';' => self.new_token(&mut state, Token::sep(SepType::Semicolon, range))?,
+                '=' => self.new_token(&mut state, Token::sep(SepType::Equals, range))?,
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -123,7 +124,18 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                         } else if let Some(v) = self.provider.parse(literal) {
                             Token::num(Val::Ext(v), range)
                         } else {
-                            return Err(crate::Error::UnknownValue(range));
+                            for (i, c) in literal.char_indices() {
+                                match c {
+                                    '0'..='9' => (),
+                                    'a'..='z' => (),
+                                    'A'..='Z' => (),
+                                    '_' => (),
+                                    _ => return Err(crate::Error::InvalidChar(Range::pos(range.start + i))),
+                                }
+                            }
+
+                            let id = self.push_var(literal);
+                            Token::num(Val::Var(id), range)
                         }
                     }
                 }
@@ -134,6 +146,18 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
 
         Ok(())
+    }
+
+    fn push_var(&mut self, name: &str) -> VarId {
+        for (id, v) in self.vars.iter().enumerate() {
+            if v.name == name {
+                return id;
+            }
+        }
+
+        let id = self.vars.len();
+        self.vars.push(Var::new(name.to_owned(), None));
+        id
     }
 }
 
@@ -273,6 +297,12 @@ pub type VarId = usize;
 pub struct Var<T: Ext> {
     pub name: String,
     pub value: Option<Val<T>>,
+}
+
+impl<T: Ext> Var<T> {
+    pub fn new(name: String, value: Option<Val<T>>) -> Self {
+        Self { name, value }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -519,20 +549,27 @@ pub struct Range {
 }
 
 impl Range {
-    pub const fn of(start: usize, end: usize) -> Range {
-        Range { start, end }
+    pub const fn of(start: usize, end: usize) -> Self {
+        Self { start, end }
     }
 
-    pub const fn span(a: Range, b: Range) -> Range {
+    pub const fn span(a: Self, b: Self) -> Self {
         Self::of(a.start, b.end)
     }
 
-    pub const fn between(a: Range, b: Range) -> Range {
+    pub const fn between(a: Self, b: Self) -> Self {
         Self::of(a.end, b.start)
     }
 
-    pub const fn pos(pos: usize) -> Range {
+    pub const fn pos(pos: usize) -> Self {
         Self::of(pos, pos + 1)
+    }
+
+    pub const fn offset(&self, offset: isize) -> Self {
+        Self::of(
+            (self.start as isize + offset) as usize,
+            (self.end as isize + offset) as usize,
+        )
     }
 
     pub const fn len(&self) -> usize {
@@ -543,7 +580,7 @@ impl Range {
         self.len() == 0
     }
 
-    pub const fn intersects(&self, other: &Range) -> bool {
+    pub const fn intersects(&self, other: &Self) -> bool {
         self.contains(other.start) || other.contains(self.start)
     }
 
@@ -598,8 +635,40 @@ mod test {
         );
     }
 
+    #[test]
+    fn vars() {
+        let mut ctx = Context::new(DummyProvider);
+        let tokens = ctx.tokenize("x64 = 2; Arm = 3").unwrap();
+
+        assert_eq!(
+            ctx.vars,
+            [Var::new("x64".into(), None), Var::new("Arm".into(), None)]
+        );
+
+        assert_eq!(
+            tokens,
+            [
+                Token::num(Val::Var(0), Range::of(0, 3)),
+                Token::sep(SepType::Equals, Range::pos(4)),
+                Token::num(Val::int(2), Range::pos(6)),
+                Token::sep(SepType::Semicolon, Range::pos(7)),
+                Token::num(Val::Var(1), Range::of(9, 12)),
+                Token::sep(SepType::Equals, Range::pos(13)),
+                Token::num(Val::int(3), Range::pos(15)),
+            ],
+        );
+    }
+
+    #[test]
+    fn invalid_char() {
+        let mut ctx = Context::new(DummyProvider);
+        let error = ctx.tokenize("x6ä = 2; Arm = 3").unwrap_err();
+
+        assert_eq!(error, crate::Error::InvalidChar(Range::pos(2)));
+    }
+
     fn check(input: &str, output: Vec<Token<ExtDummy>>) {
         let tokens = Context::new(DummyProvider).tokenize(input).unwrap();
-        assert_eq!(tokens, output);
+        assert_eq!(output, tokens);
     }
 }
