@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::f64::consts;
 
-use crate::{Context, Ext, Num, PlainVal, Provider, Range, Val};
+use crate::{Context, Ext, Num, PlainVal, Provider, Range, Val, VarId};
 
 impl<T: Ext> Val<T> {
     /// Convert values of type [`Self::Float`] that aren't fractions to [`Self::Int`];
@@ -83,7 +83,8 @@ pub enum Calc<T: Ext> {
 
 pub enum ValResult {
     Resolved(PlainVal),
-    Unresolved(String),
+    Undefined(String),
+    CircularRef(Vec<String>),
 }
 
 impl<T: Ext, P: Provider<T>> Context<T, P> {
@@ -95,7 +96,8 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
     pub fn plain_val(&self, num: Num<T>) -> crate::Result<PlainVal, T> {
         match self.resolve_val(num.val) {
             ValResult::Resolved(p) => Ok(p),
-            ValResult::Unresolved(name) => Err(crate::Error::UndefinedVar(name, num.range)),
+            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
+            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, num.range)),
         }
     }
 
@@ -108,14 +110,28 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
     }
 
     pub fn resolve_val(&self, val: Val<T>) -> ValResult {
+        let mut ids = Vec::new();
+        self.resolve_var(&mut ids, val)
+    }
+
+    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: Val<T>) -> ValResult {
         match val {
             Val::Plain(p) => ValResult::Resolved(p),
             Val::Ext(e) => ValResult::Resolved(self.provider.plain_val(e)),
+            Val::Var(id) if checked_ids.contains(&id) => {
+                checked_ids.push(id);
+                let names = checked_ids
+                    .iter()
+                    .map(|id| self.vars[*id].name.clone())
+                    .collect();
+                return ValResult::CircularRef(names);
+            }
             Val::Var(id) => {
+                checked_ids.push(id);
                 let var = &self.vars[id];
                 match var.value {
-                    Some(v) => self.resolve_val(v), // TODO: check for infinite recursion: x = y; y = x
-                    None => ValResult::Unresolved(var.name.clone()),
+                    Some(v) => self.resolve_var(checked_ids, v),
+                    None => ValResult::Undefined(var.name.clone()),
                 }
             }
         }
@@ -484,7 +500,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Context, DummyProvider, Val, Var, Calc, Range, Num, PlainVal};
+    use crate::{Calc, Context, DummyProvider, Num, PlainVal, Range, Val, Var};
 
     #[test]
     fn resolve_var() {
@@ -497,8 +513,68 @@ mod test {
             ..Default::default()
         };
         let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
-        
+
         let val = ctx.eval(&calc).unwrap();
         assert_eq!(PlainVal::Int(4), val);
+    }
+
+    #[test]
+    fn undefined_var() {
+        let ctx = Context {
+            provider: DummyProvider,
+            vars: vec![Var {
+                name: "x".into(),
+                value: None,
+            }],
+            ..Default::default()
+        };
+        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+
+        let val = ctx.eval(&calc).unwrap_err();
+        assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);
+    }
+
+    #[test]
+    fn circular_ref() {
+        let ctx = Context {
+            provider: DummyProvider,
+            vars: vec![
+                Var {
+                    name: "x".into(),
+                    value: Some(Val::Var(1)),
+                },
+                Var {
+                    name: "y".into(),
+                    value: Some(Val::Var(0)),
+                },
+            ],
+            ..Default::default()
+        };
+        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+
+        let val = ctx.eval(&calc).unwrap_err();
+        assert_eq!(
+            crate::Error::CircularRef(vec!["x".into(), "y".into(), "x".into()], Range::pos(0)),
+            val
+        );
+    }
+
+    #[test]
+    fn self_ref() {
+        let ctx = Context {
+            provider: DummyProvider,
+            vars: vec![Var {
+                name: "x".into(),
+                value: Some(Val::Var(0)),
+            }],
+            ..Default::default()
+        };
+        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+
+        let val = ctx.eval(&calc).unwrap_err();
+        assert_eq!(
+            crate::Error::CircularRef(vec!["x".into(), "x".into()], Range::pos(0)),
+            val
+        );
     }
 }

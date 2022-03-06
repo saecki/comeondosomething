@@ -9,7 +9,7 @@ impl Provider<ExtDummy> for DummyProvider {
     fn plain_val(&self, _ext: ExtDummy) -> PlainVal {
         unreachable!()
     }
-    
+
     fn parse(&self, _literal: &str) -> Option<ExtDummy> {
         None
     }

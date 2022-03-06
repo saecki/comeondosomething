@@ -25,6 +25,7 @@ pub enum Error<T: Ext> {
     UnexpectedAssignment(Range),
     UnknownValue(Range),
     UndefinedVar(String, Range),
+    CircularRef(Vec<String>, Range),
     InvalidNumberFormat(Range),
     AddOverflow(Num<T>, Num<T>),
     SubOverflow(Num<T>, Num<T>),
@@ -74,6 +75,10 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::UnexpectedAssignment(_) => "Unexpected Assignment".into(),
             Self::UnknownValue(_) => "Unknown value".into(),
             Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
+            Self::CircularRef(names, _) => format!(
+                "Circular reference in variable declaration: {}",
+                names.join(" -> ")
+            ),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
             Self::AddOverflow(_, _) => "Addition would overflow".into(),
             Self::SubOverflow(_, _) => "Subtraction would overflow".into(),
@@ -101,15 +106,11 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
-            Self::FactorialOverflow(_) => {
-                "Factorial would overflow".into()
-            }
+            Self::FactorialOverflow(_) => "Factorial would overflow".into(),
             Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
-            Self::InvalidClampBounds(_, _) => {
-                "Invalid clamp bounds min is greater than max".into()
-            }
+            Self::InvalidClampBounds(_, _) => "Invalid clamp bounds min is greater than max".into(),
         }
     }
 
@@ -127,6 +128,7 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::UnexpectedAssignment(r) => vec![*r],
             Self::UnknownValue(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
+            Self::CircularRef(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],

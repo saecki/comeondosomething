@@ -2,7 +2,7 @@ use std::env::args;
 use std::io;
 use std::process::exit;
 
-use cods::{bprintln, Color, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC, Context};
+use cods::{bprintln, Color, Context, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC};
 
 fn main() {
     let mut args = args().skip(1);
