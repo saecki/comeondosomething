@@ -22,7 +22,6 @@ pub enum Error<T: Ext> {
     },
     UnexpectedOperator(Op),
     UnexpectedParenthesis(Par),
-    UnexpectedAssignment(Range),
     InvalidChar(Range),
     UndefinedVar(String, Range),
     CircularRef(Vec<String>, Range),
@@ -42,6 +41,8 @@ pub enum Error<T: Ext> {
     NegativeFactorial(Num<T>),
     FractionFactorial(Num<T>),
     InvalidClampBounds(Num<T>, Num<T>),
+    MissingCalculation,
+    InvalidAssignment(Range),
 }
 
 impl<T: Ext> UserFacing<LRed> for Error<T> {
@@ -72,7 +73,6 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
-            Self::UnexpectedAssignment(_) => "Unexpected Assignment".into(),
             Self::InvalidChar(_) => "Unknown value".into(),
             Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
             Self::CircularRef(names, _) => format!(
@@ -111,6 +111,8 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
                 "Attempted to calculate the factorial of a fraction".into()
             }
             Self::InvalidClampBounds(_, _) => "Invalid clamp bounds min is greater than max".into(),
+            Self::MissingCalculation => "Missing calculation".into(),
+            Self::InvalidAssignment(_) => "Cannot assign to something that is not a variable".into(),
         }
     }
 
@@ -125,7 +127,6 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedParenthesis(p) => vec![p.range],
-            Self::UnexpectedAssignment(r) => vec![*r],
             Self::InvalidChar(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::CircularRef(_, r) => vec![*r],
@@ -145,6 +146,8 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::NegativeFactorial(a) => vec![a.range],
             Self::FractionFactorial(a) => vec![a.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
+            Self::MissingCalculation => vec![],
+            Self::InvalidAssignment(r) => vec![*r]
         }
     }
 }

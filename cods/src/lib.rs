@@ -80,11 +80,11 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             return Err(self.errors.remove(0));
         }
 
-        let val = self.eval(&calc)?;
+        let val = self.eval_all(&calc)?;
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, string: &str) -> crate::Result<Calc<T>, T> {
+    pub fn parse_str(&mut self, string: &str) -> crate::Result<Vec<Calc<T>>, T> {
         let tokens = self.tokenize(string.as_ref())?;
         let items = self.group(&tokens)?;
         let calc = self.parse(&items)?;

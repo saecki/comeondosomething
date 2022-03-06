@@ -3,13 +3,21 @@ use std::mem::MaybeUninit;
 
 use crate::{
     items_range, Calc, CmdType, Context, Ext, Item, ModType, Op, OpType, ParKind, Provider, Range,
-    SepType, Sign, Warning,
+    SepType, Sign, Warning, Val,
 };
 
 impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
-        let r = items_range(items).unwrap_or_else(|| Range::pos(0));
-        self.parse_items(r, items)
+    pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Vec<Calc<T>>, T> {
+        items
+            .split(|i| match i {
+                Item::Sep(s) => s.is_semi(),
+                _ => false,
+            })
+            .map(|i| {
+                let r = items_range(i).unwrap_or_else(|| Range::pos(0));
+                self.parse_items(r, i)
+            })
+            .collect()
     }
 
     fn parse_items(&mut self, range: Range, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
@@ -114,12 +122,13 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                     OpType::IntDiv => (),
                     OpType::Rem => (),
                     OpType::Pow => (),
+                    OpType::Equals => (),
                 }
             }
 
             let a = &items[0..i];
             let range_a = items_range(a).unwrap_or_else(|| Range::of(range.start, op.range.start));
-            let calc_a = Box::new(self.parse_items(range_a, a)?);
+            let calc_a = self.parse_items(range_a, a)?;
 
             let b = &items[(first_i + 1)..];
             let range_b = items_range(b).unwrap_or_else(|| Range::of(op.range.end, range.end));
@@ -129,9 +138,9 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 OpType::Add | OpType::Sub => {
                     // all + and - signs/operators were accumulated
                     if sign.is_positive() {
-                        Ok(Calc::Add(calc_a, calc_b))
+                        Ok(Calc::Add(Box::new(calc_a), calc_b))
                     } else {
-                        Ok(Calc::Sub(calc_a, calc_b))
+                        Ok(Calc::Sub(Box::new(calc_a), calc_b))
                     }
                 }
                 _ => {
@@ -143,11 +152,19 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                     };
                     match op.typ {
                         OpType::Add | OpType::Sub => unreachable!(),
-                        OpType::Mul => Ok(Calc::Mul(calc_a, calc_b)),
-                        OpType::Div => Ok(Calc::Div(calc_a, calc_b)),
-                        OpType::IntDiv => Ok(Calc::IntDiv(calc_a, calc_b)),
-                        OpType::Rem => Ok(Calc::Rem(calc_a, calc_b)),
-                        OpType::Pow => Ok(Calc::Pow(calc_a, calc_b, Range::span(range_a, range_b))),
+                        OpType::Mul => Ok(Calc::Mul(Box::new(calc_a), calc_b)),
+                        OpType::Div => Ok(Calc::Div(Box::new(calc_a), calc_b)),
+                        OpType::IntDiv => Ok(Calc::IntDiv(Box::new(calc_a), calc_b)),
+                        OpType::Rem => Ok(Calc::Rem(Box::new(calc_a), calc_b)),
+                        OpType::Pow => Ok(Calc::Pow(Box::new(calc_a), calc_b, Range::span(range_a, range_b))),
+                        OpType::Equals => {
+                            if let Calc::Num(n) = calc_a {
+                                if let Val::Var(id) = n.val {
+                                    return Ok(Calc::Assignment(id, calc_b));
+                                }
+                            }
+                            Err(crate::Error::InvalidAssignment(op.range)) // TODO get range of assignment
+                        }
                     }
                 }
             };
@@ -289,11 +306,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             if let Item::Sep(s) = i {
                 match s.typ {
                     SepType::Comma => (),
-                    SepType::Semicolon => self.warnings.push(crate::Warning::ConfusingSeparator {
+                    SepType::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
                         sep: *s,
                         expected: SepType::Comma,
                     }),
-                    SepType::Equals => return Err(crate::Error::UnexpectedAssignment(s.range)),
                 }
 
                 let r = Range::of(start.1, s.range.start);
@@ -358,11 +374,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             if let Item::Sep(s) = i {
                 match s.typ {
                     SepType::Comma => (),
-                    SepType::Semicolon => self.warnings.push(crate::Warning::ConfusingSeparator {
+                    SepType::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
                         sep: *s,
                         expected: SepType::Comma,
                     }),
-                    SepType::Equals => return Err(crate::Error::UnexpectedAssignment(s.range)),
                 }
 
                 let r = Range::of(start.1, s.range.start);

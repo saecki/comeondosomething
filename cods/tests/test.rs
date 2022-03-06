@@ -219,3 +219,8 @@ fn unmatched_par() {
         "4 ) + 5)",
     );
 }
+
+#[test]
+fn var() {
+    assert(PlainVal::Int(7), "x = 7; x");
+}

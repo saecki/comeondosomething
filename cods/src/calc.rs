@@ -79,6 +79,7 @@ pub enum Calc<T: Ext> {
     Clamp(Box<Calc<T>>, Box<Calc<T>>, Box<Calc<T>>, Range),
     Degree(Box<Calc<T>>, Range),
     Factorial(Box<Calc<T>>, Range),
+    Assignment(VarId, Box<Calc<T>>),
 }
 
 pub enum ValResult {
@@ -88,7 +89,20 @@ pub enum ValResult {
 }
 
 impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn eval(&self, calc: &Calc<T>) -> crate::Result<PlainVal, T> {
+    /// Evaluate all calculations and return the last value.
+    pub fn eval_all(&mut self, calcs: &[Calc<T>]) -> crate::Result<PlainVal, T> {
+        match calcs.split_last() {
+            Some((last, others)) => {
+                for c in others {
+                    self.eval(c)?;
+                }
+                self.eval(last)
+            }
+            None => Err(crate::Error::MissingCalculation),
+        }
+    }
+
+    pub fn eval(&mut self, calc: &Calc<T>) -> crate::Result<PlainVal, T> {
         let num = self.eval_num(calc)?;
         self.plain_val(num)
     }
@@ -137,29 +151,96 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
     }
 
-    fn eval_num(&self, calc: &Calc<T>) -> crate::Result<Num<T>, T> {
+    fn eval_num(&mut self, calc: &Calc<T>) -> crate::Result<Num<T>, T> {
         match calc {
             Calc::Error(r) => Err(crate::Error::Parsing(*r)),
             Calc::Num(n) => Ok(*n),
-            Calc::Neg(a, r) => self.neg(self.eval_num(a)?, *r),
-            Calc::Add(a, b) => self.add(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::Sub(a, b) => self.sub(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::Mul(a, b) => self.mul(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::Div(a, b) => self.div(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::IntDiv(a, b) => self.int_div(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::Rem(a, b) => self.rem(self.eval_num(a)?, self.eval_num(b)?),
-            Calc::Pow(a, b, r) => self.pow(self.eval_num(a)?, self.eval_num(b)?, *r),
-            Calc::Ln(a, r) => self.ln(self.eval_num(a)?, *r),
-            Calc::Log(a, b, r) => self.log(self.eval_num(a)?, self.eval_num(b)?, *r),
-            Calc::Sqrt(a, r) => self.sqrt(self.eval_num(a)?, *r),
-            Calc::Ncr(a, b, r) => self.ncr(self.eval_num(a)?, self.eval_num(b)?, *r),
-            Calc::Sin(a, r) => self.sin(self.eval_num(a)?, *r),
-            Calc::Cos(a, r) => self.cos(self.eval_num(a)?, *r),
-            Calc::Tan(a, r) => self.tan(self.eval_num(a)?, *r),
-            Calc::Asin(a, r) => self.asin(self.eval_num(a)?, *r),
-            Calc::Acos(a, r) => self.acos(self.eval_num(a)?, *r),
-            Calc::Atan(a, r) => self.atan(self.eval_num(a)?, *r),
-            Calc::Gcd(a, b, r) => self.gcd(self.eval_num(a)?, self.eval_num(b)?, *r),
+            Calc::Neg(a, r) => {
+                let n = self.eval_num(a)?;
+                self.neg(n, *r)
+            }
+            Calc::Add(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.add(n1, n2)
+            }
+            Calc::Sub(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.sub(n1, n2)
+            }
+            Calc::Mul(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.mul(n1, n2)
+            }
+            Calc::Div(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.div(n1, n2)
+            }
+            Calc::IntDiv(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.int_div(n1, n2)
+            }
+            Calc::Rem(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.rem(n1, n2)
+            }
+            Calc::Pow(a, b, r) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.pow(n1, n2, *r)
+            }
+            Calc::Ln(a, r) => {
+                let n1 = self.eval_num(a)?;
+                self.ln(n1, *r)
+            }
+            Calc::Log(a, b, r) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.log(n1, n2, *r)
+            }
+            Calc::Sqrt(a, r) => {
+                let n1 = self.eval_num(a)?;
+                self.sqrt(n1, *r)
+            }
+            Calc::Ncr(a, b, r) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.ncr(n1, n2, *r)
+            }
+            Calc::Sin(a, r) => {
+                let n2 = self.eval_num(a)?;
+                self.sin(n2, *r)
+            }
+            Calc::Cos(a, r) => {
+                let n = self.eval_num(a)?;
+                self.cos(n, *r)
+            }
+            Calc::Tan(a, r) => {
+                let n = self.eval_num(a)?;
+                self.tan(n, *r)
+            }
+            Calc::Asin(a, r) => {
+                let n = self.eval_num(a)?;
+                self.asin(n, *r)
+            }
+            Calc::Acos(a, r) => {
+                let n = self.eval_num(a)?;
+                self.acos(n, *r)
+            }
+            Calc::Atan(a, r) => {
+                let n = self.eval_num(a)?;
+                self.atan(n, *r)
+            }
+            Calc::Gcd(a, b, r) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.gcd(n1, n2, *r)
+            }
             Calc::Min(args, r) => {
                 let nums = self.eval_nums(args)?;
                 self.min(nums, *r)
@@ -168,14 +249,24 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 let nums = self.eval_nums(args)?;
                 self.max(nums, *r)
             }
-            Calc::Clamp(num, min, max, r) => self.clamp(
-                self.eval_num(num)?,
-                self.eval_num(min)?,
-                self.eval_num(max)?,
-                *r,
-            ),
-            Calc::Degree(a, r) => self.degree(self.eval_num(a)?, *r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
-            Calc::Factorial(a, r) => self.factorial(self.eval_num(a)?, *r),
+            Calc::Clamp(num, min, max, r) => {
+                let n1 = self.eval_num(num)?;
+                let n2 = self.eval_num(min)?;
+                let n3 = self.eval_num(max)?;
+                self.clamp(n1, n2, n3, *r)
+            }
+            Calc::Degree(a, r) => {
+                let n = self.eval_num(a)?;
+                self.degree(n, *r) // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            }
+            Calc::Factorial(a, r) => {
+                let n = self.eval_num(a)?;
+                self.factorial(n, *r)
+            }
+            Calc::Assignment(a, b) => {
+                let n = self.eval_num(b)?;
+                self.assign(*a, n)
+            }
         }
         .map(|mut n| {
             n.val = n.val.maybe_int();
@@ -183,7 +274,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         })
     }
 
-    fn eval_nums(&self, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
+    fn eval_nums(&mut self, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
         let mut nums = Vec::with_capacity(args.len());
         for a in args {
             nums.push(self.eval_num(a)?);
@@ -496,6 +587,11 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         };
         Ok(Num { val, range })
     }
+
+    fn assign(&mut self, var_id: VarId, b: Num<T>) -> crate::Result<Num<T>, T> {
+        self.vars[var_id].value = Some(b.val);
+        Ok(b) // TODO return some sort of unit type
+    }
 }
 
 #[cfg(test)]
@@ -504,7 +600,7 @@ mod test {
 
     #[test]
     fn resolve_var() {
-        let ctx = Context {
+        let mut ctx = Context {
             provider: DummyProvider,
             vars: vec![Var {
                 name: "x".into(),
@@ -520,7 +616,7 @@ mod test {
 
     #[test]
     fn undefined_var() {
-        let ctx = Context {
+        let mut ctx = Context {
             provider: DummyProvider,
             vars: vec![Var {
                 name: "x".into(),
@@ -536,7 +632,7 @@ mod test {
 
     #[test]
     fn circular_ref() {
-        let ctx = Context {
+        let mut ctx = Context {
             provider: DummyProvider,
             vars: vec![
                 Var {
@@ -561,7 +657,7 @@ mod test {
 
     #[test]
     fn self_ref() {
-        let ctx = Context {
+        let mut ctx = Context {
             provider: DummyProvider,
             vars: vec![Var {
                 name: "x".into(),

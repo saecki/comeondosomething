@@ -53,9 +53,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 '*' | '×' => self.new_token(&mut state, Token::op(OpType::Mul, range))?,
                 '/' | '÷' => self.new_token(&mut state, Token::op(OpType::Div, range))?,
                 '%' => self.new_token(&mut state, Token::op(OpType::Rem, range))?,
+                '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
+                '=' => self.new_token(&mut state, Token::op(OpType::Equals, range))?,
                 '°' => self.new_token(&mut state, Token::mood(ModType::Degree, range))?,
                 '!' => self.new_token(&mut state, Token::mood(ModType::Factorial, range))?,
-                '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
                 '(' => self.new_token(&mut state, Token::par(ParType::RoundOpen, range))?,
                 '[' => self.new_token(&mut state, Token::par(ParType::SquareOpen, range))?,
                 '{' => self.new_token(&mut state, Token::par(ParType::CurlyOpen, range))?,
@@ -63,8 +64,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 ']' => self.new_token(&mut state, Token::par(ParType::SquareClose, range))?,
                 '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
                 ',' => self.new_token(&mut state, Token::sep(SepType::Comma, range))?,
-                ';' => self.new_token(&mut state, Token::sep(SepType::Semicolon, range))?,
-                '=' => self.new_token(&mut state, Token::sep(SepType::Equals, range))?,
+                ';' => self.new_token(&mut state, Token::sep(SepType::Semi, range))?,
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -340,14 +340,16 @@ pub enum OpType {
     IntDiv,
     Rem,
     Pow,
+    Equals,
 }
 
 impl OpType {
     pub const fn priority(&self) -> usize {
         match self {
-            Self::Pow => 2,
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => 1,
-            Self::Add | Self::Sub => 0,
+            Self::Pow => 4,
+            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => 2,
+            Self::Add | Self::Sub => 1,
+            Self::Equals => 0,
         }
     }
 
@@ -355,7 +357,7 @@ impl OpType {
         match self {
             Self::Add => Some(Sign::Positive),
             Self::Sub => Some(Sign::Negative),
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem | Self::Pow => None,
+            Self::Mul | Self::Div | Self::IntDiv | Self::Rem | Self::Pow | Self::Equals => None,
         }
     }
 
@@ -518,6 +520,14 @@ pub struct Sep {
     pub range: Range,
 }
 
+impl Deref for Sep {
+    type Target = SepType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
 impl Sep {
     pub const fn new(typ: SepType, range: Range) -> Self {
         Self { typ, range }
@@ -527,17 +537,21 @@ impl Sep {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SepType {
     Comma,
-    Semicolon,
-    Equals,
+    Semi,
 }
 
 impl Display for SepType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Comma => f.write_char(','),
-            Self::Semicolon => f.write_char(';'),
-            Self::Equals => f.write_char('='),
+            Self::Semi => f.write_char(';'),
         }
+    }
+}
+
+impl SepType {
+    pub fn is_semi(&self) -> bool {
+        matches!(self, Self::Semi)
     }
 }
 
@@ -649,11 +663,11 @@ mod test {
             tokens,
             [
                 Token::num(Val::Var(0), Range::of(0, 3)),
-                Token::sep(SepType::Equals, Range::pos(4)),
+                Token::op(OpType::Equals, Range::pos(4)),
                 Token::num(Val::int(2), Range::pos(6)),
-                Token::sep(SepType::Semicolon, Range::pos(7)),
+                Token::sep(SepType::Semi, Range::pos(7)),
                 Token::num(Val::Var(1), Range::of(9, 12)),
-                Token::sep(SepType::Equals, Range::pos(13)),
+                Token::op(OpType::Equals, Range::pos(13)),
                 Token::num(Val::int(3), Range::pos(15)),
             ],
         );
