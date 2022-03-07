@@ -4,7 +4,7 @@ use std::process::exit;
 
 use cods::{
     bprint, bprintln, Color, Context, DGreen, DYellow, DefaultContext, LBlue, LRed, UserFacing,
-    ANSI_ESC,
+    ValResult, ANSI_ESC,
 };
 
 fn main() {
@@ -42,11 +42,20 @@ fn repl() {
             continue;
         }
 
-        if buf.lines().next().map(|s| s.trim()) == Some("exit") {
-            break;
+        match buf.lines().next().map(|s| s.trim()) {
+            Some("exit") => break,
+            Some("clear") => println!("\x1b[1;1\x1B[2J"),
+            Some("vars") => {
+                for var in &ctx.vars {
+                    if let Some(val) = var.value {
+                        if let ValResult::Resolved(v) = ctx.resolve_val(val) {
+                            println!("{} = {}", var.name, v);
+                        }
+                    }
+                }
+            }
+            _ => print_calc(&mut ctx, &buf),
         }
-
-        print_calc(&mut ctx, &buf);
     }
 }
 
