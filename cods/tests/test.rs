@@ -3,7 +3,8 @@ use cods::{Context, Error, ExtDummy, Num, Par, ParType, PlainVal, Range, UserFac
 fn assert(expected: PlainVal, expr: &str) {
     let mut ctx = Context::default();
     match ctx.calc(expr) {
-        Ok(val) => assert_eq!(expected, val),
+        Ok(Some(val)) => assert_eq!(expected, val),
+        Ok(None) => panic!("Expected a value found nothing"),
         Err(_) => {
             for w in ctx.warnings.iter().rev() {
                 eprintln!("{}\n", w.display(expr));

@@ -42,7 +42,8 @@ pub enum Error<T: Ext> {
     FractionFactorial(Num<T>),
     InvalidClampBounds(Num<T>, Num<T>),
     MissingCalculation,
-    InvalidAssignment(Range),
+    InvalidAssignment(Range, Range),
+    ExpectedValue(Range),
 }
 
 impl<T: Ext> UserFacing<LRed> for Error<T> {
@@ -112,7 +113,10 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             }
             Self::InvalidClampBounds(_, _) => "Invalid clamp bounds min is greater than max".into(),
             Self::MissingCalculation => "Missing calculation".into(),
-            Self::InvalidAssignment(_) => "Cannot assign to something that is not a variable".into(),
+            Self::InvalidAssignment(_, _) => {
+                "Cannot assign to something that is not a variable".into()
+            }
+            Self::ExpectedValue(_) => "Expected a value found".into(),
         }
     }
 
@@ -147,7 +151,8 @@ impl<T: Ext> UserFacing<LRed> for Error<T> {
             Self::FractionFactorial(a) => vec![a.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
             Self::MissingCalculation => vec![],
-            Self::InvalidAssignment(r) => vec![*r]
+            Self::InvalidAssignment(a, b) => vec![*a, *b],
+            Self::ExpectedValue(r) => vec![*r],
         }
     }
 }

@@ -1,8 +1,11 @@
 use std::env::args;
-use std::io;
+use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{bprintln, Color, Context, DGreen, DYellow, LBlue, LRed, UserFacing, ANSI_ESC};
+use cods::{
+    bprint, bprintln, Color, Context, DGreen, DYellow, DefaultContext, LBlue, LRed, UserFacing,
+    ANSI_ESC,
+};
 
 fn main() {
     let mut args = args().skip(1);
@@ -22,15 +25,18 @@ fn main() {
 }
 
 fn repl() {
-    bprintln!(
-        LBlue,
-        "Started interactive repl (read interpret print loop)"
-    );
+    bprintln!(LBlue, "Started interactive repl");
 
+    let mut output = io::stdout();
     let input = io::stdin();
     let mut buf = String::new();
+    let mut ctx = Context::default();
     loop {
         buf.clear();
+        ctx.clear_errors();
+
+        bprint!(LBlue, " >> ");
+        let _ = output.flush();
         if input.read_line(&mut buf).is_err() {
             bprintln!(LRed, "Error reading line");
             continue;
@@ -40,7 +46,7 @@ fn repl() {
             break;
         }
 
-        print_calc(&buf);
+        print_calc(&mut ctx, &buf);
     }
 }
 
@@ -55,17 +61,9 @@ fn calc_file(path: Option<String>) {
 
     match std::fs::read_to_string(&p) {
         Ok(input) => {
-            let calcs = separate_lines(&input);
-            let mut iter = calcs.iter().enumerate().peekable();
-            while let Some((i, c)) = iter.next() {
-                println!("# {}", i + 1);
-                println!("------------------");
-                println!("{c}");
-                print_calc(c);
-                println!();
-
-                if iter.peek().is_some() {}
-            }
+            let mut ctx = Context::default();
+            print_calc(&mut ctx, &input);
+            println!();
         }
         Err(_) => {
             bprintln!(LRed, "Error reading file: {p}");
@@ -74,75 +72,13 @@ fn calc_file(path: Option<String>) {
     }
 }
 
-fn separate_lines(string: &str) -> Vec<&str> {
-    let mut calcs = Vec::new();
-    let mut line_start = 0;
-    let mut last_line_end = 0;
-    let mut last_line_start = 0;
-    let mut pos = 0;
-    let mut pushed_str = false;
-
-    let mut chars = string.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '\r' => {
-                let line = &string[(last_line_end + 1)..pos];
-
-                if line == "---" {
-                    let calc = &string[line_start..last_line_end];
-                    calcs.push(calc);
-
-                    line_start = pos + 1;
-                    pushed_str = true;
-                }
-
-                last_line_end = pos;
-            }
-            '\n' => {
-                if !pushed_str {
-                    let line = &string[(last_line_start)..pos];
-
-                    if line == "---" {
-                        let calc = &string[line_start..last_line_end];
-                        calcs.push(calc);
-
-                        line_start = pos + 1;
-                        pushed_str = true;
-                    }
-
-                    last_line_end = pos;
-                }
-
-                last_line_start = pos + 1;
-            }
-            _ => pushed_str = false,
-        }
-
-        pos = string.len() - chars.as_str().len();
-    }
-
-    if !pushed_str {
-        let line = &string[(last_line_end + 1)..pos];
-
-        let calc = if line == "---" {
-            &string[line_start..last_line_end]
-        } else {
-            &string[line_start..pos]
-        };
-        calcs.push(calc);
-    }
-
-    calcs
-}
-
 fn calc_args(first: String, args: impl Iterator<Item = String>) {
     let input = args.fold(first, |a, b| a + " " + &b);
-
-    print_calc(&input);
+    let mut ctx = Context::default();
+    print_calc(&mut ctx, &input);
 }
 
-fn print_calc(input: &str) {
-    let mut ctx = Context::default();
+fn print_calc(ctx: &mut DefaultContext, input: &str) {
     match ctx.calc(input) {
         Ok(v) => {
             for w in ctx.warnings.iter().rev() {
@@ -151,7 +87,9 @@ fn print_calc(input: &str) {
             for e in ctx.errors.iter().rev() {
                 println!("{}\n", e.display(input));
             }
-            println!("= {v}");
+            if let Some(v) = v {
+                println!("{v}")
+            }
         }
         Err(e) => {
             for w in ctx.warnings.iter().rev() {

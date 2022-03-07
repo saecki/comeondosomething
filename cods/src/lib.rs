@@ -20,6 +20,8 @@ mod parse;
 mod style;
 mod token;
 
+pub type DefaultContext = Context<ExtDummy, DummyProvider>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Context<T: Ext, P: Provider<T>> {
     pub provider: P,
@@ -33,6 +35,7 @@ impl Default for Context<ExtDummy, DummyProvider> {
         Self::new(DummyProvider)
     }
 }
+
 impl<T: Ext, P: Provider<T>> Context<T, P> {
     pub fn new(provider: P) -> Self {
         Self {
@@ -41,6 +44,20 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             errors: Vec::new(),
             warnings: Vec::new(),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.clear_vars();
+        self.clear_errors();
+    }
+
+    pub fn clear_vars(&mut self) {
+        self.vars.clear();
+    }
+
+    pub fn clear_errors(&mut self) {
+        self.errors.clear();
+        self.warnings.clear();
     }
 }
 
@@ -68,13 +85,13 @@ impl fmt::Display for PlainVal {
     }
 }
 
-pub fn calc(string: &str) -> crate::Result<PlainVal, ExtDummy> {
+pub fn calc(string: &str) -> crate::Result<Option<PlainVal>, ExtDummy> {
     let mut ctx = Context::new(DummyProvider);
     ctx.calc(string)
 }
 
 impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn calc(&mut self, string: &str) -> crate::Result<PlainVal, T> {
+    pub fn calc(&mut self, string: &str) -> crate::Result<Option<PlainVal>, T> {
         let calc = self.parse_str(string)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));

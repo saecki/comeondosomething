@@ -52,33 +52,50 @@ impl PlainVal {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Calc<T: Ext> {
-    Error(Range),
+pub struct Calc<T: Ext> {
+    pub typ: CalcType<T>,
+    pub range: Range,
+}
+
+impl<T: Ext> Calc<T> {
+    pub fn new(typ: CalcType<T>, range: Range) -> Self {
+        Self { typ, range }
+    }
+
+    pub fn num(num: Num<T>) -> Self {
+        Self::new(CalcType::Num(num), num.range)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum CalcType<T: Ext> {
+    Empty,
+    Error,
     Num(Num<T>),
-    Neg(Box<Calc<T>>, Range),
+    Neg(Box<Calc<T>>),
     Add(Box<Calc<T>>, Box<Calc<T>>),
     Sub(Box<Calc<T>>, Box<Calc<T>>),
     Mul(Box<Calc<T>>, Box<Calc<T>>),
     Div(Box<Calc<T>>, Box<Calc<T>>),
     IntDiv(Box<Calc<T>>, Box<Calc<T>>),
     Rem(Box<Calc<T>>, Box<Calc<T>>),
-    Pow(Box<Calc<T>>, Box<Calc<T>>, Range),
-    Ln(Box<Calc<T>>, Range),
-    Log(Box<Calc<T>>, Box<Calc<T>>, Range),
-    Sqrt(Box<Calc<T>>, Range),
-    Ncr(Box<Calc<T>>, Box<Calc<T>>, Range),
-    Sin(Box<Calc<T>>, Range),
-    Cos(Box<Calc<T>>, Range),
-    Tan(Box<Calc<T>>, Range),
-    Asin(Box<Calc<T>>, Range),
-    Acos(Box<Calc<T>>, Range),
-    Atan(Box<Calc<T>>, Range),
-    Gcd(Box<Calc<T>>, Box<Calc<T>>, Range),
-    Min(Vec<Calc<T>>, Range),
-    Max(Vec<Calc<T>>, Range),
-    Clamp(Box<Calc<T>>, Box<Calc<T>>, Box<Calc<T>>, Range),
-    Degree(Box<Calc<T>>, Range),
-    Factorial(Box<Calc<T>>, Range),
+    Pow(Box<Calc<T>>, Box<Calc<T>>),
+    Ln(Box<Calc<T>>),
+    Log(Box<Calc<T>>, Box<Calc<T>>),
+    Sqrt(Box<Calc<T>>),
+    Ncr(Box<Calc<T>>, Box<Calc<T>>),
+    Sin(Box<Calc<T>>),
+    Cos(Box<Calc<T>>),
+    Tan(Box<Calc<T>>),
+    Asin(Box<Calc<T>>),
+    Acos(Box<Calc<T>>),
+    Atan(Box<Calc<T>>),
+    Gcd(Box<Calc<T>>, Box<Calc<T>>),
+    Min(Vec<Calc<T>>),
+    Max(Vec<Calc<T>>),
+    Clamp(Box<Calc<T>>, Box<Calc<T>>, Box<Calc<T>>),
+    Degree(Box<Calc<T>>),
+    Factorial(Box<Calc<T>>),
     Assignment(VarId, Box<Calc<T>>),
 }
 
@@ -88,9 +105,14 @@ pub enum ValResult {
     CircularRef(Vec<String>),
 }
 
+pub enum Return<T: Ext> {
+    Num(Num<T>),
+    Unit(Range),
+}
+
 impl<T: Ext, P: Provider<T>> Context<T, P> {
     /// Evaluate all calculations and return the last value.
-    pub fn eval_all(&mut self, calcs: &[Calc<T>]) -> crate::Result<PlainVal, T> {
+    pub fn eval_all(&mut self, calcs: &[Calc<T>]) -> crate::Result<Option<PlainVal>, T> {
         match calcs.split_last() {
             Some((last, others)) => {
                 for c in others {
@@ -102,9 +124,153 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
     }
 
-    pub fn eval(&mut self, calc: &Calc<T>) -> crate::Result<PlainVal, T> {
-        let num = self.eval_num(calc)?;
-        self.plain_val(num)
+    pub fn eval(&mut self, calc: &Calc<T>) -> crate::Result<Option<PlainVal>, T> {
+        match self.eval_calc(calc)? {
+            Return::Num(n) => Ok(Some(self.plain_val(n)?)),
+            Return::Unit(_) => Ok(None),
+        }
+    }
+
+    pub fn eval_nums(&mut self, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
+        let mut nums = Vec::with_capacity(args.len());
+        for a in args {
+            nums.push(self.eval_num(a)?);
+        }
+        Ok(nums)
+    }
+
+    pub fn eval_num(&mut self, calc: &Calc<T>) -> crate::Result<Num<T>, T> {
+        match self.eval_calc(calc)? {
+            Return::Num(n) => Ok(n),
+            Return::Unit(r) => Err(crate::Error::ExpectedValue(r)),
+        }
+    }
+
+    pub fn eval_calc(&mut self, calc: &Calc<T>) -> crate::Result<Return<T>, T> {
+        let r = calc.range;
+        match &calc.typ {
+            CalcType::Empty => Ok(Return::Unit(r)),
+            CalcType::Error => Err(crate::Error::Parsing(r)),
+            CalcType::Num(n) => ok(*n),
+            CalcType::Neg(a) => {
+                let n = self.eval_num(a)?;
+                self.neg(n, r)
+            }
+            CalcType::Add(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.add(n1, n2, r)
+            }
+            CalcType::Sub(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.sub(n1, n2, r)
+            }
+            CalcType::Mul(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.mul(n1, n2, r)
+            }
+            CalcType::Div(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.div(n1, n2, r)
+            }
+            CalcType::IntDiv(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.int_div(n1, n2, r)
+            }
+            CalcType::Rem(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.rem(n1, n2, r)
+            }
+            CalcType::Pow(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.pow(n1, n2, r)
+            }
+            CalcType::Ln(a) => {
+                let n1 = self.eval_num(a)?;
+                self.ln(n1, r)
+            }
+            CalcType::Log(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.log(n1, n2, r)
+            }
+            CalcType::Sqrt(a) => {
+                let n1 = self.eval_num(a)?;
+                self.sqrt(n1, r)
+            }
+            CalcType::Ncr(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.ncr(n1, n2, r)
+            }
+            CalcType::Sin(a) => {
+                let n2 = self.eval_num(a)?;
+                self.sin(n2, r)
+            }
+            CalcType::Cos(a) => {
+                let n = self.eval_num(a)?;
+                self.cos(n, r)
+            }
+            CalcType::Tan(a) => {
+                let n = self.eval_num(a)?;
+                self.tan(n, r)
+            }
+            CalcType::Asin(a) => {
+                let n = self.eval_num(a)?;
+                self.asin(n, r)
+            }
+            CalcType::Acos(a) => {
+                let n = self.eval_num(a)?;
+                self.acos(n, r)
+            }
+            CalcType::Atan(a) => {
+                let n = self.eval_num(a)?;
+                self.atan(n, r)
+            }
+            CalcType::Gcd(a, b) => {
+                let n1 = self.eval_num(a)?;
+                let n2 = self.eval_num(b)?;
+                self.gcd(n1, n2, r)
+            }
+            CalcType::Min(args) => {
+                let nums = self.eval_nums(args)?;
+                self.min(nums, r)
+            }
+            CalcType::Max(args) => {
+                let nums = self.eval_nums(args)?;
+                self.max(nums, r)
+            }
+            CalcType::Clamp(num, min, max) => {
+                let n1 = self.eval_num(num)?;
+                let n2 = self.eval_num(min)?;
+                let n3 = self.eval_num(max)?;
+                self.clamp(n1, n2, n3, r)
+            }
+            CalcType::Degree(a) => {
+                let n = self.eval_num(a)?;
+                self.degree(n, r) // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            }
+            CalcType::Factorial(a) => {
+                let n = self.eval_num(a)?;
+                self.factorial(n, r)
+            }
+            CalcType::Assignment(a, b) => {
+                let n = self.eval_num(b)?;
+                self.assign(*a, n, r)
+            }
+        }
+        .map(|mut r| {
+            if let Return::Num(n) = &mut r {
+                n.val = n.val.maybe_int();
+            }
+            r
+        })
     }
 
     pub fn plain_val(&self, num: Num<T>) -> crate::Result<PlainVal, T> {
@@ -151,146 +317,15 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
     }
 
-    fn eval_num(&mut self, calc: &Calc<T>) -> crate::Result<Num<T>, T> {
-        match calc {
-            Calc::Error(r) => Err(crate::Error::Parsing(*r)),
-            Calc::Num(n) => Ok(*n),
-            Calc::Neg(a, r) => {
-                let n = self.eval_num(a)?;
-                self.neg(n, *r)
-            }
-            Calc::Add(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.add(n1, n2)
-            }
-            Calc::Sub(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.sub(n1, n2)
-            }
-            Calc::Mul(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.mul(n1, n2)
-            }
-            Calc::Div(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.div(n1, n2)
-            }
-            Calc::IntDiv(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.int_div(n1, n2)
-            }
-            Calc::Rem(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.rem(n1, n2)
-            }
-            Calc::Pow(a, b, r) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.pow(n1, n2, *r)
-            }
-            Calc::Ln(a, r) => {
-                let n1 = self.eval_num(a)?;
-                self.ln(n1, *r)
-            }
-            Calc::Log(a, b, r) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.log(n1, n2, *r)
-            }
-            Calc::Sqrt(a, r) => {
-                let n1 = self.eval_num(a)?;
-                self.sqrt(n1, *r)
-            }
-            Calc::Ncr(a, b, r) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.ncr(n1, n2, *r)
-            }
-            Calc::Sin(a, r) => {
-                let n2 = self.eval_num(a)?;
-                self.sin(n2, *r)
-            }
-            Calc::Cos(a, r) => {
-                let n = self.eval_num(a)?;
-                self.cos(n, *r)
-            }
-            Calc::Tan(a, r) => {
-                let n = self.eval_num(a)?;
-                self.tan(n, *r)
-            }
-            Calc::Asin(a, r) => {
-                let n = self.eval_num(a)?;
-                self.asin(n, *r)
-            }
-            Calc::Acos(a, r) => {
-                let n = self.eval_num(a)?;
-                self.acos(n, *r)
-            }
-            Calc::Atan(a, r) => {
-                let n = self.eval_num(a)?;
-                self.atan(n, *r)
-            }
-            Calc::Gcd(a, b, r) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.gcd(n1, n2, *r)
-            }
-            Calc::Min(args, r) => {
-                let nums = self.eval_nums(args)?;
-                self.min(nums, *r)
-            }
-            Calc::Max(args, r) => {
-                let nums = self.eval_nums(args)?;
-                self.max(nums, *r)
-            }
-            Calc::Clamp(num, min, max, r) => {
-                let n1 = self.eval_num(num)?;
-                let n2 = self.eval_num(min)?;
-                let n3 = self.eval_num(max)?;
-                self.clamp(n1, n2, n3, *r)
-            }
-            Calc::Degree(a, r) => {
-                let n = self.eval_num(a)?;
-                self.degree(n, *r) // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
-            }
-            Calc::Factorial(a, r) => {
-                let n = self.eval_num(a)?;
-                self.factorial(n, *r)
-            }
-            Calc::Assignment(a, b) => {
-                let n = self.eval_num(b)?;
-                self.assign(*a, n)
-            }
-        }
-        .map(|mut n| {
-            n.val = n.val.maybe_int();
-            n
-        })
-    }
-
-    fn eval_nums(&mut self, args: &[Calc<T>]) -> crate::Result<Vec<Num<T>>, T> {
-        let mut nums = Vec::with_capacity(args.len());
-        for a in args {
-            nums.push(self.eval_num(a)?);
-        }
-        Ok(nums)
-    }
-
-    fn neg(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn neg(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match n.val {
             Val::Plain(PlainVal::Int(i)) => Val::int(-i),
             _ => Val::float(-self.to_f64(n)?),
         };
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn add(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn add(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => match a.checked_add(b) {
                 Some(v) => Val::int(v),
@@ -298,11 +333,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             },
             _ => Val::float(self.to_f64(n1)? + self.to_f64(n2)?),
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn sub(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn sub(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => match a.checked_sub(b) {
                 Some(v) => Val::int(v),
@@ -310,11 +344,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             },
             _ => Val::float(self.to_f64(n1)? - self.to_f64(n2)?),
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn mul(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn mul(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => match a.checked_mul(b) {
                 Some(v) => Val::int(v),
@@ -322,11 +355,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             },
             _ => Val::float(self.to_f64(n1)? * self.to_f64(n2)?),
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn div(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn div(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => {
                 if b == 0 {
@@ -346,11 +378,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 }
             }
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn int_div(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn int_div(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => {
                 if b == 0 {
@@ -361,11 +392,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             _ => return Err(crate::Error::FractionEuclidDiv(n1, n2)),
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn rem(&self, n1: Num<T>, n2: Num<T>) -> crate::Result<Num<T>, T> {
+    fn rem(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => {
                 if b == 0 {
@@ -381,11 +411,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             _ => return Err(crate::Error::FractionRemainder(n1, n2)),
         };
-        let range = Range::span(n1.range, n2.range);
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn pow(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn pow(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(a), Some(b)) => {
                 if let Ok(exp) = u32::try_from(b) {
@@ -405,25 +434,25 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             _ => Val::float(self.to_f64(n1)?.powf(self.to_f64(n2)?)),
         };
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn ln(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn ln(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.ln());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn log(&self, base: Num<T>, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn log(&self, base: Num<T>, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.log(self.to_f64(base)?));
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn sqrt(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn sqrt(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.sqrt());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn ncr(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn ncr(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(n), Some(mut r)) => {
                 if r < 0 {
@@ -448,40 +477,40 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             _ => return Err(crate::Error::FractionNcr(n1, n2)),
         };
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn sin(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn sin(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.sin());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn cos(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn cos(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.cos());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn tan(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn tan(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.tan());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn asin(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn asin(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.asin());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn acos(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn acos(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.acos());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn atan(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn atan(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.atan());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn gcd(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn gcd(&self, n1: Num<T>, n2: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         match (self.to_int(n1)?, self.to_int(n2)?) {
             (Some(mut a), Some(mut b)) => {
                 let mut _t = 0;
@@ -491,13 +520,13 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                     a = _t;
                 }
                 let val = Val::int(a);
-                Ok(Num::new(val, range))
+                ok(Num::new(val, range))
             }
             _ => Err(crate::Error::FractionGcd(n1, n2)),
         }
     }
 
-    fn min(&self, nums: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+    fn min(&self, nums: Vec<Num<T>>, range: Range) -> crate::Result<Return<T>, T> {
         let mut min = None;
         for n in nums {
             let val = self.to_f64(n)?;
@@ -512,10 +541,10 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
 
         let (min, _) = min.expect("Iterator should at least contain 1 element");
-        Ok(Num::new(min.val, range))
+        ok(Num::new(min.val, range))
     }
 
-    fn max(&self, nums: Vec<Num<T>>, range: Range) -> crate::Result<Num<T>, T> {
+    fn max(&self, nums: Vec<Num<T>>, range: Range) -> crate::Result<Return<T>, T> {
         let mut max = None;
         for n in nums {
             let val = self.to_f64(n)?;
@@ -530,7 +559,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
 
         let (max, _) = max.expect("Iterator should at least contain 1 element");
-        Ok(Num::new(max.val, range))
+        ok(Num::new(max.val, range))
     }
 
     fn clamp(
@@ -539,7 +568,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         min: Num<T>,
         max: Num<T>,
         range: Range,
-    ) -> crate::Result<Num<T>, T> {
+    ) -> crate::Result<Return<T>, T> {
         let val = match (self.to_int(num)?, self.to_int(min)?, self.to_int(max)?) {
             (Some(v), Some(lo), Some(hi)) => {
                 if lo > hi {
@@ -559,15 +588,15 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                 Val::float(v.clamp(lo, hi))
             }
         };
-        Ok(Num::new(val, range))
+        ok(Num::new(val, range))
     }
 
-    fn degree(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn degree(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = Val::float(self.to_f64(n)?.to_radians());
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn factorial(&self, n: Num<T>, range: Range) -> crate::Result<Num<T>, T> {
+    fn factorial(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = match self.to_int(n)? {
             Some(a) => {
                 if a < 0 {
@@ -585,13 +614,17 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             _ => return Err(crate::Error::FractionFactorial(n)),
         };
-        Ok(Num { val, range })
+        ok(Num { val, range })
     }
 
-    fn assign(&mut self, var_id: VarId, b: Num<T>) -> crate::Result<Num<T>, T> {
+    fn assign(&mut self, var_id: VarId, b: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         self.vars[var_id].value = Some(b.val);
-        Ok(b) // TODO return some sort of unit type
+        Ok(Return::Unit(range))
     }
+}
+
+fn ok<T: Ext>(num: Num<T>) -> crate::Result<Return<T>, T> {
+    Ok(Return::Num(num))
 }
 
 #[cfg(test)]
@@ -608,9 +641,9 @@ mod test {
             }],
             ..Default::default()
         };
-        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
 
-        let val = ctx.eval(&calc).unwrap();
+        let val = ctx.eval(&calc).unwrap().unwrap();
         assert_eq!(PlainVal::Int(4), val);
     }
 
@@ -624,7 +657,7 @@ mod test {
             }],
             ..Default::default()
         };
-        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
 
         let val = ctx.eval(&calc).unwrap_err();
         assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);
@@ -646,7 +679,7 @@ mod test {
             ],
             ..Default::default()
         };
-        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
 
         let val = ctx.eval(&calc).unwrap_err();
         assert_eq!(
@@ -665,7 +698,7 @@ mod test {
             }],
             ..Default::default()
         };
-        let calc = Calc::Num(Num::new(Val::Var(0), Range::pos(0)));
+        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
 
         let val = ctx.eval(&calc).unwrap_err();
         assert_eq!(
