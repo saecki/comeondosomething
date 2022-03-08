@@ -88,7 +88,7 @@ fn calc_args(first: String, args: impl Iterator<Item = String>) {
 }
 
 fn print_calc(ctx: &mut DefaultContext, input: &str) {
-    match ctx.calc(input) {
+    match ctx.parse_and_eval(input) {
         Ok(v) => {
             for w in ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));

@@ -4,7 +4,6 @@ use std::f64::consts;
 use crate::{Context, Ext, Num, PlainVal, Provider, Range, Val, VarId};
 
 impl<T: Ext> Val<T> {
-    /// Convert values of type [`Self::Float`] that aren't fractions to [`Self::Int`];
     pub fn maybe_int(self) -> Self {
         match self {
             Self::Plain(PlainVal::Float(f)) => {

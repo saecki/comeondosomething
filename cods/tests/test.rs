@@ -1,25 +1,18 @@
-use cods::{Context, Error, ExtDummy, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
+use cods::{Error, ExtDummy, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
 
 fn assert(expected: PlainVal, expr: &str) {
-    let mut ctx = Context::default();
-    match ctx.calc(expr) {
+    match cods::eval(expr) {
         Ok(Some(val)) => assert_eq!(expected, val),
         Ok(None) => panic!("Expected a value found nothing"),
-        Err(_) => {
-            for w in ctx.warnings.iter().rev() {
-                eprintln!("{}\n", w.display(expr));
-            }
-            for w in ctx.errors.iter().rev() {
-                eprintln!("{}\n", w.display(expr));
-            }
+        Err(e) => {
+            eprintln!("{}\n", e.display(expr));
             panic!();
         }
     }
 }
 
 fn assert_err(expected: Error<ExtDummy>, expr: &str) {
-    let mut ctx = Context::default();
-    match ctx.calc(expr) {
+    match cods::eval(expr) {
         Ok(_) => panic!("Expected error: {expected:?}"),
         Err(e) => assert_eq!(expected, e),
     }

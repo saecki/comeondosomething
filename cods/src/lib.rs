@@ -1,6 +1,6 @@
 use std::fmt;
 
-pub use calc::*;
+pub use eval::*;
 pub use display::*;
 pub use dummy::*;
 pub use error::*;
@@ -10,7 +10,7 @@ pub use parse::*;
 pub use style::*;
 pub use token::*;
 
-pub mod calc;
+mod eval;
 mod display;
 mod dummy;
 mod error;
@@ -85,13 +85,13 @@ impl fmt::Display for PlainVal {
     }
 }
 
-pub fn calc(string: &str) -> crate::Result<Option<PlainVal>, ExtDummy> {
+pub fn eval(string: &str) -> crate::Result<Option<PlainVal>, ExtDummy> {
     let mut ctx = Context::new(DummyProvider);
-    ctx.calc(string)
+    ctx.parse_and_eval(string)
 }
 
 impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn calc(&mut self, string: &str) -> crate::Result<Option<PlainVal>, T> {
+    pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>, T> {
         let calc = self.parse_str(string)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
