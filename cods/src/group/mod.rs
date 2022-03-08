@@ -5,7 +5,7 @@ use crate::{Cmd, Context, Mod, Num, Op, Par, ParKind, Range, Sep, Token};
 #[cfg(test)]
 mod test;
 
-impl Context<'_> {
+impl Context {
     pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
         let mut items = Vec::new();
         let mut pos = 0;

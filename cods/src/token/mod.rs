@@ -43,7 +43,7 @@ impl Tokenizer {
     }
 }
 
-impl Context<'_> {
+impl Context {
     pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
         let mut state = Tokenizer::new();
 

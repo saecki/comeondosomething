@@ -49,7 +49,7 @@ impl PlainVal {
     }
 }
 
-impl Context<'_> {
+impl Context {
     pub fn plain_val(&self, num: Num) -> crate::Result<PlainVal> {
         match self.resolve_val(num.val) {
             ValResult::Resolved(p) => Ok(p),

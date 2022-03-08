@@ -68,7 +68,7 @@ pub enum Return {
     Unit(Range),
 }
 
-impl Context<'_> {
+impl Context {
     /// Evaluate all calculations and return the last value.
     pub fn eval_all(&mut self, calcs: &[Calc]) -> crate::Result<Option<PlainVal>> {
         match calcs.split_last() {

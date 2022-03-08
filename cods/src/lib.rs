@@ -14,16 +14,16 @@ mod group;
 mod parse;
 mod token;
 
-#[derive(Clone, Debug, Default)]
-pub struct Context<'a> {
-    pub providers: Vec<&'a dyn Provider>,
+#[derive(Debug, Default)]
+pub struct Context {
+    pub providers: Vec<Box<dyn Provider>>,
     pub vars: Vec<Var>,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
 }
 
-impl<'a> Context<'a> {
-    pub fn new(providers: Vec<&'a dyn Provider>) -> Self {
+impl Context {
+    pub fn new(providers: Vec<Box<dyn Provider>>) -> Self {
         Self {
             providers,
             vars: Vec::new(),
@@ -76,7 +76,7 @@ pub fn eval(string: &str) -> crate::Result<Option<PlainVal>> {
     ctx.parse_and_eval(string)
 }
 
-impl Context<'_> {
+impl Context {
     pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>> {
         let calc = self.parse_str(string)?;
         if !self.errors.is_empty() {

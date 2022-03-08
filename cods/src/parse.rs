@@ -6,7 +6,7 @@ use crate::{
     SepType, Sign, Val, Warning,
 };
 
-impl Context<'_> {
+impl Context {
     pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Calc>> {
         items
             .split(|i| match i {
