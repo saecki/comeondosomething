@@ -10,7 +10,7 @@ pub trait Provider: fmt::Debug {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ExtId(usize);
+pub struct ExtId(pub usize);
 
 /// An external value which is injected into the scope by a [`Provider`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
