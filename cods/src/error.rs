@@ -1,7 +1,14 @@
-use crate::{Cmd, Ext, LRed, LYellow, Sep, SepType, Sign, UserFacing};
+use std::fmt;
+
+use crate::{Cmd, Ext, Sep, SepType, Sign};
 use crate::{Num, Op, Par, Range};
 
 pub type Result<T, V> = std::result::Result<T, Error<V>>;
+
+pub trait UserFacing: Sized + fmt::Debug {
+    fn description(&self) -> String;
+    fn ranges(&self) -> Vec<Range>;
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error<T: Ext> {
@@ -46,7 +53,7 @@ pub enum Error<T: Ext> {
     ExpectedValue(Range),
 }
 
-impl<T: Ext> UserFacing<LRed> for Error<T> {
+impl<T: Ext> UserFacing for Error<T> {
     fn description(&self) -> String {
         match self {
             Self::Parsing(_) => "A parsing error occured".into(),
@@ -175,7 +182,7 @@ pub enum Warning {
     },
 }
 
-impl UserFacing<LYellow> for Warning {
+impl UserFacing for Warning {
     fn description(&self) -> String {
         match self {
             Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{lit}'"),

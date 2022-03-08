@@ -12,3 +12,4 @@ path = "src/main.rs"
 
 [dependencies]
 cods = { path = "../cods" }
+unicode-width = "0.1.9"

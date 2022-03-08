@@ -3,16 +3,17 @@ use std::fmt;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
+use cods::{Ext, Range, UserFacing};
 use unicode_width::UnicodeWidthChar;
 
-use crate::{Color, LBlue, Range, ANSI_ESC};
+use crate::style::{LRed, LYellow};
+use crate::{Color, LBlue, ANSI_ESC};
 
-pub trait UserFacing<C: Color>: Sized + fmt::Debug {
-    fn description(&self) -> String;
-    fn ranges(&self) -> Vec<Range>;
-
-    fn display<'a>(&'a self, input: &'a str) -> DisplayUserFacing<'a, Self, C> {
-        DisplayUserFacing {
+impl<T: Ext> DisplayUserFacing<LRed> for cods::Error<T> {}
+impl DisplayUserFacing<LYellow> for cods::Warning {}
+pub trait DisplayUserFacing<C: Color>: UserFacing {
+    fn display<'a>(&'a self, input: &'a str) -> FmtUserFacing<'a, Self, C> {
+        FmtUserFacing {
             input,
             error: self,
             c: PhantomData::<C>,
@@ -20,13 +21,13 @@ pub trait UserFacing<C: Color>: Sized + fmt::Debug {
     }
 }
 
-pub struct DisplayUserFacing<'a, U: UserFacing<C>, C: Color> {
+pub struct FmtUserFacing<'a, U: DisplayUserFacing<C>, C: Color> {
     input: &'a str,
     error: &'a U,
     c: PhantomData<C>,
 }
 
-impl<U: UserFacing<C>, C: Color> fmt::Display for DisplayUserFacing<'_, U, C> {
+impl<U: DisplayUserFacing<C>, C: Color> fmt::Display for FmtUserFacing<'_, U, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ranges = self.error.ranges();
         let lines = range_lines(self.input);

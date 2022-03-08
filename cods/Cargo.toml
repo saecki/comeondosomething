@@ -7,6 +7,3 @@ edition = "2021"
 
 [lib]
 name = "cods"
-
-[dependencies]
-unicode-width = "0.1.9"

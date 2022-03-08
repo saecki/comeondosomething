@@ -1,23 +1,19 @@
 use std::fmt;
 
 pub use eval::*;
-pub use display::*;
 pub use dummy::*;
 pub use error::*;
 pub use ext::*;
 pub use group::*;
 pub use parse::*;
-pub use style::*;
 pub use token::*;
 
 mod eval;
-mod display;
 mod dummy;
 mod error;
 mod ext;
 mod group;
 mod parse;
-mod style;
 mod token;
 
 pub type DefaultContext = Context<ExtDummy, DummyProvider>;

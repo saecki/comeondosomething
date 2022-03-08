@@ -1,12 +1,11 @@
-use cods::{Error, ExtDummy, Num, Par, ParType, PlainVal, Range, UserFacing, Val};
+use cods::{Error, ExtDummy, Num, Par, ParType, PlainVal, Range, Val};
 
 fn assert(expected: PlainVal, expr: &str) {
     match cods::eval(expr) {
         Ok(Some(val)) => assert_eq!(expected, val),
         Ok(None) => panic!("Expected a value found nothing"),
         Err(e) => {
-            eprintln!("{}\n", e.display(expr));
-            panic!();
+            panic!("{e:?}");
         }
     }
 }

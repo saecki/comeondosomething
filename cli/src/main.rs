@@ -2,10 +2,13 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{
-    bprint, bprintln, Color, Context, DGreen, DYellow, DefaultContext, LBlue, LRed, UserFacing,
-    ValResult, ANSI_ESC,
-};
+use cods::{Context, DefaultContext, ValResult};
+
+use display::*;
+use style::*;
+
+mod display;
+mod style;
 
 fn main() {
     let mut args = args().skip(1);
