@@ -52,6 +52,9 @@ pub enum CalcType {
     Degree(Box<Calc>),
     Factorial(Box<Calc>),
     Assignment(VarId, Box<Calc>),
+    Print(Vec<Calc>),
+    Println(Vec<Calc>),
+    Spill,
 }
 
 pub enum ValResult {
@@ -219,6 +222,15 @@ impl Context<'_> {
                 let n = self.eval_num(b)?;
                 self.assign(*a, n, r)
             }
+            CalcType::Print(args) => {
+                let nums = self.eval_nums(args)?;
+                self.print(nums, r)
+            }
+            CalcType::Println(args) => {
+                let nums = self.eval_nums(args)?;
+                self.println(nums, r)
+            }
+            CalcType::Spill => self.spill(r),
         }
         .map(|mut r| {
             if let Return::Num(n) = &mut r {
@@ -525,6 +537,33 @@ impl Context<'_> {
     fn assign(&mut self, id: VarId, b: Num, range: Range) -> crate::Result<Return> {
         let val = self.plain_val(b)?;
         self.var_mut(id).value = Some(Val::Plain(val));
+        Ok(Return::Unit(range))
+    }
+
+    fn print(&mut self, nums: Vec<Num>, range: Range) -> crate::Result<Return> {
+        if let Some((first, others)) = nums.split_first() {
+            print!("{}", self.plain_val(*first)?);
+            for n in others {
+                print!(" {}", self.plain_val(*n)?);
+            }
+        }
+        Ok(Return::Unit(range))
+    }
+
+    fn println(&mut self, nums: Vec<Num>, range: Range) -> crate::Result<Return> {
+        self.print(nums, range)?;
+        println!();
+        Ok(Return::Unit(range))
+    }
+
+    fn spill(&mut self, range: Range) -> crate::Result<Return> {
+        for var in self.vars.iter() {
+            if let Some(val) = var.value {
+                if let ValResult::Resolved(v) = self.resolve_val(val) {
+                    println!("{} = {}", var.name, v);
+                }
+            }
+        }
         Ok(Return::Unit(range))
     }
 }

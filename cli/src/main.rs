@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{Context, ValResult};
+use cods::Context;
 
 use display::*;
 use style::*;
@@ -48,15 +48,6 @@ fn repl() {
         match buf.lines().next().map(|s| s.trim()) {
             Some("exit") => break,
             Some("clear") => println!("\x1b[1;1\x1B[2J"),
-            Some("vars") => {
-                for var in &ctx.vars {
-                    if let Some(val) = var.value {
-                        if let ValResult::Resolved(v) = ctx.resolve_val(val) {
-                            println!("{} = {}", var.name, v);
-                        }
-                    }
-                }
-            }
             _ => print_calc(&mut ctx, &buf),
         }
     }

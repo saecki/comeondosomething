@@ -109,6 +109,9 @@ impl Context<'_> {
                     "min" => Token::cmd(CmdType::Min, range),
                     "max" => Token::cmd(CmdType::Max, range),
                     "clamp" => Token::cmd(CmdType::Clamp, range),
+                    "print" => Token::cmd(CmdType::Print, range),
+                    "println" => Token::cmd(CmdType::Println, range),
+                    "spill" => Token::cmd(CmdType::Spill, range),
                     "div" => Token::op(OpType::IntDiv, range),
                     "mod" => Token::op(OpType::Rem, range),
                     "π" | "pi" => Token::num(Val::PI, range),
@@ -435,6 +438,9 @@ pub enum CmdType {
     Min,
     Max,
     Clamp,
+    Print,
+    Println,
+    Spill,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -201,93 +201,105 @@ impl Context<'_> {
 
         if items.len() == 2 {
             if let Item::Cmd(cmd) = items[0] {
-                return match &items[1] {
-                    Item::Group(g) => {
-                        if g.par_kind != ParKind::Round {
-                            self.warnings
-                                .push(crate::Warning::ConfusingCommandParentheses {
-                                    cmd,
-                                    open_par: Range::pos(g.range.start - 1),
-                                    close_par: Range::pos(g.range.end),
-                                });
-                        }
-
-                        let r = Range::span(cmd.range, g.range);
-                        Ok(match cmd.typ {
-                            CmdType::Pow => {
-                                let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Pow(Box::new(base), Box::new(exp)), r)
-                            }
-                            CmdType::Ln => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Ln(Box::new(val)), r)
-                            }
-                            CmdType::Log => {
-                                let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Log(Box::new(base), Box::new(val)), r)
-                            }
-                            CmdType::Sqrt => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Sqrt(Box::new(val)), r)
-                            }
-                            CmdType::Ncr => {
-                                let [n, k] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Ncr(Box::new(n), Box::new(k)), r)
-                            }
-                            CmdType::Sin => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Sin(Box::new(val)), r)
-                            }
-                            CmdType::Cos => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Cos(Box::new(val)), r)
-                            }
-                            CmdType::Tan => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Tan(Box::new(val)), r)
-                            }
-                            CmdType::Asin => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Asin(Box::new(val)), r)
-                            }
-                            CmdType::Acos => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Acos(Box::new(val)), r)
-                            }
-                            CmdType::Atan => {
-                                let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Atan(Box::new(val)), r)
-                            }
-                            CmdType::Gcd => {
-                                let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(CalcType::Gcd(Box::new(a), Box::new(b)), r)
-                            }
-                            CmdType::Min => {
-                                let args =
-                                    self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
-                                Calc::new(CalcType::Min(args), r)
-                            }
-                            CmdType::Max => {
-                                let args =
-                                    self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
-                                Calc::new(CalcType::Max(args), r)
-                            }
-                            CmdType::Clamp => {
-                                let [val, min, max] = self.parse_cmd_args(g.range, &g.items)?;
-                                Calc::new(
-                                    CalcType::Clamp(Box::new(val), Box::new(min), Box::new(max)),
-                                    r,
-                                )
-                            }
-                        })
-                    }
+                let g = match &items[1] {
+                    Item::Group(g) => g,
                     i => {
                         let range = Range::of(cmd.range.end, i.range().start);
                         self.errors
                             .push(crate::Error::MissingCommandParenthesis(range));
-                        Ok(Calc::new(CalcType::Error, range))
+                        return Ok(Calc::new(CalcType::Error, range));
                     }
                 };
+
+                if g.par_kind != ParKind::Round {
+                    self.warnings
+                        .push(crate::Warning::ConfusingCommandParentheses {
+                            cmd,
+                            open_par: Range::pos(g.range.start - 1),
+                            close_par: Range::pos(g.range.end),
+                        });
+                }
+
+                let r = Range::span(cmd.range, g.range);
+                let cmd = match cmd.typ {
+                    CmdType::Pow => {
+                        let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Pow(Box::new(base), Box::new(exp)), r)
+                    }
+                    CmdType::Ln => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Ln(Box::new(val)), r)
+                    }
+                    CmdType::Log => {
+                        let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Log(Box::new(base), Box::new(val)), r)
+                    }
+                    CmdType::Sqrt => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Sqrt(Box::new(val)), r)
+                    }
+                    CmdType::Ncr => {
+                        let [n, k] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Ncr(Box::new(n), Box::new(k)), r)
+                    }
+                    CmdType::Sin => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Sin(Box::new(val)), r)
+                    }
+                    CmdType::Cos => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Cos(Box::new(val)), r)
+                    }
+                    CmdType::Tan => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Tan(Box::new(val)), r)
+                    }
+                    CmdType::Asin => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Asin(Box::new(val)), r)
+                    }
+                    CmdType::Acos => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Acos(Box::new(val)), r)
+                    }
+                    CmdType::Atan => {
+                        let [val] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Atan(Box::new(val)), r)
+                    }
+                    CmdType::Gcd => {
+                        let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(CalcType::Gcd(Box::new(a), Box::new(b)), r)
+                    }
+                    CmdType::Min => {
+                        let args = self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
+                        Calc::new(CalcType::Min(args), r)
+                    }
+                    CmdType::Max => {
+                        let args = self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
+                        Calc::new(CalcType::Max(args), r)
+                    }
+                    CmdType::Clamp => {
+                        let [val, min, max] = self.parse_cmd_args(g.range, &g.items)?;
+                        Calc::new(
+                            CalcType::Clamp(Box::new(val), Box::new(min), Box::new(max)),
+                            r,
+                        )
+                    }
+                    CmdType::Print => {
+                        let args = self.parse_dyn_cmd_args(0, usize::MAX, g.range, &g.items)?;
+                        Calc::new(CalcType::Print(args), r)
+                    }
+                    CmdType::Println => {
+                        let args = self.parse_dyn_cmd_args(0, usize::MAX, g.range, &g.items)?;
+                        Calc::new(CalcType::Println(args), r)
+                    }
+                    CmdType::Spill => {
+                        self.parse_cmd_args::<0>(g.range, &g.items)?;
+                        Calc::new(CalcType::Spill, r)
+                    }
+                };
+
+                return Ok(cmd);
             }
         }
 
