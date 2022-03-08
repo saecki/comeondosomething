@@ -1,16 +1,16 @@
 use std::fmt;
 
-pub use eval::*;
 pub use dummy::*;
 pub use error::*;
+pub use eval::*;
 pub use ext::*;
 pub use group::*;
 pub use parse::*;
 pub use token::*;
 
-mod eval;
 mod dummy;
 mod error;
+mod eval;
 mod ext;
 mod group;
 mod parse;

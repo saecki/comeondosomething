@@ -1,54 +1,10 @@
 use std::convert::TryFrom;
-use std::f64::consts;
 
 use crate::{Context, Ext, Num, PlainVal, Provider, Range, Val, VarId};
 
-impl<T: Ext> Val<T> {
-    pub fn maybe_int(self) -> Self {
-        match self {
-            Self::Plain(PlainVal::Float(f)) => {
-                let i = f as i128;
-                #[allow(clippy::float_cmp)]
-                if i as f64 == f {
-                    Self::Plain(PlainVal::Int(i))
-                } else {
-                    Self::Plain(PlainVal::Float(f))
-                }
-            }
-            v => v,
-        }
-    }
-}
-
-impl PlainVal {
-    pub fn to_int(self) -> Option<i128> {
-        match self {
-            Self::Int(i) => Some(i),
-            Self::Float(f) => {
-                let i = f as i128;
-                #[allow(clippy::float_cmp)]
-                if i as f64 == f {
-                    Some(i)
-                } else {
-                    None
-                }
-            }
-            PlainVal::TAU => None,
-            PlainVal::PI => None,
-            PlainVal::E => None,
-        }
-    }
-
-    pub fn to_f64(&self) -> f64 {
-        match self {
-            Self::Int(i) => *i as f64,
-            Self::Float(f) => *f,
-            Self::TAU => consts::TAU,
-            Self::PI => consts::PI,
-            Self::E => consts::E,
-        }
-    }
-}
+#[cfg(test)]
+mod test;
+mod val;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Calc<T: Ext> {
@@ -270,50 +226,6 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             }
             r
         })
-    }
-
-    pub fn plain_val(&self, num: Num<T>) -> crate::Result<PlainVal, T> {
-        match self.resolve_val(num.val) {
-            ValResult::Resolved(p) => Ok(p),
-            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
-            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, num.range)),
-        }
-    }
-
-    pub fn to_f64(&self, num: Num<T>) -> crate::Result<f64, T> {
-        Ok(self.plain_val(num)?.to_f64())
-    }
-
-    pub fn to_int(&self, num: Num<T>) -> crate::Result<Option<i128>, T> {
-        Ok(self.plain_val(num)?.to_int())
-    }
-
-    pub fn resolve_val(&self, val: Val<T>) -> ValResult {
-        let mut ids = Vec::new();
-        self.resolve_var(&mut ids, val)
-    }
-
-    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: Val<T>) -> ValResult {
-        match val {
-            Val::Plain(p) => ValResult::Resolved(p),
-            Val::Ext(e) => ValResult::Resolved(self.provider.plain_val(e)),
-            Val::Var(id) if checked_ids.contains(&id) => {
-                checked_ids.push(id);
-                let names = checked_ids
-                    .iter()
-                    .map(|id| self.vars[*id].name.clone())
-                    .collect();
-                ValResult::CircularRef(names)
-            }
-            Val::Var(id) => {
-                checked_ids.push(id);
-                let var = &self.vars[id];
-                match var.value {
-                    Some(v) => self.resolve_var(checked_ids, v),
-                    None => ValResult::Undefined(var.name.clone()),
-                }
-            }
-        }
     }
 
     fn neg(&self, n: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
@@ -616,94 +528,13 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         ok(Num { val, range })
     }
 
-    fn assign(&mut self, var_id: VarId, b: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
+    fn assign(&mut self, id: VarId, b: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
         let val = self.plain_val(b)?;
-        self.vars[var_id].value = Some(Val::Plain(val));
+        self.var_mut(id).value = Some(Val::Plain(val));
         Ok(Return::Unit(range))
     }
 }
 
 fn ok<T: Ext>(num: Num<T>) -> crate::Result<Return<T>, T> {
     Ok(Return::Num(num))
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{Calc, Context, DummyProvider, Num, PlainVal, Range, Val, Var};
-
-    #[test]
-    fn resolve_var() {
-        let mut ctx = Context {
-            provider: DummyProvider,
-            vars: vec![Var {
-                name: "x".into(),
-                value: Some(Val::int(4)),
-            }],
-            ..Default::default()
-        };
-        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
-
-        let val = ctx.eval(&calc).unwrap().unwrap();
-        assert_eq!(PlainVal::Int(4), val);
-    }
-
-    #[test]
-    fn undefined_var() {
-        let mut ctx = Context {
-            provider: DummyProvider,
-            vars: vec![Var {
-                name: "x".into(),
-                value: None,
-            }],
-            ..Default::default()
-        };
-        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
-
-        let val = ctx.eval(&calc).unwrap_err();
-        assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);
-    }
-
-    #[test]
-    fn circular_ref() {
-        let mut ctx = Context {
-            provider: DummyProvider,
-            vars: vec![
-                Var {
-                    name: "x".into(),
-                    value: Some(Val::Var(1)),
-                },
-                Var {
-                    name: "y".into(),
-                    value: Some(Val::Var(0)),
-                },
-            ],
-            ..Default::default()
-        };
-        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
-
-        let val = ctx.eval(&calc).unwrap_err();
-        assert_eq!(
-            crate::Error::CircularRef(vec!["x".into(), "y".into(), "x".into()], Range::pos(0)),
-            val
-        );
-    }
-
-    #[test]
-    fn self_ref() {
-        let mut ctx = Context {
-            provider: DummyProvider,
-            vars: vec![Var {
-                name: "x".into(),
-                value: Some(Val::Var(0)),
-            }],
-            ..Default::default()
-        };
-        let calc = Calc::num(Num::new(Val::Var(0), Range::pos(0)));
-
-        let val = ctx.eval(&calc).unwrap_err();
-        assert_eq!(
-            crate::Error::CircularRef(vec!["x".into(), "x".into()], Range::pos(0)),
-            val
-        );
-    }
 }
