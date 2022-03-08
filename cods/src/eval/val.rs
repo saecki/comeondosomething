@@ -1,5 +1,3 @@
-use std::f64::consts;
-
 use crate::{Context, Ext, Num, PlainVal, Val, ValResult, Var, VarId};
 
 impl Val {
@@ -32,9 +30,6 @@ impl PlainVal {
                     None
                 }
             }
-            PlainVal::TAU => None,
-            PlainVal::PI => None,
-            PlainVal::E => None,
         }
     }
 
@@ -42,28 +37,25 @@ impl PlainVal {
         match self {
             Self::Int(i) => *i as f64,
             Self::Float(f) => *f,
-            Self::TAU => consts::TAU,
-            Self::PI => consts::PI,
-            Self::E => consts::E,
         }
     }
 }
 
 impl Context {
-    pub fn plain_val(&self, num: Num) -> crate::Result<PlainVal> {
-        match self.resolve_val(num.val) {
-            ValResult::Resolved(p) => Ok(p),
-            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
-            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, num.range)),
-        }
-    }
-
     pub fn to_f64(&self, num: Num) -> crate::Result<f64> {
         Ok(self.plain_val(num)?.to_f64())
     }
 
     pub fn to_int(&self, num: Num) -> crate::Result<Option<i128>> {
         Ok(self.plain_val(num)?.to_int())
+    }
+
+    pub fn plain_val(&self, num: Num) -> crate::Result<PlainVal> {
+        match self.resolve_val(num.val) {
+            ValResult::Resolved(p) => Ok(p),
+            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
+            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, num.range)),
+        }
     }
 
     pub fn resolve_val(&self, val: Val) -> ValResult {

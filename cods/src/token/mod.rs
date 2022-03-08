@@ -1,4 +1,5 @@
-use std::fmt::{Display, Write};
+use std::f64::consts;
+use std::fmt::{self, Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
 use crate::{Context, Ext};
@@ -284,9 +285,9 @@ pub enum Val {
 }
 
 impl Val {
-    pub const TAU: Self = Self::Plain(PlainVal::TAU);
-    pub const PI: Self = Self::Plain(PlainVal::PI);
-    pub const E: Self = Self::Plain(PlainVal::E);
+    pub const TAU: Self = Self::Plain(PlainVal::Float(consts::TAU));
+    pub const PI: Self = Self::Plain(PlainVal::Float(consts::PI));
+    pub const E: Self = Self::Plain(PlainVal::Float(consts::E));
 
     pub fn int(i: i128) -> Self {
         Self::Plain(PlainVal::Int(i))
@@ -301,9 +302,15 @@ impl Val {
 pub enum PlainVal {
     Int(i128),
     Float(f64),
-    TAU,
-    PI,
-    E,
+}
+
+impl fmt::Display for PlainVal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Int(v) => write!(f, "{v}"),
+            Self::Float(v) => write!(f, "{v}"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

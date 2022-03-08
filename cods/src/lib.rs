@@ -1,5 +1,3 @@
-use std::fmt;
-
 pub use error::*;
 pub use eval::*;
 pub use ext::*;
@@ -45,38 +43,7 @@ impl Context {
         self.errors.clear();
         self.warnings.clear();
     }
-}
 
-impl fmt::Display for PlainVal {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PlainVal::Int(n) => write!(f, "{}", n),
-            PlainVal::Float(n) => {
-                if n.is_infinite() {
-                    if n.is_sign_positive() {
-                        write!(f, "infinity")
-                    } else {
-                        write!(f, "-infinity")
-                    }
-                } else if n.is_nan() {
-                    write!(f, "undefined")
-                } else {
-                    write!(f, "{}", n)
-                }
-            }
-            PlainVal::TAU => write!(f, "τ"),
-            PlainVal::PI => write!(f, "π"),
-            PlainVal::E => write!(f, "e"),
-        }
-    }
-}
-
-pub fn eval(string: &str) -> crate::Result<Option<PlainVal>> {
-    let mut ctx = Context::default();
-    ctx.parse_and_eval(string)
-}
-
-impl Context {
     pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>> {
         let calc = self.parse_str(string)?;
         if !self.errors.is_empty() {
@@ -93,4 +60,9 @@ impl Context {
         let calc = self.parse(&items)?;
         Ok(calc)
     }
+}
+
+pub fn eval(string: &str) -> crate::Result<Option<PlainVal>> {
+    let mut ctx = Context::default();
+    ctx.parse_and_eval(string)
 }
