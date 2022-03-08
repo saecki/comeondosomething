@@ -5,5 +5,8 @@ authors = ["Saecki <tobiasschmitz2001@gmail.com>"]
 description = "Text based calculator engine"
 edition = "2021"
 
+[lib]
+name = "cods"
+
 [dependencies]
 unicode-width = "0.1.9"
