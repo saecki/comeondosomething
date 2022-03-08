@@ -303,7 +303,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                     .iter()
                     .map(|id| self.vars[*id].name.clone())
                     .collect();
-                return ValResult::CircularRef(names);
+                ValResult::CircularRef(names)
             }
             Val::Var(id) => {
                 checked_ids.push(id);
