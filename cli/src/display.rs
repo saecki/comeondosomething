@@ -3,13 +3,13 @@ use std::fmt;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
-use cods::{Ext, Range, UserFacing};
+use cods::{Range, UserFacing};
 use unicode_width::UnicodeWidthChar;
 
 use crate::style::{LRed, LYellow};
 use crate::{Color, LBlue, ANSI_ESC};
 
-impl<T: Ext> DisplayUserFacing<LRed> for cods::Error<T> {}
+impl DisplayUserFacing<LRed> for cods::Error {}
 impl DisplayUserFacing<LYellow> for cods::Warning {}
 pub trait DisplayUserFacing<C: Color>: UserFacing {
     fn display<'a>(&'a self, input: &'a str) -> FmtUserFacing<'a, Self, C> {

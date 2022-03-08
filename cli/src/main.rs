@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{Context, DefaultContext, ValResult};
+use cods::{Context, ValResult};
 
 use display::*;
 use style::*;
@@ -90,7 +90,7 @@ fn calc_args(first: String, args: impl Iterator<Item = String>) {
     print_calc(&mut ctx, &input);
 }
 
-fn print_calc(ctx: &mut DefaultContext, input: &str) {
+fn print_calc(ctx: &mut Context, input: &str) {
     match ctx.parse_and_eval(input) {
         Ok(v) => {
             for w in ctx.warnings.iter().rev() {

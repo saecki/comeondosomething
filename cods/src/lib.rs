@@ -1,6 +1,5 @@
 use std::fmt;
 
-pub use dummy::*;
 pub use error::*;
 pub use eval::*;
 pub use ext::*;
@@ -8,7 +7,6 @@ pub use group::*;
 pub use parse::*;
 pub use token::*;
 
-mod dummy;
 mod error;
 mod eval;
 mod ext;
@@ -16,26 +14,18 @@ mod group;
 mod parse;
 mod token;
 
-pub type DefaultContext = Context<ExtDummy, DummyProvider>;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Context<T: Ext, P: Provider<T>> {
-    pub provider: P,
-    pub vars: Vec<Var<T>>,
-    pub errors: Vec<crate::Error<T>>,
+#[derive(Clone, Debug, Default)]
+pub struct Context<'a> {
+    pub providers: Vec<&'a dyn Provider>,
+    pub vars: Vec<Var>,
+    pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
 }
 
-impl Default for Context<ExtDummy, DummyProvider> {
-    fn default() -> Self {
-        Self::new(DummyProvider)
-    }
-}
-
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn new(provider: P) -> Self {
+impl<'a> Context<'a> {
+    pub fn new(providers: Vec<&'a dyn Provider>) -> Self {
         Self {
-            provider,
+            providers,
             vars: Vec::new(),
             errors: Vec::new(),
             warnings: Vec::new(),
@@ -81,13 +71,13 @@ impl fmt::Display for PlainVal {
     }
 }
 
-pub fn eval(string: &str) -> crate::Result<Option<PlainVal>, ExtDummy> {
-    let mut ctx = Context::new(DummyProvider);
+pub fn eval(string: &str) -> crate::Result<Option<PlainVal>> {
+    let mut ctx = Context::default();
     ctx.parse_and_eval(string)
 }
 
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>, T> {
+impl Context<'_> {
+    pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>> {
         let calc = self.parse_str(string)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
@@ -97,7 +87,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, string: &str) -> crate::Result<Vec<Calc<T>>, T> {
+    pub fn parse_str(&mut self, string: &str) -> crate::Result<Vec<Calc>> {
         let tokens = self.tokenize(string.as_ref())?;
         let items = self.group(&tokens)?;
         let calc = self.parse(&items)?;

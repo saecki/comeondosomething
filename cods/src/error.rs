@@ -1,9 +1,9 @@
 use std::fmt;
 
-use crate::{Cmd, Ext, Sep, SepType, Sign};
+use crate::{Cmd, Sep, SepType, Sign};
 use crate::{Num, Op, Par, Range};
 
-pub type Result<T, V> = std::result::Result<T, Error<V>>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait UserFacing: Sized + fmt::Debug {
     fn description(&self) -> String;
@@ -11,7 +11,7 @@ pub trait UserFacing: Sized + fmt::Debug {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Error<T: Ext> {
+pub enum Error {
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -33,27 +33,27 @@ pub enum Error<T: Ext> {
     UndefinedVar(String, Range),
     CircularRef(Vec<String>, Range),
     InvalidNumberFormat(Range),
-    AddOverflow(Num<T>, Num<T>),
-    SubOverflow(Num<T>, Num<T>),
-    MulOverflow(Num<T>, Num<T>),
-    DivideByZero(Num<T>, Num<T>),
-    FractionEuclidDiv(Num<T>, Num<T>),
-    RemainderByZero(Num<T>, Num<T>),
-    FractionRemainder(Num<T>, Num<T>),
-    FractionGcd(Num<T>, Num<T>),
-    NegativeNcr(Num<T>, Num<T>),
-    InvalidNcr(Num<T>, Num<T>),
-    FractionNcr(Num<T>, Num<T>),
-    FactorialOverflow(Num<T>),
-    NegativeFactorial(Num<T>),
-    FractionFactorial(Num<T>),
-    InvalidClampBounds(Num<T>, Num<T>),
+    AddOverflow(Num, Num),
+    SubOverflow(Num, Num),
+    MulOverflow(Num, Num),
+    DivideByZero(Num, Num),
+    FractionEuclidDiv(Num, Num),
+    RemainderByZero(Num, Num),
+    FractionRemainder(Num, Num),
+    FractionGcd(Num, Num),
+    NegativeNcr(Num, Num),
+    InvalidNcr(Num, Num),
+    FractionNcr(Num, Num),
+    FactorialOverflow(Num),
+    NegativeFactorial(Num),
+    FractionFactorial(Num),
+    InvalidClampBounds(Num, Num),
     MissingCalculation,
     InvalidAssignment(Range, Range),
     ExpectedValue(Range),
 }
 
-impl<T: Ext> UserFacing for Error<T> {
+impl UserFacing for Error {
     fn description(&self) -> String {
         match self {
             Self::Parsing(_) => "A parsing error occured".into(),

@@ -2,12 +2,12 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CalcType, CmdType, Context, Ext, Item, ModType, Op, OpType, ParKind,
-    Provider, Range, SepType, Sign, Val, Warning,
+    items_range, Calc, CalcType, CmdType, Context, Item, ModType, Op, OpType, ParKind, Range,
+    SepType, Sign, Val, Warning,
 };
 
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn parse(&mut self, items: &[Item<T>]) -> crate::Result<Vec<Calc<T>>, T> {
+impl Context<'_> {
+    pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Calc>> {
         items
             .split(|i| match i {
                 Item::Sep(s) => s.is_semi(),
@@ -21,7 +21,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
             .collect()
     }
 
-    fn parse_items(&mut self, range: Range, items: &[Item<T>]) -> crate::Result<Calc<T>, T> {
+    fn parse_items(&mut self, range: Range, items: &[Item]) -> crate::Result<Calc> {
         if items.is_empty() {
             return Ok(Calc::new(CalcType::Empty, range));
         } else if items.len() == 1 {
@@ -303,8 +303,8 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         min: usize,
         max: usize,
         range: Range,
-        items: &[Item<T>],
-    ) -> crate::Result<Vec<Calc<T>>, T> {
+        items: &[Item],
+    ) -> crate::Result<Vec<Calc>> {
         let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
         let mut args = Vec::with_capacity(cmp::min(arg_count, max));
         let mut unexpected_args = Vec::new();
@@ -372,9 +372,9 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
     fn parse_cmd_args<const COUNT: usize>(
         &mut self,
         range: Range,
-        items: &[Item<T>],
-    ) -> crate::Result<[Calc<T>; COUNT], T> {
-        let mut args: [Calc<T>; COUNT] = array_of(|_| Calc::new(CalcType::Error, range));
+        items: &[Item],
+    ) -> crate::Result<[Calc; COUNT]> {
+        let mut args: [Calc; COUNT] = array_of(|_| Calc::new(CalcType::Error, range));
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
         let mut start = (0, range.start);

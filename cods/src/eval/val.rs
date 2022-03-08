@@ -1,8 +1,8 @@
 use std::f64::consts;
 
-use crate::{Context, Ext, Num, PlainVal, Provider, Val, ValResult, Var, VarId};
+use crate::{Context, Ext, Num, PlainVal, Val, ValResult, Var, VarId};
 
-impl<T: Ext> Val<T> {
+impl Val {
     pub fn maybe_int(self) -> Self {
         match self {
             Self::Plain(PlainVal::Float(f)) => {
@@ -49,8 +49,8 @@ impl PlainVal {
     }
 }
 
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn plain_val(&self, num: Num<T>) -> crate::Result<PlainVal, T> {
+impl Context<'_> {
+    pub fn plain_val(&self, num: Num) -> crate::Result<PlainVal> {
         match self.resolve_val(num.val) {
             ValResult::Resolved(p) => Ok(p),
             ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
@@ -58,23 +58,23 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
     }
 
-    pub fn to_f64(&self, num: Num<T>) -> crate::Result<f64, T> {
+    pub fn to_f64(&self, num: Num) -> crate::Result<f64> {
         Ok(self.plain_val(num)?.to_f64())
     }
 
-    pub fn to_int(&self, num: Num<T>) -> crate::Result<Option<i128>, T> {
+    pub fn to_int(&self, num: Num) -> crate::Result<Option<i128>> {
         Ok(self.plain_val(num)?.to_int())
     }
 
-    pub fn resolve_val(&self, val: Val<T>) -> ValResult {
+    pub fn resolve_val(&self, val: Val) -> ValResult {
         let mut ids = Vec::new();
         self.resolve_var(&mut ids, val)
     }
 
-    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: Val<T>) -> ValResult {
+    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: Val) -> ValResult {
         match val {
             Val::Plain(p) => ValResult::Resolved(p),
-            Val::Ext(e) => ValResult::Resolved(self.provider.plain_val(e)),
+            Val::Ext(e) => ValResult::Resolved(self.resolve_ext(e)),
             Val::Var(id) if checked_ids.contains(&id) => {
                 checked_ids.push(id);
                 let names = checked_ids
@@ -94,11 +94,15 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         }
     }
 
-    pub fn var(&self, id: VarId) -> &Var<T> {
+    pub fn resolve_ext(&self, ext: Ext) -> PlainVal {
+        self.providers[ext.provider].plain_val(ext.id)
+    }
+
+    pub fn var(&self, id: VarId) -> &Var {
         &self.vars[id.0]
     }
 
-    pub fn var_mut(&mut self, id: VarId) -> &mut Var<T> {
+    pub fn var_mut(&mut self, id: VarId) -> &mut Var {
         &mut self.vars[id.0]
     }
 }

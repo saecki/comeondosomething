@@ -1,4 +1,4 @@
-use cods::{Error, ExtDummy, Num, Par, ParType, PlainVal, Range, Val};
+use cods::{Error, Num, Par, ParType, PlainVal, Range, Val};
 
 fn assert(expected: PlainVal, expr: &str) {
     match cods::eval(expr) {
@@ -10,7 +10,7 @@ fn assert(expected: PlainVal, expr: &str) {
     }
 }
 
-fn assert_err(expected: Error<ExtDummy>, expr: &str) {
+fn assert_err(expected: Error, expr: &str) {
     match cods::eval(expr) {
         Ok(_) => panic!("Expected error: {expected:?}"),
         Err(e) => assert_eq!(expected, e),

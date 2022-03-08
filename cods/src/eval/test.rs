@@ -1,9 +1,8 @@
-use crate::{Calc, Context, DummyProvider, Num, PlainVal, Range, Val, Var, VarId};
+use crate::{Calc, Context, Num, PlainVal, Range, Val, Var, VarId};
 
 #[test]
 fn resolve_var() {
     let mut ctx = Context {
-        provider: DummyProvider,
         vars: vec![Var {
             name: "x".into(),
             value: Some(Val::int(4)),
@@ -19,7 +18,6 @@ fn resolve_var() {
 #[test]
 fn undefined_var() {
     let mut ctx = Context {
-        provider: DummyProvider,
         vars: vec![Var {
             name: "x".into(),
             value: None,
@@ -35,7 +33,6 @@ fn undefined_var() {
 #[test]
 fn circular_ref() {
     let mut ctx = Context {
-        provider: DummyProvider,
         vars: vec![
             Var {
                 name: "x".into(),
@@ -60,7 +57,6 @@ fn circular_ref() {
 #[test]
 fn self_ref() {
     let mut ctx = Context {
-        provider: DummyProvider,
         vars: vec![Var {
             name: "x".into(),
             value: Some(Val::Var(VarId(0))),

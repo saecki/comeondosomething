@@ -1,7 +1,7 @@
 use std::fmt::{Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
-use crate::{Context, Ext, Provider};
+use crate::{Context, Ext};
 
 #[cfg(test)]
 mod test;
@@ -27,13 +27,13 @@ macro_rules! match_warn_case {
     }};
 }
 
-struct Tokenizer<T: Ext> {
-    tokens: Vec<Token<T>>,
+struct Tokenizer {
+    tokens: Vec<Token>,
     literal: String,
     char_index: usize,
 }
 
-impl<T: Ext> Tokenizer<T> {
+impl Tokenizer {
     fn new() -> Self {
         Self {
             tokens: Vec::new(),
@@ -43,8 +43,8 @@ impl<T: Ext> Tokenizer<T> {
     }
 }
 
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token<T>>, T> {
+impl Context<'_> {
+    pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
         let mut state = Tokenizer::new();
 
         for c in string.chars() {
@@ -78,13 +78,13 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         Ok(state.tokens)
     }
 
-    fn new_token(&mut self, state: &mut Tokenizer<T>, token: Token<T>) -> crate::Result<(), T> {
+    fn new_token(&mut self, state: &mut Tokenizer, token: Token) -> crate::Result<()> {
         self.complete_literal(state)?;
         state.tokens.push(token);
         Ok(())
     }
 
-    fn complete_literal(&mut self, state: &mut Tokenizer<T>) -> crate::Result<(), T> {
+    fn complete_literal(&mut self, state: &mut Tokenizer) -> crate::Result<()> {
         if !state.literal.is_empty() {
             let start = state.char_index - state.literal.chars().count();
             let range = Range::of(start, state.char_index);
@@ -124,7 +124,7 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
                             Token::num(val, range)
-                        } else if let Some(v) = self.provider.parse(literal) {
+                        } else if let Some(v) = self.parse_ext(literal) {
                             Token::num(Val::Ext(v), range)
                         } else {
                             for (i, c) in literal.char_indices() {
@@ -151,6 +151,15 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
         Ok(())
     }
 
+    fn parse_ext(&self, literal: &str) -> Option<Ext> {
+        for (p_id, p) in self.providers.iter().enumerate() {
+            if let Some(e) = p.parse(literal) {
+                return Some(Ext::new(p_id, e));
+            }
+        }
+        None
+    }
+
     fn push_var(&mut self, name: &str) -> VarId {
         for (id, v) in self.vars.iter().enumerate() {
             if v.name == name {
@@ -165,8 +174,8 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Token<T: Ext> {
-    Num(Num<T>),
+pub enum Token {
+    Num(Num),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
@@ -174,8 +183,8 @@ pub enum Token<T: Ext> {
     Sep(Sep),
 }
 
-impl<T: Ext> Token<T> {
-    pub fn num(val: Val<T>, range: Range) -> Self {
+impl Token {
+    pub fn num(val: Val, range: Range) -> Self {
         Self::Num(Num::new(val, range))
     }
 
@@ -219,7 +228,7 @@ impl<T: Ext> Token<T> {
         matches!(self, Self::Sep(_))
     }
 
-    pub fn as_num(&self) -> Option<Num<T>> {
+    pub fn as_num(&self) -> Option<Num> {
         match self {
             Self::Num(n) => Some(*n),
             _ => None,
@@ -253,25 +262,25 @@ impl<T: Ext> Token<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Num<T: Ext> {
-    pub val: Val<T>,
+pub struct Num {
+    pub val: Val,
     pub range: Range,
 }
 
-impl<T: Ext> Num<T> {
-    pub fn new(val: Val<T>, range: Range) -> Self {
+impl Num {
+    pub fn new(val: Val, range: Range) -> Self {
         Self { val, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val<T: Ext> {
-    Ext(T),
+pub enum Val {
     Plain(PlainVal),
+    Ext(Ext),
     Var(VarId),
 }
 
-impl<T: Ext> Val<T> {
+impl Val {
     pub const TAU: Self = Self::Plain(PlainVal::TAU);
     pub const PI: Self = Self::Plain(PlainVal::PI);
     pub const E: Self = Self::Plain(PlainVal::E);
@@ -298,13 +307,13 @@ pub enum PlainVal {
 pub struct VarId(pub usize);
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Var<T: Ext> {
+pub struct Var {
     pub name: String,
-    pub value: Option<Val<T>>,
+    pub value: Option<Val>,
 }
 
-impl<T: Ext> Var<T> {
-    pub fn new(name: String, value: Option<Val<T>>) -> Self {
+impl Var {
+    pub fn new(name: String, value: Option<Val>) -> Self {
         Self { name, value }
     }
 }

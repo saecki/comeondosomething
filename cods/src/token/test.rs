@@ -1,6 +1,9 @@
-use crate::{DummyProvider, ExtDummy};
-
 use super::*;
+
+fn check(input: &str, output: Vec<Token>) {
+    let tokens = Context::default().tokenize(input).unwrap();
+    assert_eq!(output, tokens);
+}
 
 #[test]
 fn simple_add() {
@@ -44,7 +47,7 @@ fn add_mul() {
 
 #[test]
 fn vars() {
-    let mut ctx = Context::new(DummyProvider);
+    let mut ctx = Context::default();
     let tokens = ctx.tokenize("x64 = 2; Arm = 3").unwrap();
 
     assert_eq!(
@@ -68,13 +71,8 @@ fn vars() {
 
 #[test]
 fn invalid_char() {
-    let mut ctx = Context::new(DummyProvider);
+    let mut ctx = Context::default();
     let error = ctx.tokenize("x6ä = 2; Arm = 3").unwrap_err();
 
     assert_eq!(error, crate::Error::InvalidChar(Range::pos(2)));
-}
-
-fn check(input: &str, output: Vec<Token<ExtDummy>>) {
-    let tokens = Context::new(DummyProvider).tokenize(input).unwrap();
-    assert_eq!(output, tokens);
 }

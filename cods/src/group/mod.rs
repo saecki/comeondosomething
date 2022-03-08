@@ -1,12 +1,12 @@
 use std::ops;
 
-use crate::{Cmd, Context, Ext, Mod, Num, Op, Par, ParKind, Provider, Range, Sep, Token};
+use crate::{Cmd, Context, Mod, Num, Op, Par, ParKind, Range, Sep, Token};
 
 #[cfg(test)]
 mod test;
 
-impl<T: Ext, P: Provider<T>> Context<T, P> {
-    pub fn group(&mut self, tokens: &[Token<T>]) -> crate::Result<Vec<Item<T>>, T> {
+impl Context<'_> {
+    pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
         let mut items = Vec::new();
         let mut pos = 0;
 
@@ -130,7 +130,7 @@ impl GroupRange {
         }
     }
 
-    fn chars(&self, tokens: &[Token<impl Ext>]) -> Range {
+    fn chars(&self, tokens: &[Token]) -> Range {
         let start = if self.missing_start_par {
             tokens[self.start].range().start
         } else {
@@ -148,17 +148,17 @@ impl GroupRange {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Item<T: Ext> {
-    Group(Group<T>),
-    Num(Num<T>),
+pub enum Item {
+    Group(Group),
+    Num(Num),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
     Sep(Sep),
 }
 
-impl<T: Ext> Item<T> {
-    pub fn try_from(token: &Token<T>) -> Option<Self> {
+impl Item {
+    pub fn try_from(token: &Token) -> Option<Self> {
         match *token {
             Token::Num(n) => Some(Self::Num(n)),
             Token::Op(o) => Some(Self::Op(o)),
@@ -217,7 +217,7 @@ impl<T: Ext> Item<T> {
     }
 }
 
-pub fn items_range(items: &[Item<impl Ext>]) -> Option<Range> {
+pub fn items_range(items: &[Item]) -> Option<Range> {
     let first = items.first().map(|i| i.range());
     let last = items.last().map(|i| i.range());
 
@@ -228,14 +228,14 @@ pub fn items_range(items: &[Item<impl Ext>]) -> Option<Range> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Group<T: Ext> {
-    pub items: Vec<Item<T>>,
+pub struct Group {
+    pub items: Vec<Item>,
     pub range: Range,
     pub par_kind: ParKind,
 }
 
-impl<T: Ext> Group<T> {
-    pub fn new(items: Vec<Item<T>>, range: Range, par: ParKind) -> Self {
+impl Group {
+    pub fn new(items: Vec<Item>, range: Range, par: ParKind) -> Self {
         Self {
             items,
             range,
