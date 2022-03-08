@@ -618,7 +618,8 @@ impl<T: Ext, P: Provider<T>> Context<T, P> {
     }
 
     fn assign(&mut self, var_id: VarId, b: Num<T>, range: Range) -> crate::Result<Return<T>, T> {
-        self.vars[var_id].value = Some(b.val);
+        let val = self.plain_val(b)?;
+        self.vars[var_id].value = Some(Val::Plain(val));
         Ok(Return::Unit(range))
     }
 }
