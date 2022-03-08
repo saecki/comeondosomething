@@ -122,14 +122,12 @@ fn help() {
     cods [FLAGS] [OPTIONS] [EXPRESSION]
 
 {yellow}EXPRESSION:{esc}
-    A mathmatical expression that will be calculated
+    A mathmatical expression that will be evaluated
 
-{yellow}FLAGS:{esc}
+{yellow}OPTIONS:{esc}
     {green}-i{esc}, {green}--interactive{esc}   Start an interactive repl (read evaluate print loop)
     {green}-h{esc}, {green}--help{esc}          Show this help message
     {green}-v{esc}, {green}--version{esc}       Print the version
-
-{yellow}OPTIONS:{esc}
     {green}-p{esc}, {green}--path <file>{esc}   A file that contains an expression
 ",
         vers = env!("CARGO_PKG_VERSION"),
