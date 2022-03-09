@@ -1,4 +1,4 @@
-use crate::{Context, Ext, Val, Data, ValT, ValResult, Var, VarId};
+use crate::{Context, Data, Ext, Val, ValT, Var, VarId};
 
 impl ValT {
     pub fn maybe_int(self) -> Self {
@@ -52,35 +52,20 @@ impl Context {
 
     pub fn to_data(&self, val: Val) -> crate::Result<Data> {
         match self.resolve_val(val.typ) {
-            ValResult::Resolved(p) => Ok(p),
-            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, val.range)),
-            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, val.range)),
+            Ok(d) => Ok(d),
+            Err(name) => Err(crate::Error::UndefinedVar(name, val.range)),
         }
     }
 
-    pub fn resolve_val(&self, val: ValT) -> ValResult {
-        let mut ids = Vec::new();
-        self.resolve_var(&mut ids, val)
-    }
-
-    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: ValT) -> ValResult {
+    pub fn resolve_val(&self, val: ValT) -> Result<Data, String> {
         match val {
-            ValT::Data(p) => ValResult::Resolved(p),
-            ValT::Ext(e) => ValResult::Resolved(self.resolve_ext(e)),
-            ValT::Var(id) if checked_ids.contains(&id) => {
-                checked_ids.push(id);
-                let names = checked_ids
-                    .iter()
-                    .map(|id| self.var(*id).name.clone())
-                    .collect();
-                ValResult::CircularRef(names)
-            }
+            ValT::Data(p) => Ok(p),
+            ValT::Ext(e) => Ok(self.resolve_ext(e)),
             ValT::Var(id) => {
-                checked_ids.push(id);
-                let var = &self.var(id);
+                let var = self.var(id);
                 match var.value {
-                    Some(v) => self.resolve_var(checked_ids, v),
-                    None => ValResult::Undefined(var.name.clone()),
+                    Some(d) => Ok(d),
+                    None => Err(var.name.clone()),
                 }
             }
         }

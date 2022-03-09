@@ -319,11 +319,11 @@ pub struct VarId(pub usize);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Var {
     pub name: String,
-    pub value: Option<ValT>,
+    pub value: Option<Data>,
 }
 
 impl Var {
-    pub fn new(name: String, value: Option<ValT>) -> Self {
+    pub fn new(name: String, value: Option<Data>) -> Self {
         Self { name, value }
     }
 }

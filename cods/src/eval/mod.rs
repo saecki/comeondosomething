@@ -57,12 +57,6 @@ pub enum ExprType {
     Spill,
 }
 
-pub enum ValResult {
-    Resolved(Data),
-    Undefined(String),
-    CircularRef(Vec<String>),
-}
-
 pub enum Return {
     Val(Val),
     Unit(Range),
@@ -536,7 +530,7 @@ impl Context {
 
     fn assign(&mut self, id: VarId, b: Val, range: Range) -> crate::Result<Return> {
         let val = self.to_data(b)?;
-        self.var_mut(id).value = Some(ValT::Data(val));
+        self.var_mut(id).value = Some(val);
         Ok(Return::Unit(range))
     }
 
@@ -559,9 +553,7 @@ impl Context {
     fn spill(&mut self, range: Range) -> crate::Result<Return> {
         for var in self.vars.iter() {
             if let Some(val) = var.value {
-                if let ValResult::Resolved(v) = self.resolve_val(val) {
-                    println!("{} = {}", var.name, v);
-                }
+                println!("{} = {}", var.name, val);
             }
         }
         Ok(Return::Unit(range))
