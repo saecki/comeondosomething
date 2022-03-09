@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::{Cmd, Sep, SepType, Sign};
-use crate::{Num, Op, Par, Range};
+use crate::{Cmd, Sep, SepT, Sign};
+use crate::{Op, Par, Range, Val};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -33,22 +33,22 @@ pub enum Error {
     UndefinedVar(String, Range),
     CircularRef(Vec<String>, Range),
     InvalidNumberFormat(Range),
-    AddOverflow(Num, Num),
-    SubOverflow(Num, Num),
-    MulOverflow(Num, Num),
-    DivideByZero(Num, Num),
-    FractionEuclidDiv(Num, Num),
-    RemainderByZero(Num, Num),
-    FractionRemainder(Num, Num),
-    FractionGcd(Num, Num),
-    NegativeNcr(Num, Num),
-    InvalidNcr(Num, Num),
-    FractionNcr(Num, Num),
-    FactorialOverflow(Num),
-    NegativeFactorial(Num),
-    FractionFactorial(Num),
-    InvalidClampBounds(Num, Num),
-    MissingCalculation,
+    AddOverflow(Val, Val),
+    SubOverflow(Val, Val),
+    MulOverflow(Val, Val),
+    DivideByZero(Val, Val),
+    FractionEuclidDiv(Val, Val),
+    RemainderByZero(Val, Val),
+    FractionRemainder(Val, Val),
+    FractionGcd(Val, Val),
+    NegativeNcr(Val, Val),
+    InvalidNcr(Val, Val),
+    FractionNcr(Val, Val),
+    FactorialOverflow(Val),
+    NegativeFactorial(Val),
+    FractionFactorial(Val),
+    InvalidClampBounds(Val, Val),
+    MissingExpr,
     InvalidAssignment(Range, Range),
     ExpectedValue(Range),
 }
@@ -119,7 +119,7 @@ impl UserFacing for Error {
                 "Attempted to calculate the factorial of a fraction".into()
             }
             Self::InvalidClampBounds(_, _) => "Invalid clamp bounds min is greater than max".into(),
-            Self::MissingCalculation => "Missing calculation".into(),
+            Self::MissingExpr => "Missing expression".into(),
             Self::InvalidAssignment(_, _) => {
                 "Cannot assign to something that is not a variable".into()
             }
@@ -157,7 +157,7 @@ impl UserFacing for Error {
             Self::NegativeFactorial(a) => vec![a.range],
             Self::FractionFactorial(a) => vec![a.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
-            Self::MissingCalculation => vec![],
+            Self::MissingExpr => vec![],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ExpectedValue(r) => vec![*r],
         }
@@ -178,7 +178,7 @@ pub enum Warning {
     },
     ConfusingSeparator {
         sep: Sep,
-        expected: SepType,
+        expected: SepT,
     },
 }
 

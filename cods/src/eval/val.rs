@@ -1,15 +1,15 @@
-use crate::{Context, Ext, Num, PlainVal, Val, ValResult, Var, VarId};
+use crate::{Context, Ext, Val, Data, ValT, ValResult, Var, VarId};
 
-impl Val {
+impl ValT {
     pub fn maybe_int(self) -> Self {
         match self {
-            Self::Plain(PlainVal::Float(f)) => {
+            Self::Data(Data::Float(f)) => {
                 let i = f as i128;
                 #[allow(clippy::float_cmp)]
                 if i as f64 == f {
-                    Self::Plain(PlainVal::Int(i))
+                    Self::Data(Data::Int(i))
                 } else {
-                    Self::Plain(PlainVal::Float(f))
+                    Self::Data(Data::Float(f))
                 }
             }
             v => v,
@@ -17,7 +17,7 @@ impl Val {
     }
 }
 
-impl PlainVal {
+impl Data {
     pub fn to_int(self) -> Option<i128> {
         match self {
             Self::Int(i) => Some(i),
@@ -42,32 +42,32 @@ impl PlainVal {
 }
 
 impl Context {
-    pub fn to_f64(&self, num: Num) -> crate::Result<f64> {
-        Ok(self.plain_val(num)?.to_f64())
+    pub fn to_f64(&self, val: Val) -> crate::Result<f64> {
+        Ok(self.to_data(val)?.to_f64())
     }
 
-    pub fn to_int(&self, num: Num) -> crate::Result<Option<i128>> {
-        Ok(self.plain_val(num)?.to_int())
+    pub fn to_int(&self, val: Val) -> crate::Result<Option<i128>> {
+        Ok(self.to_data(val)?.to_int())
     }
 
-    pub fn plain_val(&self, num: Num) -> crate::Result<PlainVal> {
-        match self.resolve_val(num.val) {
+    pub fn to_data(&self, val: Val) -> crate::Result<Data> {
+        match self.resolve_val(val.typ) {
             ValResult::Resolved(p) => Ok(p),
-            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, num.range)),
-            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, num.range)),
+            ValResult::Undefined(name) => Err(crate::Error::UndefinedVar(name, val.range)),
+            ValResult::CircularRef(names) => Err(crate::Error::CircularRef(names, val.range)),
         }
     }
 
-    pub fn resolve_val(&self, val: Val) -> ValResult {
+    pub fn resolve_val(&self, val: ValT) -> ValResult {
         let mut ids = Vec::new();
         self.resolve_var(&mut ids, val)
     }
 
-    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: Val) -> ValResult {
+    fn resolve_var(&self, checked_ids: &mut Vec<VarId>, val: ValT) -> ValResult {
         match val {
-            Val::Plain(p) => ValResult::Resolved(p),
-            Val::Ext(e) => ValResult::Resolved(self.resolve_ext(e)),
-            Val::Var(id) if checked_ids.contains(&id) => {
+            ValT::Data(p) => ValResult::Resolved(p),
+            ValT::Ext(e) => ValResult::Resolved(self.resolve_ext(e)),
+            ValT::Var(id) if checked_ids.contains(&id) => {
                 checked_ids.push(id);
                 let names = checked_ids
                     .iter()
@@ -75,7 +75,7 @@ impl Context {
                     .collect();
                 ValResult::CircularRef(names)
             }
-            Val::Var(id) => {
+            ValT::Var(id) => {
                 checked_ids.push(id);
                 let var = &self.var(id);
                 match var.value {
@@ -86,7 +86,7 @@ impl Context {
         }
     }
 
-    pub fn resolve_ext(&self, ext: Ext) -> PlainVal {
+    pub fn resolve_ext(&self, ext: Ext) -> Data {
         self.providers[ext.provider].plain_val(ext.id)
     }
 

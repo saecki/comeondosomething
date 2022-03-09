@@ -1,4 +1,4 @@
-use crate::{Op, OpType, Range, Val};
+use crate::{Op, OpT, Range, ValT};
 
 use super::*;
 
@@ -11,9 +11,9 @@ fn no_parenthesis() {
     assert_eq!(
         items,
         vec![
-            Item::Num(Num::new(Val::float(423.42), Range::of(0, 6))),
-            Item::Op(Op::new(OpType::Mul, Range::pos(7))),
-            Item::Num(Num::new(Val::float(64.52), Range::of(9, 14))),
+            Item::Val(Val::new(ValT::float(423.42), Range::of(0, 6))),
+            Item::Op(Op::new(OpT::Mul, Range::pos(7))),
+            Item::Val(Val::new(ValT::float(64.52), Range::of(9, 14))),
         ]
     );
 }
@@ -29,15 +29,15 @@ fn add_parenthesis() {
         vec![
             Item::Group(Group::new(
                 vec![
-                    Item::Num(Num::new(Val::float(23.13), Range::of(1, 6))),
-                    Item::Op(Op::new(OpType::Add, Range::pos(7))),
-                    Item::Num(Num::new(Val::float(543.23), Range::of(9, 15)))
+                    Item::Val(Val::new(ValT::float(23.13), Range::of(1, 6))),
+                    Item::Op(Op::new(OpT::Add, Range::pos(7))),
+                    Item::Val(Val::new(ValT::float(543.23), Range::of(9, 15)))
                 ],
                 Range::of(1, 15),
                 ParKind::Round,
             )),
-            Item::Op(Op::new(OpType::Mul, Range::pos(17))),
-            Item::Num(Num::new(Val::int(34), Range::of(19, 21))),
+            Item::Op(Op::new(OpT::Mul, Range::pos(17))),
+            Item::Val(Val::new(ValT::int(34), Range::of(19, 21))),
         ]
     );
 }

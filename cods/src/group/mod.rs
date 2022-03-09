@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{Cmd, Context, Mod, Num, Op, Par, ParKind, Range, Sep, Token};
+use crate::{Cmd, Context, Mod, Op, Par, ParKind, Range, Sep, Token, Val};
 
 #[cfg(test)]
 mod test;
@@ -43,7 +43,7 @@ impl Context {
             items.push(Item::Group(Group {
                 items: self.group(&tokens[(i + 1)..])?,
                 range,
-                par_kind: p.par_type(),
+                par_kind: p.kind(),
             }));
         } else {
             let remaining_tokens = tokens[pos..].iter().filter_map(Item::try_from);
@@ -68,7 +68,7 @@ impl Context {
                         missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
-                        par_type: open_par.par_type(),
+                        par_type: open_par.kind(),
                     })
                 } else {
                     None
@@ -150,7 +150,7 @@ impl GroupRange {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
-    Num(Num),
+    Val(Val),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
@@ -160,7 +160,7 @@ pub enum Item {
 impl Item {
     pub fn try_from(token: &Token) -> Option<Self> {
         match *token {
-            Token::Num(n) => Some(Self::Num(n)),
+            Token::Val(n) => Some(Self::Val(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Cmd(c) => Some(Self::Cmd(c)),
             Token::Mod(m) => Some(Self::Mod(m)),
@@ -208,7 +208,7 @@ impl Item {
     pub fn range(&self) -> Range {
         match self {
             Self::Group(g) => g.range,
-            Self::Num(n) => n.range,
+            Self::Val(n) => n.range,
             Self::Op(o) => o.range,
             Self::Cmd(c) => c.range,
             Self::Mod(m) => m.range,

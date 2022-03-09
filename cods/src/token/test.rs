@@ -10,9 +10,9 @@ fn simple_add() {
     check(
         "432.432 + 24324.543",
         vec![
-            Token::num(Val::float(432.432), Range::of(0, 7)),
-            Token::op(OpType::Add, Range::pos(8)),
-            Token::num(Val::float(24324.543), Range::of(10, 19)),
+            Token::val(ValT::float(432.432), Range::of(0, 7)),
+            Token::op(OpT::Add, Range::pos(8)),
+            Token::val(ValT::float(24324.543), Range::of(10, 19)),
         ],
     );
 }
@@ -22,9 +22,9 @@ fn simple_mul() {
     check(
         "604.453 *3562.543",
         vec![
-            Token::num(Val::float(604.453), Range::of(0, 7)),
-            Token::op(OpType::Mul, Range::pos(8)),
-            Token::num(Val::float(3562.543), Range::of(9, 17)),
+            Token::val(ValT::float(604.453), Range::of(0, 7)),
+            Token::op(OpT::Mul, Range::pos(8)),
+            Token::val(ValT::float(3562.543), Range::of(9, 17)),
         ],
     );
 }
@@ -34,13 +34,13 @@ fn add_mul() {
     check(
         "(32+ 604.453)* 3562.543",
         vec![
-            Token::par(ParType::RoundOpen, Range::pos(0)),
-            Token::num(Val::int(32), Range::of(1, 3)),
-            Token::op(OpType::Add, Range::pos(3)),
-            Token::num(Val::float(604.453), Range::of(5, 12)),
-            Token::par(ParType::RoundClose, Range::pos(12)),
-            Token::op(OpType::Mul, Range::pos(13)),
-            Token::num(Val::float(3562.543), Range::of(15, 23)),
+            Token::par(ParT::RoundOpen, Range::pos(0)),
+            Token::val(ValT::int(32), Range::of(1, 3)),
+            Token::op(OpT::Add, Range::pos(3)),
+            Token::val(ValT::float(604.453), Range::of(5, 12)),
+            Token::par(ParT::RoundClose, Range::pos(12)),
+            Token::op(OpT::Mul, Range::pos(13)),
+            Token::val(ValT::float(3562.543), Range::of(15, 23)),
         ],
     );
 }
@@ -58,13 +58,13 @@ fn vars() {
     assert_eq!(
         tokens,
         [
-            Token::num(Val::Var(VarId(0)), Range::of(0, 3)),
-            Token::op(OpType::Equals, Range::pos(4)),
-            Token::num(Val::int(2), Range::pos(6)),
-            Token::sep(SepType::Semi, Range::pos(7)),
-            Token::num(Val::Var(VarId(1)), Range::of(9, 12)),
-            Token::op(OpType::Equals, Range::pos(13)),
-            Token::num(Val::int(3), Range::pos(15)),
+            Token::val(ValT::Var(VarId(0)), Range::of(0, 3)),
+            Token::op(OpT::Equals, Range::pos(4)),
+            Token::val(ValT::int(2), Range::pos(6)),
+            Token::sep(SepT::Semi, Range::pos(7)),
+            Token::val(ValT::Var(VarId(1)), Range::of(9, 12)),
+            Token::op(OpT::Equals, Range::pos(13)),
+            Token::val(ValT::int(3), Range::pos(15)),
         ],
     );
 }

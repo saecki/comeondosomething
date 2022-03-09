@@ -1,10 +1,10 @@
 use std::fmt;
 
-use crate::PlainVal;
+use crate::Data;
 
 /// A provider for external values ([`Ext`]) that are injected into the scope.
 pub trait Provider: fmt::Debug {
-    fn plain_val(&self, id: ExtId) -> PlainVal;
+    fn plain_val(&self, id: ExtId) -> Data;
 
     fn parse(&self, literal: &str) -> Option<ExtId>;
 }

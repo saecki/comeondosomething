@@ -44,25 +44,25 @@ impl Context {
         self.warnings.clear();
     }
 
-    pub fn parse_and_eval(&mut self, string: &str) -> crate::Result<Option<PlainVal>> {
-        let calc = self.parse_str(string)?;
+    pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Option<Data>> {
+        let exprs = self.parse_str(input)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
         }
 
-        let val = self.eval_all(&calc)?;
+        let val = self.eval_all(&exprs)?;
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, string: &str) -> crate::Result<Vec<Calc>> {
-        let tokens = self.tokenize(string.as_ref())?;
+    pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<Expr>> {
+        let tokens = self.tokenize(input.as_ref())?;
         let items = self.group(&tokens)?;
-        let calc = self.parse(&items)?;
-        Ok(calc)
+        let exprs = self.parse(&items)?;
+        Ok(exprs)
     }
 }
 
-pub fn eval(string: &str) -> crate::Result<Option<PlainVal>> {
+pub fn eval(input: &str) -> crate::Result<Option<Data>> {
     let mut ctx = Context::default();
-    ctx.parse_and_eval(string)
+    ctx.parse_and_eval(input)
 }

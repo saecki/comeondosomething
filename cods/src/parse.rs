@@ -2,12 +2,12 @@ use std::cmp::{self, Ordering};
 use std::mem::MaybeUninit;
 
 use crate::{
-    items_range, Calc, CalcType, CmdType, Context, Item, ModType, Op, OpType, ParKind, Range,
-    SepType, Sign, Val, Warning,
+    items_range, CmdT, Context, Expr, ExprType, Item, ModT, Op, OpT, ParKind, Range, SepT, Sign,
+    ValT, Warning,
 };
 
 impl Context {
-    pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Calc>> {
+    pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Expr>> {
         items
             .split(|i| match i {
                 Item::Sep(s) => s.is_semi(),
@@ -21,20 +21,20 @@ impl Context {
             .collect()
     }
 
-    fn parse_items(&mut self, range: Range, items: &[Item]) -> crate::Result<Calc> {
+    fn parse_items(&mut self, range: Range, items: &[Item]) -> crate::Result<Expr> {
         if items.is_empty() {
-            return Ok(Calc::new(CalcType::Empty, range));
+            return Ok(Expr::new(ExprType::Empty, range));
         } else if items.len() == 1 {
             let err = match &items[0] {
                 Item::Group(g) => return self.parse_items(g.range, &g.items),
-                Item::Num(n) => return Ok(Calc::num(*n)),
+                Item::Val(n) => return Ok(Expr::val(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
                 Item::Cmd(c) => crate::Error::MissingOperand(Range::pos(c.range.end)),
                 Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range.start)),
                 Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range.start)),
             };
             self.errors.push(err);
-            return Ok(Calc::new(CalcType::Error, range));
+            return Ok(Expr::new(ExprType::Error, range));
         }
 
         let mut ops: Vec<(usize, Op)> = items
@@ -79,8 +79,8 @@ impl Context {
                     if sign.is_positive() {
                         return Ok(ca);
                     } else {
-                        return Ok(Calc::new(
-                            CalcType::Neg(Box::new(ca)),
+                        return Ok(Expr::new(
+                            ExprType::Neg(Box::new(ca)),
                             Range::span(op.range, ra),
                         ));
                     }
@@ -108,69 +108,67 @@ impl Context {
             if first_i != i {
                 let sign_range = Range::span(items[i + 1].range(), first_o.range);
                 match op.typ {
-                    OpType::Add => self.warnings.push(Warning::SignFollowingAddition(
+                    OpT::Add => self.warnings.push(Warning::SignFollowingAddition(
                         op.range,
                         sign_range,
                         sign,
                         first_i - i,
                     )),
-                    OpType::Sub => self.warnings.push(Warning::SignFollowingSubtraction(
+                    OpT::Sub => self.warnings.push(Warning::SignFollowingSubtraction(
                         op.range,
                         sign_range,
                         sign,
                         first_i - i,
                     )),
-                    OpType::Mul => (),
-                    OpType::Div => (),
-                    OpType::IntDiv => (),
-                    OpType::Rem => (),
-                    OpType::Pow => (),
-                    OpType::Equals => (),
+                    OpT::Mul => (),
+                    OpT::Div => (),
+                    OpT::IntDiv => (),
+                    OpT::Rem => (),
+                    OpT::Pow => (),
+                    OpT::Equals => (),
                 }
             }
 
             let a = &items[0..i];
             let range_a = items_range(a).unwrap_or_else(|| Range::of(range.start, op.range.start));
-            let calc_a = self.parse_items(range_a, a)?;
+            let expr_a = self.parse_items(range_a, a)?;
 
             let b = &items[(first_i + 1)..];
             let range_b = items_range(b).unwrap_or_else(|| Range::of(op.range.end, range.end));
-            let calc_b = Box::new(self.parse_items(range_b, b)?);
+            let expr_b = Box::new(self.parse_items(range_b, b)?);
 
             let r = Range::span(range_a, range_b);
 
             return match op.typ {
-                OpType::Add | OpType::Sub => {
+                OpT::Add | OpT::Sub => {
                     // all + and - signs/operators were accumulated
                     if sign.is_positive() {
-                        Ok(Calc::new(CalcType::Add(Box::new(calc_a), calc_b), r))
+                        Ok(Expr::new(ExprType::Add(Box::new(expr_a), expr_b), r))
                     } else {
-                        Ok(Calc::new(CalcType::Sub(Box::new(calc_a), calc_b), r))
+                        Ok(Expr::new(ExprType::Sub(Box::new(expr_a), expr_b), r))
                     }
                 }
                 _ => {
                     // negate if nessecary
-                    let calc_b = if sign.is_positive() {
-                        calc_b
+                    let expr_b = if sign.is_positive() {
+                        expr_b
                     } else {
-                        Box::new(Calc::new(CalcType::Neg(calc_b), range_b))
+                        Box::new(Expr::new(ExprType::Neg(expr_b), range_b))
                     };
                     match op.typ {
-                        OpType::Add | OpType::Sub => unreachable!(),
-                        OpType::Mul => Ok(Calc::new(CalcType::Mul(Box::new(calc_a), calc_b), r)),
-                        OpType::Div => Ok(Calc::new(CalcType::Div(Box::new(calc_a), calc_b), r)),
-                        OpType::IntDiv => {
-                            Ok(Calc::new(CalcType::IntDiv(Box::new(calc_a), calc_b), r))
-                        }
-                        OpType::Rem => Ok(Calc::new(CalcType::Rem(Box::new(calc_a), calc_b), r)),
-                        OpType::Pow => Ok(Calc::new(CalcType::Pow(Box::new(calc_a), calc_b), r)),
-                        OpType::Equals => {
-                            if let CalcType::Num(n) = calc_a.typ {
-                                if let Val::Var(id) = n.val {
-                                    return Ok(Calc::new(CalcType::Assignment(id, calc_b), r));
+                        OpT::Add | OpT::Sub => unreachable!(),
+                        OpT::Mul => Ok(Expr::new(ExprType::Mul(Box::new(expr_a), expr_b), r)),
+                        OpT::Div => Ok(Expr::new(ExprType::Div(Box::new(expr_a), expr_b), r)),
+                        OpT::IntDiv => Ok(Expr::new(ExprType::IntDiv(Box::new(expr_a), expr_b), r)),
+                        OpT::Rem => Ok(Expr::new(ExprType::Rem(Box::new(expr_a), expr_b), r)),
+                        OpT::Pow => Ok(Expr::new(ExprType::Pow(Box::new(expr_a), expr_b), r)),
+                        OpT::Equals => {
+                            if let ExprType::Val(v) = expr_a.typ {
+                                if let ValT::Var(id) = v.typ {
+                                    return Ok(Expr::new(ExprType::Assignment(id, expr_b), r));
                                 }
                             }
-                            Err(crate::Error::InvalidAssignment(calc_a.range, op.range))
+                            Err(crate::Error::InvalidAssignment(expr_a.range, op.range))
                         }
                     }
                 }
@@ -190,12 +188,12 @@ impl Context {
             if let Some(i) = items.get(i + 1) {
                 let r = Range::between(m.range, i.range());
                 self.errors.push(crate::Error::MissingOperator(r));
-                return Ok(Calc::new(CalcType::Error, range));
+                return Ok(Expr::new(ExprType::Error, range));
             }
 
             return Ok(match m.typ {
-                ModType::Degree => Calc::new(CalcType::Degree(ac), m.range),
-                ModType::Factorial => Calc::new(CalcType::Factorial(ac), m.range),
+                ModT::Degree => Expr::new(ExprType::Degree(ac), m.range),
+                ModT::Factorial => Expr::new(ExprType::Factorial(ac), m.range),
             });
         }
 
@@ -207,7 +205,7 @@ impl Context {
                         let range = Range::of(cmd.range.end, i.range().start);
                         self.errors
                             .push(crate::Error::MissingCommandParenthesis(range));
-                        return Ok(Calc::new(CalcType::Error, range));
+                        return Ok(Expr::new(ExprType::Error, range));
                     }
                 };
 
@@ -222,80 +220,80 @@ impl Context {
 
                 let r = Range::span(cmd.range, g.range);
                 let cmd = match cmd.typ {
-                    CmdType::Pow => {
+                    CmdT::Pow => {
                         let [base, exp] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Pow(Box::new(base), Box::new(exp)), r)
+                        Expr::new(ExprType::Pow(Box::new(base), Box::new(exp)), r)
                     }
-                    CmdType::Ln => {
+                    CmdT::Ln => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Ln(Box::new(val)), r)
+                        Expr::new(ExprType::Ln(Box::new(val)), r)
                     }
-                    CmdType::Log => {
+                    CmdT::Log => {
                         let [base, val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Log(Box::new(base), Box::new(val)), r)
+                        Expr::new(ExprType::Log(Box::new(base), Box::new(val)), r)
                     }
-                    CmdType::Sqrt => {
+                    CmdT::Sqrt => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Sqrt(Box::new(val)), r)
+                        Expr::new(ExprType::Sqrt(Box::new(val)), r)
                     }
-                    CmdType::Ncr => {
+                    CmdT::Ncr => {
                         let [n, k] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Ncr(Box::new(n), Box::new(k)), r)
+                        Expr::new(ExprType::Ncr(Box::new(n), Box::new(k)), r)
                     }
-                    CmdType::Sin => {
+                    CmdT::Sin => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Sin(Box::new(val)), r)
+                        Expr::new(ExprType::Sin(Box::new(val)), r)
                     }
-                    CmdType::Cos => {
+                    CmdT::Cos => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Cos(Box::new(val)), r)
+                        Expr::new(ExprType::Cos(Box::new(val)), r)
                     }
-                    CmdType::Tan => {
+                    CmdT::Tan => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Tan(Box::new(val)), r)
+                        Expr::new(ExprType::Tan(Box::new(val)), r)
                     }
-                    CmdType::Asin => {
+                    CmdT::Asin => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Asin(Box::new(val)), r)
+                        Expr::new(ExprType::Asin(Box::new(val)), r)
                     }
-                    CmdType::Acos => {
+                    CmdT::Acos => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Acos(Box::new(val)), r)
+                        Expr::new(ExprType::Acos(Box::new(val)), r)
                     }
-                    CmdType::Atan => {
+                    CmdT::Atan => {
                         let [val] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Atan(Box::new(val)), r)
+                        Expr::new(ExprType::Atan(Box::new(val)), r)
                     }
-                    CmdType::Gcd => {
+                    CmdT::Gcd => {
                         let [a, b] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(CalcType::Gcd(Box::new(a), Box::new(b)), r)
+                        Expr::new(ExprType::Gcd(Box::new(a), Box::new(b)), r)
                     }
-                    CmdType::Min => {
+                    CmdT::Min => {
                         let args = self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
-                        Calc::new(CalcType::Min(args), r)
+                        Expr::new(ExprType::Min(args), r)
                     }
-                    CmdType::Max => {
+                    CmdT::Max => {
                         let args = self.parse_dyn_cmd_args(1, usize::MAX, g.range, &g.items)?;
-                        Calc::new(CalcType::Max(args), r)
+                        Expr::new(ExprType::Max(args), r)
                     }
-                    CmdType::Clamp => {
+                    CmdT::Clamp => {
                         let [val, min, max] = self.parse_cmd_args(g.range, &g.items)?;
-                        Calc::new(
-                            CalcType::Clamp(Box::new(val), Box::new(min), Box::new(max)),
+                        Expr::new(
+                            ExprType::Clamp(Box::new(val), Box::new(min), Box::new(max)),
                             r,
                         )
                     }
-                    CmdType::Print => {
+                    CmdT::Print => {
                         let args = self.parse_dyn_cmd_args(0, usize::MAX, g.range, &g.items)?;
-                        Calc::new(CalcType::Print(args), r)
+                        Expr::new(ExprType::Print(args), r)
                     }
-                    CmdType::Println => {
+                    CmdT::Println => {
                         let args = self.parse_dyn_cmd_args(0, usize::MAX, g.range, &g.items)?;
-                        Calc::new(CalcType::Println(args), r)
+                        Expr::new(ExprType::Println(args), r)
                     }
-                    CmdType::Spill => {
+                    CmdT::Spill => {
                         self.parse_cmd_args::<0>(g.range, &g.items)?;
-                        Calc::new(CalcType::Spill, r)
+                        Expr::new(ExprType::Spill, r)
                     }
                 };
 
@@ -307,7 +305,7 @@ impl Context {
             items[0].range().end,
             items[1].range().start,
         )));
-        Ok(Calc::new(CalcType::Error, range))
+        Ok(Expr::new(ExprType::Error, range))
     }
 
     fn parse_dyn_cmd_args(
@@ -316,7 +314,7 @@ impl Context {
         max: usize,
         range: Range,
         items: &[Item],
-    ) -> crate::Result<Vec<Calc>> {
+    ) -> crate::Result<Vec<Expr>> {
         let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
         let mut args = Vec::with_capacity(cmp::min(arg_count, max));
         let mut unexpected_args = Vec::new();
@@ -327,10 +325,10 @@ impl Context {
         for i in items.iter() {
             if let Item::Sep(s) = i {
                 match s.typ {
-                    SepType::Comma => (),
-                    SepType::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
+                    SepT::Comma => (),
+                    SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
                         sep: *s,
-                        expected: SepType::Comma,
+                        expected: SepT::Comma,
                     }),
                 }
 
@@ -385,8 +383,8 @@ impl Context {
         &mut self,
         range: Range,
         items: &[Item],
-    ) -> crate::Result<[Calc; COUNT]> {
-        let mut args: [Calc; COUNT] = array_of(|_| Calc::new(CalcType::Error, range));
+    ) -> crate::Result<[Expr; COUNT]> {
+        let mut args: [Expr; COUNT] = array_of(|_| Expr::new(ExprType::Error, range));
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
         let mut start = (0, range.start);
@@ -395,10 +393,10 @@ impl Context {
         for i in items.iter() {
             if let Item::Sep(s) = i {
                 match s.typ {
-                    SepType::Comma => (),
-                    SepType::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
+                    SepT::Comma => (),
+                    SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
                         sep: *s,
-                        expected: SepType::Comma,
+                        expected: SepT::Comma,
                     }),
                 }
 

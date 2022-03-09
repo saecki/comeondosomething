@@ -52,23 +52,23 @@ impl Context {
             let range = Range::pos(state.char_index);
             match c {
                 ' ' | '\n' | '\r' => self.complete_literal(&mut state)?,
-                '+' => self.new_token(&mut state, Token::op(OpType::Add, range))?,
-                '-' | '−' => self.new_token(&mut state, Token::op(OpType::Sub, range))?,
-                '*' | '×' => self.new_token(&mut state, Token::op(OpType::Mul, range))?,
-                '/' | '÷' => self.new_token(&mut state, Token::op(OpType::Div, range))?,
-                '%' => self.new_token(&mut state, Token::op(OpType::Rem, range))?,
-                '^' => self.new_token(&mut state, Token::op(OpType::Pow, range))?,
-                '=' => self.new_token(&mut state, Token::op(OpType::Equals, range))?,
-                '°' => self.new_token(&mut state, Token::mood(ModType::Degree, range))?,
-                '!' => self.new_token(&mut state, Token::mood(ModType::Factorial, range))?,
-                '(' => self.new_token(&mut state, Token::par(ParType::RoundOpen, range))?,
-                '[' => self.new_token(&mut state, Token::par(ParType::SquareOpen, range))?,
-                '{' => self.new_token(&mut state, Token::par(ParType::CurlyOpen, range))?,
-                ')' => self.new_token(&mut state, Token::par(ParType::RoundClose, range))?,
-                ']' => self.new_token(&mut state, Token::par(ParType::SquareClose, range))?,
-                '}' => self.new_token(&mut state, Token::par(ParType::CurlyClose, range))?,
-                ',' => self.new_token(&mut state, Token::sep(SepType::Comma, range))?,
-                ';' => self.new_token(&mut state, Token::sep(SepType::Semi, range))?,
+                '+' => self.new_token(&mut state, Token::op(OpT::Add, range))?,
+                '-' | '−' => self.new_token(&mut state, Token::op(OpT::Sub, range))?,
+                '*' | '×' => self.new_token(&mut state, Token::op(OpT::Mul, range))?,
+                '/' | '÷' => self.new_token(&mut state, Token::op(OpT::Div, range))?,
+                '%' => self.new_token(&mut state, Token::op(OpT::Rem, range))?,
+                '^' => self.new_token(&mut state, Token::op(OpT::Pow, range))?,
+                '=' => self.new_token(&mut state, Token::op(OpT::Equals, range))?,
+                '°' => self.new_token(&mut state, Token::mood(ModT::Degree, range))?,
+                '!' => self.new_token(&mut state, Token::mood(ModT::Factorial, range))?,
+                '(' => self.new_token(&mut state, Token::par(ParT::RoundOpen, range))?,
+                '[' => self.new_token(&mut state, Token::par(ParT::SquareOpen, range))?,
+                '{' => self.new_token(&mut state, Token::par(ParT::CurlyOpen, range))?,
+                ')' => self.new_token(&mut state, Token::par(ParT::RoundClose, range))?,
+                ']' => self.new_token(&mut state, Token::par(ParT::SquareClose, range))?,
+                '}' => self.new_token(&mut state, Token::par(ParT::CurlyClose, range))?,
+                ',' => self.new_token(&mut state, Token::sep(SepT::Comma, range))?,
+                ';' => self.new_token(&mut state, Token::sep(SepT::Semi, range))?,
                 c => state.literal.push(c),
             }
             state.char_index += 1;
@@ -95,41 +95,41 @@ impl Context {
                 self,
                 range,
                 match literal {
-                    "pow" => Token::cmd(CmdType::Pow, range),
-                    "ln" => Token::cmd(CmdType::Ln, range),
-                    "log" => Token::cmd(CmdType::Log, range),
-                    "sqrt" => Token::cmd(CmdType::Sqrt, range),
-                    "nCr" => Token::cmd(CmdType::Ncr, range),
-                    "sin" => Token::cmd(CmdType::Sin, range),
-                    "cos" => Token::cmd(CmdType::Cos, range),
-                    "tan" => Token::cmd(CmdType::Tan, range),
-                    "asin" => Token::cmd(CmdType::Asin, range),
-                    "acos" => Token::cmd(CmdType::Acos, range),
-                    "atan" => Token::cmd(CmdType::Atan, range),
-                    "gcd" => Token::cmd(CmdType::Gcd, range),
-                    "min" => Token::cmd(CmdType::Min, range),
-                    "max" => Token::cmd(CmdType::Max, range),
-                    "clamp" => Token::cmd(CmdType::Clamp, range),
-                    "print" => Token::cmd(CmdType::Print, range),
-                    "println" => Token::cmd(CmdType::Println, range),
-                    "spill" => Token::cmd(CmdType::Spill, range),
-                    "div" => Token::op(OpType::IntDiv, range),
-                    "mod" => Token::op(OpType::Rem, range),
-                    "π" | "pi" => Token::num(Val::PI, range),
-                    "τ" | "tau" => Token::num(Val::TAU, range),
-                    "e" => Token::num(Val::E, range ),
+                    "pow" => Token::cmd(CmdT::Pow, range),
+                    "ln" => Token::cmd(CmdT::Ln, range),
+                    "log" => Token::cmd(CmdT::Log, range),
+                    "sqrt" => Token::cmd(CmdT::Sqrt, range),
+                    "nCr" => Token::cmd(CmdT::Ncr, range),
+                    "sin" => Token::cmd(CmdT::Sin, range),
+                    "cos" => Token::cmd(CmdT::Cos, range),
+                    "tan" => Token::cmd(CmdT::Tan, range),
+                    "asin" => Token::cmd(CmdT::Asin, range),
+                    "acos" => Token::cmd(CmdT::Acos, range),
+                    "atan" => Token::cmd(CmdT::Atan, range),
+                    "gcd" => Token::cmd(CmdT::Gcd, range),
+                    "min" => Token::cmd(CmdT::Min, range),
+                    "max" => Token::cmd(CmdT::Max, range),
+                    "clamp" => Token::cmd(CmdT::Clamp, range),
+                    "print" => Token::cmd(CmdT::Print, range),
+                    "println" => Token::cmd(CmdT::Println, range),
+                    "spill" => Token::cmd(CmdT::Spill, range),
+                    "div" => Token::op(OpT::IntDiv, range),
+                    "mod" => Token::op(OpT::Rem, range),
+                    "π" | "pi" => Token::val(ValT::PI, range),
+                    "τ" | "tau" => Token::val(ValT::TAU, range),
+                    "e" => Token::val(ValT::E, range ),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let val = if let Ok(i) = literal.parse::<i128>() {
-                                Val::int(i)
+                                ValT::int(i)
                             } else if let Ok(f) = literal.parse::<f64>() {
-                                 Val::float(f)
+                                 ValT::float(f)
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
-                            Token::num(val, range)
+                            Token::val(val, range)
                         } else if let Some(v) = self.parse_ext(literal) {
-                            Token::num(Val::Ext(v), range)
+                            Token::val(ValT::Ext(v), range)
                         } else {
                             for (i, c) in literal.char_indices() {
                                 match c {
@@ -142,7 +142,7 @@ impl Context {
                             }
 
                             let id = self.push_var(literal);
-                            Token::num(Val::Var(id), range)
+                            Token::val(ValT::Var(id), range)
                         }
                     }
                 }
@@ -179,7 +179,7 @@ impl Context {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Token {
-    Num(Num),
+    Val(Val),
     Op(Op),
     Cmd(Cmd),
     Mod(Mod),
@@ -188,32 +188,32 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn num(val: Val, range: Range) -> Self {
-        Self::Num(Num::new(val, range))
+    pub fn val(val: ValT, range: Range) -> Self {
+        Self::Val(Val::new(val, range))
     }
 
-    pub fn op(typ: OpType, range: Range) -> Self {
+    pub fn op(typ: OpT, range: Range) -> Self {
         Self::Op(Op::new(typ, range))
     }
 
-    pub fn cmd(typ: CmdType, range: Range) -> Self {
+    pub fn cmd(typ: CmdT, range: Range) -> Self {
         Self::Cmd(Cmd::new(typ, range))
     }
 
-    pub fn mood(typ: ModType, range: Range) -> Self {
+    pub fn mood(typ: ModT, range: Range) -> Self {
         Self::Mod(Mod::new(typ, range))
     }
 
-    pub fn par(typ: ParType, range: Range) -> Self {
+    pub fn par(typ: ParT, range: Range) -> Self {
         Self::Par(Par::new(typ, range))
     }
 
-    pub fn sep(typ: SepType, range: Range) -> Self {
+    pub fn sep(typ: SepT, range: Range) -> Self {
         Self::Sep(Sep::new(typ, range))
     }
 
-    pub fn is_num(&self) -> bool {
-        matches!(self, Self::Num(_))
+    pub fn is_val(&self) -> bool {
+        matches!(self, Self::Val(_))
     }
 
     pub fn is_op(&self) -> bool {
@@ -232,9 +232,9 @@ impl Token {
         matches!(self, Self::Sep(_))
     }
 
-    pub fn as_num(&self) -> Option<Num> {
+    pub fn as_val(&self) -> Option<Val> {
         match self {
-            Self::Num(n) => Some(*n),
+            Self::Val(n) => Some(*n),
             _ => None,
         }
     }
@@ -255,7 +255,7 @@ impl Token {
 
     pub fn range(&self) -> Range {
         match self {
-            Self::Num(n) => n.range,
+            Self::Val(n) => n.range,
             Self::Op(o) => o.range,
             Self::Cmd(c) => c.range,
             Self::Mod(m) => m.range,
@@ -266,45 +266,45 @@ impl Token {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Num {
-    pub val: Val,
+pub struct Val {
+    pub typ: ValT,
     pub range: Range,
 }
 
-impl Num {
-    pub fn new(val: Val, range: Range) -> Self {
-        Self { val, range }
+impl Val {
+    pub fn new(num: ValT, range: Range) -> Self {
+        Self { typ: num, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Val {
-    Plain(PlainVal),
+pub enum ValT {
+    Data(Data),
     Ext(Ext),
     Var(VarId),
 }
 
-impl Val {
-    pub const TAU: Self = Self::Plain(PlainVal::Float(consts::TAU));
-    pub const PI: Self = Self::Plain(PlainVal::Float(consts::PI));
-    pub const E: Self = Self::Plain(PlainVal::Float(consts::E));
+impl ValT {
+    pub const TAU: Self = Self::Data(Data::Float(consts::TAU));
+    pub const PI: Self = Self::Data(Data::Float(consts::PI));
+    pub const E: Self = Self::Data(Data::Float(consts::E));
 
     pub fn int(i: i128) -> Self {
-        Self::Plain(PlainVal::Int(i))
+        Self::Data(Data::Int(i))
     }
 
     pub fn float(f: f64) -> Self {
-        Self::Plain(PlainVal::Float(f))
+        Self::Data(Data::Float(f))
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum PlainVal {
+pub enum Data {
     Int(i128),
     Float(f64),
 }
 
-impl fmt::Display for PlainVal {
+impl fmt::Display for Data {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int(v) => write!(f, "{v}"),
@@ -319,29 +319,29 @@ pub struct VarId(pub usize);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Var {
     pub name: String,
-    pub value: Option<Val>,
+    pub value: Option<ValT>,
 }
 
 impl Var {
-    pub fn new(name: String, value: Option<Val>) -> Self {
+    pub fn new(name: String, value: Option<ValT>) -> Self {
         Self { name, value }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Op {
-    pub typ: OpType,
+    pub typ: OpT,
     pub range: Range,
 }
 
 impl Op {
-    pub const fn new(typ: OpType, range: Range) -> Self {
+    pub const fn new(typ: OpT, range: Range) -> Self {
         Op { typ, range }
     }
 }
 
 impl Deref for Op {
-    type Target = OpType;
+    type Target = OpT;
 
     fn deref(&self) -> &Self::Target {
         &self.typ
@@ -355,7 +355,7 @@ impl DerefMut for Op {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OpType {
+pub enum OpT {
     Add,
     Sub,
     Mul,
@@ -366,7 +366,7 @@ pub enum OpType {
     Equals,
 }
 
-impl OpType {
+impl OpT {
     pub const fn priority(&self) -> usize {
         match self {
             Self::Pow => 4,
@@ -418,18 +418,18 @@ impl Sign {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cmd {
-    pub typ: CmdType,
+    pub typ: CmdT,
     pub range: Range,
 }
 
 impl Cmd {
-    pub const fn new(typ: CmdType, range: Range) -> Self {
+    pub const fn new(typ: CmdT, range: Range) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CmdType {
+pub enum CmdT {
     Pow,
     Ln,
     Log,
@@ -452,30 +452,30 @@ pub enum CmdType {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Mod {
-    pub typ: ModType,
+    pub typ: ModT,
     pub range: Range,
 }
 
 impl Mod {
-    pub const fn new(typ: ModType, range: Range) -> Self {
+    pub const fn new(typ: ModT, range: Range) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ModType {
+pub enum ModT {
     Degree,
     Factorial,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Par {
-    pub typ: ParType,
+    pub typ: ParT,
     pub range: Range,
 }
 
 impl Deref for Par {
-    type Target = ParType;
+    type Target = ParT;
 
     fn deref(&self) -> &Self::Target {
         &self.typ
@@ -489,13 +489,13 @@ impl DerefMut for Par {
 }
 
 impl Par {
-    pub const fn new(typ: ParType, range: Range) -> Self {
+    pub const fn new(typ: ParT, range: Range) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ParType {
+pub enum ParT {
     RoundOpen,
     RoundClose,
     SquareOpen,
@@ -504,7 +504,7 @@ pub enum ParType {
     CurlyClose,
 }
 
-impl ParType {
+impl ParT {
     pub const fn is_opening(&self) -> bool {
         match self {
             Self::RoundOpen | Self::SquareOpen | Self::CurlyOpen => true,
@@ -523,7 +523,7 @@ impl ParType {
         }
     }
 
-    pub const fn par_type(&self) -> ParKind {
+    pub const fn kind(&self) -> ParKind {
         match self {
             Self::RoundOpen | Self::RoundClose => ParKind::Round,
             Self::SquareOpen | Self::SquareClose => ParKind::Square,
@@ -542,12 +542,12 @@ pub enum ParKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Sep {
-    pub typ: SepType,
+    pub typ: SepT,
     pub range: Range,
 }
 
 impl Deref for Sep {
-    type Target = SepType;
+    type Target = SepT;
 
     fn deref(&self) -> &Self::Target {
         &self.typ
@@ -555,18 +555,18 @@ impl Deref for Sep {
 }
 
 impl Sep {
-    pub const fn new(typ: SepType, range: Range) -> Self {
+    pub const fn new(typ: SepT, range: Range) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SepType {
+pub enum SepT {
     Comma,
     Semi,
 }
 
-impl Display for SepType {
+impl Display for SepT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Comma => f.write_char(','),
@@ -575,7 +575,7 @@ impl Display for SepType {
     }
 }
 
-impl SepType {
+impl SepT {
     pub fn is_semi(&self) -> bool {
         matches!(self, Self::Semi)
     }
