@@ -29,7 +29,7 @@ impl Context {
                 Item::Group(g) => return self.parse_items(g.range, &g.items),
                 Item::Val(n) => return Ok(Ast::val(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
-                Item::Fun(f) => crate::Error::MissingFunctionParenthesis(Range::pos(f.range.end)),
+                Item::Fun(f) => crate::Error::MissingFunctionParentheses(Range::pos(f.range.end)),
                 Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range.start)),
                 Item::Sep(s) => crate::Error::UnexpectedSeparator(*s),
             };
@@ -201,7 +201,7 @@ impl Context {
                     i => {
                         let range = Range::of(fun.range.end, i.range().start);
                         self.errors
-                            .push(crate::Error::MissingFunctionParenthesis(range));
+                            .push(crate::Error::MissingFunctionParentheses(range));
                         return Ok(Ast::new(AstT::Error, range));
                     }
                 };
@@ -353,7 +353,7 @@ impl Context {
         }
 
         if !unexpected_args.is_empty() {
-            self.errors.push(crate::Error::UnexpectedCommandArguments {
+            self.errors.push(crate::Error::UnexpectedFunctionArguments {
                 ranges: unexpected_args,
                 expected: max,
                 found: parsed_args,
@@ -363,7 +363,7 @@ impl Context {
                 Some(i) => Range::of(i.range().end, range.end),
                 None => Range::pos(range.end),
             };
-            self.errors.push(crate::Error::MissingCommandArguments {
+            self.errors.push(crate::Error::MissingFunctionArguments {
                 range,
                 expected: min,
                 found: parsed_args,
@@ -421,7 +421,7 @@ impl Context {
         }
 
         if !unexpected_args.is_empty() {
-            self.errors.push(crate::Error::UnexpectedCommandArguments {
+            self.errors.push(crate::Error::UnexpectedFunctionArguments {
                 ranges: unexpected_args,
                 expected: COUNT,
                 found: parsed_args,
@@ -431,7 +431,7 @@ impl Context {
                 Some(i) => Range::of(i.range().end, range.end),
                 None => Range::pos(range.end),
             };
-            self.errors.push(crate::Error::MissingCommandArguments {
+            self.errors.push(crate::Error::MissingFunctionArguments {
                 range,
                 expected: COUNT,
                 found: parsed_args,

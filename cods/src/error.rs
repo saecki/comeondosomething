@@ -16,13 +16,13 @@ pub enum Error {
     MissingOperand(Range),
     MissingOperator(Range),
     MissingClosingParenthesis(Par),
-    MissingFunctionParenthesis(Range),
-    MissingCommandArguments {
+    MissingFunctionParentheses(Range),
+    MissingFunctionArguments {
         range: Range,
         expected: usize,
         found: usize,
     },
-    UnexpectedCommandArguments {
+    UnexpectedFunctionArguments {
         ranges: Vec<Range>,
         expected: usize,
         found: usize,
@@ -61,25 +61,25 @@ impl UserFacing for Error {
             Self::Parsing(_) => "A parsing error occured".into(),
             Self::MissingOperand(_) => "Missing an operand".into(),
             Self::MissingOperator(_) => "Missing an operator".into(),
-            Self::MissingFunctionParenthesis(_) => "Missing a command parenthesis".into(),
+            Self::MissingFunctionParentheses(_) => "Missing function call parentheses".into(),
             Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis".into(),
-            Self::MissingCommandArguments {
+            Self::MissingFunctionArguments {
                 expected, found, ..
             } => {
                 let missing = expected - found;
                 let arg_s = if missing == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!("Missing {missing} command argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
+                format!("Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
-            Self::UnexpectedCommandArguments {
+            Self::UnexpectedFunctionArguments {
                 expected, found, ..
             } => {
                 let over = found - expected;
                 let arg_s = if over == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!("Found {over} unexpected command argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
+                format!("Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
             Self::UnexpectedSeparator(_) => "Found an unexpected separator".into(),
@@ -136,10 +136,10 @@ impl UserFacing for Error {
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
-            Self::MissingFunctionParenthesis(r) => vec![*r],
+            Self::MissingFunctionParentheses(r) => vec![*r],
             Self::MissingClosingParenthesis(p) => vec![p.range],
-            Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
-            Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
+            Self::MissingFunctionArguments { range: pos, .. } => vec![*pos],
+            Self::UnexpectedFunctionArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
             Self::UnexpectedParenthesis(p) => vec![p.range],
@@ -220,7 +220,7 @@ impl UserFacing for Warning {
             }
             Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
             Self::ConfusingFunctionParentheses { .. } => {
-                "Commands should use round parentheses".into()
+                "Functions should use round parentheses".into()
             }
             Self::ConfusingSeparator { sep, expected } => {
                 format!("Confusing separator, expected {expected} found {}", sep.typ)
