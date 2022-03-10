@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::{Cmd, Sep, SepT, Sign};
-use crate::{Op, Par, Range, Val};
+use crate::{Fun, Sep, SepT, Sign};
+use crate::{Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -16,7 +16,7 @@ pub enum Error {
     MissingOperand(Range),
     MissingOperator(Range),
     MissingClosingParenthesis(Par),
-    MissingCommandParenthesis(Range),
+    MissingFunctionParenthesis(Range),
     MissingCommandArguments {
         range: Range,
         expected: usize,
@@ -33,21 +33,22 @@ pub enum Error {
     UndefinedVar(String, Range),
     CircularRef(Vec<String>, Range),
     InvalidNumberFormat(Range),
-    AddOverflow(Val, Val),
-    SubOverflow(Val, Val),
-    MulOverflow(Val, Val),
-    DivideByZero(Val, Val),
-    FractionEuclidDiv(Val, Val),
-    RemainderByZero(Val, Val),
-    FractionRemainder(Val, Val),
-    FractionGcd(Val, Val),
-    NegativeNcr(Val, Val),
-    InvalidNcr(Val, Val),
-    FractionNcr(Val, Val),
-    FactorialOverflow(Val),
-    NegativeFactorial(Val),
-    FractionFactorial(Val),
-    InvalidClampBounds(Val, Val),
+    AddOverflow(Range, Range),
+    SubOverflow(Range, Range),
+    MulOverflow(Range, Range),
+    PowOverflow(Range, Range),
+    DivideByZero(Range, Range),
+    FractionEuclidDiv(Range, Range),
+    RemainderByZero(Range, Range),
+    FractionRemainder(Range, Range),
+    FractionGcd(Range, Range),
+    NegativeNcr(Range, Range),
+    InvalidNcr(Range, Range),
+    FractionNcr(Range, Range),
+    FactorialOverflow(Range),
+    NegativeFactorial(Range),
+    FractionFactorial(Range),
+    InvalidClampBounds(Range, Range),
     MissingExpr,
     InvalidAssignment(Range, Range),
     ExpectedValue(Range),
@@ -59,7 +60,7 @@ impl UserFacing for Error {
             Self::Parsing(_) => "A parsing error occured".into(),
             Self::MissingOperand(_) => "Missing an operand".into(),
             Self::MissingOperator(_) => "Missing an operator".into(),
-            Self::MissingCommandParenthesis(_) => "Missing a command parenthesis".into(),
+            Self::MissingFunctionParenthesis(_) => "Missing a command parenthesis".into(),
             Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis".into(),
             Self::MissingCommandArguments {
                 expected, found, ..
@@ -91,6 +92,7 @@ impl UserFacing for Error {
             Self::AddOverflow(_, _) => "Addition would overflow".into(),
             Self::SubOverflow(_, _) => "Subtraction would overflow".into(),
             Self::MulOverflow(_, _) => "Multiplication would overflow".into(),
+            Self::PowOverflow(_, _) => "Exponentiation would overflow".into(),
             Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
             Self::FractionEuclidDiv(_, _) => "Attempted divide fractions with remainder".into(),
             Self::RemainderByZero(_, _) => {
@@ -132,7 +134,7 @@ impl UserFacing for Error {
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
-            Self::MissingCommandParenthesis(r) => vec![*r],
+            Self::MissingFunctionParenthesis(r) => vec![*r],
             Self::MissingClosingParenthesis(p) => vec![p.range],
             Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
@@ -142,21 +144,22 @@ impl UserFacing for Error {
             Self::UndefinedVar(_, r) => vec![*r],
             Self::CircularRef(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
-            Self::AddOverflow(a, b) => vec![a.range, b.range],
-            Self::SubOverflow(a, b) => vec![a.range, b.range],
-            Self::MulOverflow(a, b) => vec![a.range, b.range],
-            Self::DivideByZero(a, b) => vec![a.range, b.range],
-            Self::FractionEuclidDiv(a, b) => vec![a.range, b.range],
-            Self::RemainderByZero(a, b) => vec![a.range, b.range],
-            Self::FractionRemainder(a, b) => vec![a.range, b.range],
-            Self::FractionGcd(a, b) => vec![a.range, b.range],
-            Self::FractionNcr(a, b) => vec![a.range, b.range],
-            Self::NegativeNcr(a, b) => vec![a.range, b.range],
-            Self::InvalidNcr(a, b) => vec![a.range, b.range],
-            Self::FactorialOverflow(a) => vec![a.range],
-            Self::NegativeFactorial(a) => vec![a.range],
-            Self::FractionFactorial(a) => vec![a.range],
-            Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
+            Self::AddOverflow(a, b) => vec![*a, *b],
+            Self::SubOverflow(a, b) => vec![*a, *b],
+            Self::MulOverflow(a, b) => vec![*a, *b],
+            Self::PowOverflow(a, b) => vec![*a, *b],
+            Self::DivideByZero(a, b) => vec![*a, *b],
+            Self::FractionEuclidDiv(a, b) => vec![*a, *b],
+            Self::RemainderByZero(a, b) => vec![*a, *b],
+            Self::FractionRemainder(a, b) => vec![*a, *b],
+            Self::FractionGcd(a, b) => vec![*a, *b],
+            Self::FractionNcr(a, b) => vec![*a, *b],
+            Self::NegativeNcr(a, b) => vec![*a, *b],
+            Self::InvalidNcr(a, b) => vec![*a, *b],
+            Self::FactorialOverflow(r) => vec![*r],
+            Self::NegativeFactorial(r) => vec![*r],
+            Self::FractionFactorial(r) => vec![*r],
+            Self::InvalidClampBounds(min, max) => vec![*min, *max],
             Self::MissingExpr => vec![],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ExpectedValue(r) => vec![*r],
@@ -171,8 +174,8 @@ pub enum Warning {
     SignFollowingSubtraction(Range, Range, Sign, usize),
     MultipleSigns(Range, Sign),
     MismatchedParentheses(Par, Par),
-    ConfusingCommandParentheses {
-        cmd: Cmd,
+    ConfusingFunctionParentheses {
+        fun: Fun,
         open_par: Range,
         close_par: Range,
     },
@@ -213,7 +216,7 @@ impl UserFacing for Warning {
                 }
             }
             Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
-            Self::ConfusingCommandParentheses { .. } => {
+            Self::ConfusingFunctionParentheses { .. } => {
                 "Commands should use round parentheses".into()
             }
             Self::ConfusingSeparator { sep, expected } => {
@@ -241,11 +244,11 @@ impl UserFacing for Warning {
             }
             Self::MultipleSigns(r, _) => vec![*r],
             Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
-            Self::ConfusingCommandParentheses {
-                cmd,
+            Self::ConfusingFunctionParentheses {
+                fun,
                 open_par,
                 close_par,
-            } => vec![cmd.range, *open_par, *close_par],
+            } => vec![fun.range, *open_par, *close_par],
             Self::ConfusingSeparator { sep, .. } => vec![sep.range],
         }
     }

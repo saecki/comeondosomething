@@ -1,71 +1,71 @@
 use std::convert::TryFrom;
 
-use crate::{Context, Data, Range, Val, ValT, VarId};
+use crate::{Context, Expr, Range, Val, VarId};
 
 #[cfg(test)]
 mod test;
 mod val;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Expr {
-    pub typ: ExprType,
+pub struct Ast {
+    pub typ: AstT,
     pub range: Range,
 }
 
-impl Expr {
-    pub fn new(typ: ExprType, range: Range) -> Self {
+impl Ast {
+    pub fn new(typ: AstT, range: Range) -> Self {
         Self { typ, range }
     }
 
-    pub fn val(val: Val) -> Self {
-        Self::new(ExprType::Val(val), val.range)
+    pub fn val(val: Expr) -> Self {
+        Self::new(AstT::Expr(val), val.range)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ExprType {
+pub enum AstT {
     Empty,
     Error,
-    Val(Val),
-    Neg(Box<Expr>),
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    IntDiv(Box<Expr>, Box<Expr>),
-    Rem(Box<Expr>, Box<Expr>),
-    Pow(Box<Expr>, Box<Expr>),
-    Ln(Box<Expr>),
-    Log(Box<Expr>, Box<Expr>),
-    Sqrt(Box<Expr>),
-    Ncr(Box<Expr>, Box<Expr>),
-    Sin(Box<Expr>),
-    Cos(Box<Expr>),
-    Tan(Box<Expr>),
-    Asin(Box<Expr>),
-    Acos(Box<Expr>),
-    Atan(Box<Expr>),
-    Gcd(Box<Expr>, Box<Expr>),
-    Min(Vec<Expr>),
-    Max(Vec<Expr>),
-    Clamp(Box<Expr>, Box<Expr>, Box<Expr>),
-    Degree(Box<Expr>),
-    Factorial(Box<Expr>),
-    Assignment(VarId, Box<Expr>),
-    Print(Vec<Expr>),
-    Println(Vec<Expr>),
+    Expr(Expr),
+    Neg(Box<Ast>),
+    Add(Box<Ast>, Box<Ast>),
+    Sub(Box<Ast>, Box<Ast>),
+    Mul(Box<Ast>, Box<Ast>),
+    Div(Box<Ast>, Box<Ast>),
+    IntDiv(Box<Ast>, Box<Ast>),
+    Rem(Box<Ast>, Box<Ast>),
+    Pow(Box<Ast>, Box<Ast>),
+    Ln(Box<Ast>),
+    Log(Box<Ast>, Box<Ast>),
+    Sqrt(Box<Ast>),
+    Ncr(Box<Ast>, Box<Ast>),
+    Sin(Box<Ast>),
+    Cos(Box<Ast>),
+    Tan(Box<Ast>),
+    Asin(Box<Ast>),
+    Acos(Box<Ast>),
+    Atan(Box<Ast>),
+    Gcd(Box<Ast>, Box<Ast>),
+    Min(Vec<Ast>),
+    Max(Vec<Ast>),
+    Clamp(Box<Ast>, Box<Ast>, Box<Ast>),
+    Degree(Box<Ast>),
+    Factorial(Box<Ast>),
+    Assignment(VarId, Box<Ast>),
+    Print(Vec<Ast>),
+    Println(Vec<Ast>),
     Spill,
 }
 
 pub enum Return {
-    Val(Val),
+    Val(Val, Range),
     Unit(Range),
 }
 
 impl Context {
-    /// Evaluate all expressions and return the last value.
-    pub fn eval_all(&mut self, exprs: &[Expr]) -> crate::Result<Option<Data>> {
-        match exprs.split_last() {
+    /// Evaluate all ast's and return the last value.
+    pub fn eval_all(&mut self, asts: &[Ast]) -> crate::Result<Option<Val>> {
+        match asts.split_last() {
             Some((last, others)) => {
                 for c in others {
                     self.eval(c)?;
@@ -76,307 +76,242 @@ impl Context {
         }
     }
 
-    pub fn eval(&mut self, expr: &Expr) -> crate::Result<Option<Data>> {
-        match self.eval_expr(expr)? {
-            Return::Data(n) => Ok(Some(self.to_data(n)?)),
+    pub fn eval(&mut self, ast: &Ast) -> crate::Result<Option<Val>> {
+        match self.eval_ast(ast)? {
+            Return::Val(d, _) => Ok(Some(d)),
             Return::Unit(_) => Ok(None),
         }
     }
 
-    pub fn eval_nums(&mut self, args: &[Expr]) -> crate::Result<Vec<Val>> {
-        let mut nums = Vec::with_capacity(args.len());
+    pub fn eval_to_vals(&mut self, args: &[Ast]) -> crate::Result<Vec<(Val, Range)>> {
+        let mut vals = Vec::with_capacity(args.len());
         for a in args {
-            nums.push(self.eval_num(a)?);
+            vals.push(self.eval_to_val(a)?);
         }
-        Ok(nums)
+        Ok(vals)
     }
 
-    pub fn eval_num(&mut self, expr: &Expr) -> crate::Result<Val> {
-        match self.eval_expr(expr)? {
-            Return::Data(v) => Ok(v),
+    pub fn eval_to_val(&mut self, ast: &Ast) -> crate::Result<(Val, Range)> {
+        match self.eval_ast(ast)? {
+            Return::Val(v, r) => Ok((v, r)),
             Return::Unit(r) => Err(crate::Error::ExpectedValue(r)),
         }
     }
 
-    pub fn eval_expr(&mut self, expr: &Expr) -> crate::Result<Return> {
-        let r = expr.range;
-        match &expr.typ {
-            ExprType::Empty => Ok(Return::Unit(r)),
-            ExprType::Error => Err(crate::Error::Parsing(r)),
-            ExprType::Val(n) => ok(*n),
-            ExprType::Neg(a) => {
-                let n = self.eval_num(a)?;
-                self.neg(n, r)
-            }
-            ExprType::Add(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.add(n1, n2, r)
-            }
-            ExprType::Sub(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.sub(n1, n2, r)
-            }
-            ExprType::Mul(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.mul(n1, n2, r)
-            }
-            ExprType::Div(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.div(n1, n2, r)
-            }
-            ExprType::IntDiv(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.int_div(n1, n2, r)
-            }
-            ExprType::Rem(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.rem(n1, n2, r)
-            }
-            ExprType::Pow(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.pow(n1, n2, r)
-            }
-            ExprType::Ln(a) => {
-                let n1 = self.eval_num(a)?;
-                self.ln(n1, r)
-            }
-            ExprType::Log(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.log(n1, n2, r)
-            }
-            ExprType::Sqrt(a) => {
-                let n1 = self.eval_num(a)?;
-                self.sqrt(n1, r)
-            }
-            ExprType::Ncr(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.ncr(n1, n2, r)
-            }
-            ExprType::Sin(a) => {
-                let n2 = self.eval_num(a)?;
-                self.sin(n2, r)
-            }
-            ExprType::Cos(a) => {
-                let n = self.eval_num(a)?;
-                self.cos(n, r)
-            }
-            ExprType::Tan(a) => {
-                let n = self.eval_num(a)?;
-                self.tan(n, r)
-            }
-            ExprType::Asin(a) => {
-                let n = self.eval_num(a)?;
-                self.asin(n, r)
-            }
-            ExprType::Acos(a) => {
-                let n = self.eval_num(a)?;
-                self.acos(n, r)
-            }
-            ExprType::Atan(a) => {
-                let n = self.eval_num(a)?;
-                self.atan(n, r)
-            }
-            ExprType::Gcd(a, b) => {
-                let n1 = self.eval_num(a)?;
-                let n2 = self.eval_num(b)?;
-                self.gcd(n1, n2, r)
-            }
-            ExprType::Min(args) => {
-                let nums = self.eval_nums(args)?;
-                self.min(nums, r)
-            }
-            ExprType::Max(args) => {
-                let nums = self.eval_nums(args)?;
-                self.max(nums, r)
-            }
-            ExprType::Clamp(num, min, max) => {
-                let n1 = self.eval_num(num)?;
-                let n2 = self.eval_num(min)?;
-                let n3 = self.eval_num(max)?;
-                self.clamp(n1, n2, n3, r)
-            }
-            ExprType::Degree(a) => {
-                let n = self.eval_num(a)?;
-                self.degree(n, r) // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
-            }
-            ExprType::Factorial(a) => {
-                let n = self.eval_num(a)?;
-                self.factorial(n, r)
-            }
-            ExprType::Assignment(a, b) => {
-                let n = self.eval_num(b)?;
-                self.assign(*a, n, r)
-            }
-            ExprType::Print(args) => {
-                let nums = self.eval_nums(args)?;
-                self.print(nums, r)
-            }
-            ExprType::Println(args) => {
-                let nums = self.eval_nums(args)?;
-                self.println(nums, r)
-            }
-            ExprType::Spill => self.spill(r),
+    pub fn eval_to_f64(&mut self, ast: &Ast) -> crate::Result<f64> {
+        match self.eval_ast(ast)? {
+            Return::Val(v, _) => Ok(v.to_f64()),
+            Return::Unit(r) => Err(crate::Error::ExpectedValue(r)),
+        }
+    }
+
+    pub fn eval_ast(&mut self, ast: &Ast) -> crate::Result<Return> {
+        let r = ast.range;
+        match &ast.typ {
+            AstT::Empty => Ok(Return::Unit(r)),
+            AstT::Error => Err(crate::Error::Parsing(r)),
+            AstT::Expr(e) => ok(self.to_val(e)?, r),
+            AstT::Neg(a) => self.neg(a, r),
+            AstT::Add(a, b) => self.add(a, b, r),
+            AstT::Sub(a, b) => self.sub(a, b, r),
+            AstT::Mul(a, b) => self.mul(a, b, r),
+            AstT::Div(a, b) => self.div(a, b, r),
+            AstT::IntDiv(a, b) => self.int_div(a, b, r),
+            AstT::Rem(a, b) => self.rem(a, b, r),
+            AstT::Pow(a, b) => self.pow(a, b, r),
+            AstT::Ln(a) => self.ln(a, r),
+            AstT::Log(a, b) => self.log(a, b, r),
+            AstT::Sqrt(a) => self.sqrt(a, r),
+            AstT::Ncr(a, b) => self.ncr(a, b, r),
+            AstT::Sin(a) => self.sin(a, r),
+            AstT::Cos(a) => self.cos(a, r),
+            AstT::Tan(a) => self.tan(a, r),
+            AstT::Asin(a) => self.asin(a, r),
+            AstT::Acos(a) => self.acos(a, r),
+            AstT::Atan(a) => self.atan(a, r),
+            AstT::Gcd(a, b) => self.gcd(a, b, r),
+            AstT::Min(args) => self.min(args, r),
+            AstT::Max(args) => self.max(args, r),
+            AstT::Clamp(num, min, max) => self.clamp(num, min, max, r),
+            AstT::Degree(a) => self.degree(a, r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            AstT::Factorial(a) => self.factorial(a, r),
+            AstT::Assignment(a, b) => self.assign(*a, b, r),
+            AstT::Print(args) => self.print(args, r),
+            AstT::Println(args) => self.println(args, r),
+            AstT::Spill => self.spill(r),
         }
         .map(|mut r| {
-            if let Return::Data(n) = &mut r {
-                n.typ = n.typ.maybe_int();
+            if let Return::Val(v, _) = &mut r {
+                if let Some(i) = v.to_int() {
+                    *v = Val::Int(i);
+                }
             }
             r
         })
     }
 
-    fn neg(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = match n.typ {
-            ValT::Data(Data::Int(i)) => ValT::int(-i),
-            _ => ValT::float(-self.to_f64(n)?),
+    fn neg(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, _) = self.eval_to_val(n)?;
+        let val = match a {
+            Val::Int(i) => Val::Int(-i),
+            _ => Val::Float(a.to_f64()),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn add(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => match a.checked_add(b) {
-                Some(v) => ValT::int(v),
-                None => return Err(crate::Error::AddOverflow(n1, n2)),
+    fn add(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => match a.checked_add(b) {
+                Some(v) => Val::Int(v),
+                None => return Err(crate::Error::AddOverflow(a_r, b_r)),
             },
-            _ => ValT::float(self.to_f64(n1)? + self.to_f64(n2)?),
+            _ => Val::Float(a.to_f64() + b.to_f64()),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn sub(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => match a.checked_sub(b) {
-                Some(v) => ValT::int(v),
-                None => return Err(crate::Error::SubOverflow(n1, n2)),
+    fn sub(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => match a.checked_sub(b) {
+                Some(v) => Val::Int(v),
+                None => return Err(crate::Error::SubOverflow(a_r, b_r)),
             },
-            _ => ValT::float(self.to_f64(n1)? - self.to_f64(n2)?),
+            _ => Val::Float(a.to_f64() - b.to_f64()),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn mul(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => match a.checked_mul(b) {
-                Some(v) => ValT::int(v),
-                None => return Err(crate::Error::MulOverflow(n1, n2)),
+    fn mul(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => match a.checked_mul(b) {
+                Some(v) => Val::Int(v),
+                None => return Err(crate::Error::MulOverflow(a_r, b_r)),
             },
-            _ => ValT::float(self.to_f64(n1)? * self.to_f64(n2)?),
+            _ => Val::Float(a.to_f64() * b.to_f64()),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn div(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => {
+    fn div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::DivideByZero(n1, n2));
+                    return Err(crate::Error::DivideByZero(a_r, b_r));
                 } else if a % b == 0 {
-                    ValT::int(a / b)
+                    Val::Int(a / b)
                 } else {
-                    ValT::float(a as f64 / b as f64)
+                    Val::Float(a as f64 / b as f64)
                 }
             }
             _ => {
-                let divisor = self.to_f64(n2)?;
+                let divisor = b.to_f64();
                 if divisor == 0.0 {
-                    return Err(crate::Error::DivideByZero(n1, n2));
+                    return Err(crate::Error::DivideByZero(a_r, b_r));
                 } else {
-                    ValT::float(self.to_f64(n1)? / divisor)
+                    Val::Float(a.to_f64() / divisor)
                 }
             }
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn int_div(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => {
+    fn int_div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::DivideByZero(n1, n2));
+                    return Err(crate::Error::DivideByZero(a_r, b_r));
                 } else {
-                    ValT::int(a / b)
+                    Val::Int(a / b)
                 }
             }
-            _ => return Err(crate::Error::FractionEuclidDiv(n1, n2)),
+            _ => return Err(crate::Error::FractionEuclidDiv(a_r, b_r)),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn rem(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => {
+    fn rem(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(a), Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::RemainderByZero(n1, n2));
+                    return Err(crate::Error::RemainderByZero(a_r, b_r));
                 } else {
                     let r = a % b;
                     if (r > 0 && b < 0) || (r < 0 && b > 0) {
-                        ValT::int(r + b)
+                        Val::Int(r + b)
                     } else {
-                        ValT::int(r)
+                        Val::Int(r)
                     }
                 }
             }
-            _ => return Err(crate::Error::FractionRemainder(n1, n2)),
+            _ => return Err(crate::Error::FractionRemainder(a_r, b_r)),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn pow(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(a), Some(b)) => {
-                if let Ok(exp) = u32::try_from(b) {
-                    ValT::int(a.pow(exp))
-                } else if let Ok(exp) = i32::try_from(b) {
-                    ValT::float((a as f64).powi(exp))
+    fn pow(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+
+        let val = match (a, b) {
+            (Val::Int(base), Val::Int(exp)) => {
+                if let Ok(e) = u32::try_from(exp) {
+                    Val::Int(base.pow(e))
+                } else if let Ok(e) = i32::try_from(exp) {
+                    Val::Float((e as f64).powi(e))
                 } else {
-                    ValT::float((a as f64).powf(b as f64))
+                    return Err(crate::Error::PowOverflow(a_r, b_r));
                 }
             }
-            (None, Some(b)) => {
-                if let Ok(exp) = i32::try_from(b) {
-                    ValT::float((self.to_f64(n1)?).powi(exp))
-                } else {
-                    ValT::float((self.to_f64(n1)?).powf(b as f64))
-                }
-            }
-            _ => ValT::float(self.to_f64(n1)?.powf(self.to_f64(n2)?)),
+            _ => Val::Float(a.to_f64().powf(b.to_f64())),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn ln(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.ln());
-        ok(Val { typ: val, range })
+    fn ln(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let val = self.eval_to_f64(n)?.ln();
+        ok(Val::Float(val), range)
     }
 
-    fn log(&self, base: Val, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.log(self.to_f64(base)?));
-        ok(Val { typ: val, range })
+    fn log(&mut self, base: &Ast, num: &Ast, range: Range) -> crate::Result<Return> {
+        let b = self.eval_to_f64(base)?;
+        let n = self.eval_to_f64(num)?;
+        let val = Val::Float(n.log(b));
+        ok(val, range)
     }
 
-    fn sqrt(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.sqrt());
-        ok(Val { typ: val, range })
+    fn sqrt(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let val = self.eval_to_f64(n)?.sqrt();
+        ok(Val::Float(val), range)
     }
 
-    fn ncr(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(n), Some(mut r)) => {
+    fn ncr(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+        let val = match (a, b) {
+            (Val::Int(n), Val::Int(mut r)) => {
                 if r < 0 {
-                    return Err(crate::Error::NegativeNcr(n1, n2));
+                    return Err(crate::Error::NegativeNcr(a_r, b_r));
                 }
                 if n < r {
-                    return Err(crate::Error::InvalidNcr(n1, n2));
+                    return Err(crate::Error::InvalidNcr(a_r, b_r));
                 }
 
                 // symmetrical: nCr(9, 2) == nCr(9, 7)
@@ -390,162 +325,170 @@ impl Context {
                     val /= i;
                 }
 
-                ValT::int(val)
+                Val::Int(val)
             }
-            _ => return Err(crate::Error::FractionNcr(n1, n2)),
+            _ => return Err(crate::Error::FractionNcr(a_r, b_r)),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn sin(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.sin());
-        ok(Val { typ: val, range })
+    fn sin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.sin();
+        ok(Val::Float(a), range)
     }
 
-    fn cos(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.cos());
-        ok(Val { typ: val, range })
+    fn cos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.cos();
+        ok(Val::Float(a), range)
     }
 
-    fn tan(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.tan());
-        ok(Val { typ: val, range })
+    fn tan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.tan();
+        ok(Val::Float(a), range)
     }
 
-    fn asin(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.asin());
-        ok(Val { typ: val, range })
+    fn asin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.asin();
+        ok(Val::Float(a), range)
     }
 
-    fn acos(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.acos());
-        ok(Val { typ: val, range })
+    fn acos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.acos();
+        ok(Val::Float(a), range)
     }
 
-    fn atan(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.atan());
-        ok(Val { typ: val, range })
+    fn atan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_f64(n)?.atan();
+        ok(Val::Float(a), range)
     }
 
-    fn gcd(&self, n1: Val, n2: Val, range: Range) -> crate::Result<Return> {
-        match (self.to_int(n1)?, self.to_int(n2)?) {
-            (Some(mut a), Some(mut b)) => {
+    fn gcd(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+        let (a, a_r) = self.eval_to_val(n1)?;
+        let (b, b_r) = self.eval_to_val(n2)?;
+        match (a, b) {
+            (Val::Int(mut a), Val::Int(mut b)) => {
                 let mut _t = 0;
                 while b != 0 {
                     _t = b;
                     b = a % b;
                     a = _t;
                 }
-                let val = ValT::int(a);
-                ok(Val::new(val, range))
+                ok(Val::Int(a), range)
             }
-            _ => Err(crate::Error::FractionGcd(n1, n2)),
+            _ => Err(crate::Error::FractionGcd(a_r, b_r)),
         }
     }
 
-    fn min(&self, nums: Vec<Val>, range: Range) -> crate::Result<Return> {
+    fn min(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
         let mut min = None;
-        for n in nums {
-            let val = self.to_f64(n)?;
+        for a in args {
+            let val = self.eval_to_val(a)?.0.to_f64();
             match min {
-                None => min = Some((n, val)),
-                Some((_, m_val)) => {
-                    if val < m_val {
-                        min = Some((n, val));
+                None => min = Some(val),
+                Some(m) => {
+                    if val < m {
+                        min = Some(val);
                     }
                 }
             }
         }
 
-        let (min, _) = min.expect("Iterator should at least contain 1 element");
-        ok(Val::new(min.typ, range))
+        let max = min.expect("Iterator should at least contain 1 element");
+        ok(Val::Float(max), range)
     }
 
-    fn max(&self, nums: Vec<Val>, range: Range) -> crate::Result<Return> {
+    fn max(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
         let mut max = None;
-        for n in nums {
-            let val = self.to_f64(n)?;
+        for a in args {
+            let val = self.eval_to_val(a)?.0.to_f64();
             match max {
-                None => max = Some((n, val)),
-                Some((_, m_val)) => {
-                    if val > m_val {
-                        max = Some((n, val));
+                None => max = Some(val),
+                Some(m) => {
+                    if val > m {
+                        max = Some(val);
                     }
                 }
             }
         }
 
-        let (max, _) = max.expect("Iterator should at least contain 1 element");
-        ok(Val::new(max.typ, range))
+        let max = max.expect("Iterator should at least contain 1 element");
+        ok(Val::Float(max), range)
     }
 
-    fn clamp(&self, num: Val, min: Val, max: Val, range: Range) -> crate::Result<Return> {
-        let val = match (self.to_int(num)?, self.to_int(min)?, self.to_int(max)?) {
-            (Some(v), Some(lo), Some(hi)) => {
+    fn clamp(&mut self, num: &Ast, min: &Ast, max: &Ast, range: Range) -> crate::Result<Return> {
+        let (num, _) = self.eval_to_val(num)?;
+        let (min, min_r) = self.eval_to_val(min)?;
+        let (max, max_r) = self.eval_to_val(max)?;
+
+        let val = match (num, min, max) {
+            (Val::Int(v), Val::Int(lo), Val::Int(hi)) => {
                 if lo > hi {
-                    return Err(crate::Error::InvalidClampBounds(min, max));
+                    return Err(crate::Error::InvalidClampBounds(min_r, max_r));
                 }
-                ValT::int(v.clamp(lo, hi))
+                Val::Int(v.clamp(lo, hi))
             }
             _ => {
-                let v = self.to_f64(num)?;
-                let lo = self.to_f64(min)?;
-                let hi = self.to_f64(max)?;
+                let v = num.to_f64();
+                let lo = min.to_f64();
+                let hi = max.to_f64();
                 // floating point weirdness, negated assertion of stdlib
                 #[allow(clippy::neg_cmp_op_on_partial_ord)]
                 if !(lo <= hi) {
-                    return Err(crate::Error::InvalidClampBounds(min, max));
+                    return Err(crate::Error::InvalidClampBounds(min_r, max_r));
                 }
-                ValT::float(v.clamp(lo, hi))
+                Val::Float(v.clamp(lo, hi))
             }
         };
-        ok(Val::new(val, range))
+        ok(val, range)
     }
 
-    fn degree(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = ValT::float(self.to_f64(n)?.to_radians());
-        ok(Val { typ: val, range })
+    fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let (val, _) = self.eval_to_val(n)?;
+        let rad = val.to_f64().to_radians();
+        ok(Val::Float(rad), range)
     }
 
-    fn factorial(&self, n: Val, range: Range) -> crate::Result<Return> {
-        let val = match self.to_int(n)? {
-            Some(a) => {
-                if a < 0 {
-                    return Err(crate::Error::NegativeFactorial(n));
+    fn factorial(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let (val, r) = self.eval_to_val(n)?;
+        let val = match val {
+            Val::Int(i) => {
+                if i < 0 {
+                    return Err(crate::Error::NegativeFactorial(r));
                 } else {
-                    let mut val: i128 = 1;
-                    for i in 1..=a {
-                        match val.checked_mul(i) {
-                            Some(v) => val = v,
-                            None => return Err(crate::Error::FactorialOverflow(n)),
+                    let mut f: i128 = 1;
+                    for i in 1..=i {
+                        match f.checked_mul(i) {
+                            Some(v) => f = v,
+                            None => return Err(crate::Error::FactorialOverflow(r)),
                         }
                     }
-                    ValT::int(val)
+                    Val::Int(f)
                 }
             }
-            _ => return Err(crate::Error::FractionFactorial(n)),
+            _ => return Err(crate::Error::FractionFactorial(r)),
         };
-        ok(Val { typ: val, range })
+        ok(val, range)
     }
 
-    fn assign(&mut self, id: VarId, b: Val, range: Range) -> crate::Result<Return> {
-        let val = self.to_data(b)?;
-        self.var_mut(id).value = Some(val);
+    fn assign(&mut self, id: VarId, n: &Ast, range: Range) -> crate::Result<Return> {
+        let (val, _) = self.eval_to_val(n)?;
+        self.set_var(id, Some(val));
         Ok(Return::Unit(range))
     }
 
-    fn print(&mut self, nums: Vec<Val>, range: Range) -> crate::Result<Return> {
-        if let Some((first, others)) = nums.split_first() {
-            print!("{}", self.to_data(*first)?);
-            for n in others {
-                print!(" {}", self.to_data(*n)?);
+    fn print(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+        let vals = self.eval_to_vals(&args)?;
+        if let Some(((first, _), others)) = vals.split_first() {
+            print!("{}", first);
+            for (v, _) in others {
+                print!(" {}", v);
             }
         }
         Ok(Return::Unit(range))
     }
 
-    fn println(&mut self, nums: Vec<Val>, range: Range) -> crate::Result<Return> {
-        self.print(nums, range)?;
+    fn println(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+        self.print(args, range)?;
         println!();
         Ok(Return::Unit(range))
     }
@@ -560,6 +503,6 @@ impl Context {
     }
 }
 
-fn ok(num: Val) -> crate::Result<Return> {
-    Ok(Return::Data(num))
+fn ok(val: Val, range: Range) -> crate::Result<Return> {
+    Ok(Return::Val(val, range))
 }

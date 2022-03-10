@@ -2,7 +2,7 @@ use std::f64::consts;
 use std::fmt::{self, Display, Write};
 use std::ops::{self, Deref, DerefMut};
 
-use crate::{Context, Ext};
+use crate::Context;
 
 #[cfg(test)]
 mod test;
@@ -95,41 +95,39 @@ impl Context {
                 self,
                 range,
                 match literal {
-                    "pow" => Token::cmd(CmdT::Pow, range),
-                    "ln" => Token::cmd(CmdT::Ln, range),
-                    "log" => Token::cmd(CmdT::Log, range),
-                    "sqrt" => Token::cmd(CmdT::Sqrt, range),
-                    "nCr" => Token::cmd(CmdT::Ncr, range),
-                    "sin" => Token::cmd(CmdT::Sin, range),
-                    "cos" => Token::cmd(CmdT::Cos, range),
-                    "tan" => Token::cmd(CmdT::Tan, range),
-                    "asin" => Token::cmd(CmdT::Asin, range),
-                    "acos" => Token::cmd(CmdT::Acos, range),
-                    "atan" => Token::cmd(CmdT::Atan, range),
-                    "gcd" => Token::cmd(CmdT::Gcd, range),
-                    "min" => Token::cmd(CmdT::Min, range),
-                    "max" => Token::cmd(CmdT::Max, range),
-                    "clamp" => Token::cmd(CmdT::Clamp, range),
-                    "print" => Token::cmd(CmdT::Print, range),
-                    "println" => Token::cmd(CmdT::Println, range),
-                    "spill" => Token::cmd(CmdT::Spill, range),
+                    "pow" => Token::fun(FunT::Pow, range),
+                    "ln" => Token::fun(FunT::Ln, range),
+                    "log" => Token::fun(FunT::Log, range),
+                    "sqrt" => Token::fun(FunT::Sqrt, range),
+                    "nCr" => Token::fun(FunT::Ncr, range),
+                    "sin" => Token::fun(FunT::Sin, range),
+                    "cos" => Token::fun(FunT::Cos, range),
+                    "tan" => Token::fun(FunT::Tan, range),
+                    "asin" => Token::fun(FunT::Asin, range),
+                    "acos" => Token::fun(FunT::Acos, range),
+                    "atan" => Token::fun(FunT::Atan, range),
+                    "gcd" => Token::fun(FunT::Gcd, range),
+                    "min" => Token::fun(FunT::Min, range),
+                    "max" => Token::fun(FunT::Max, range),
+                    "clamp" => Token::fun(FunT::Clamp, range),
+                    "print" => Token::fun(FunT::Print, range),
+                    "println" => Token::fun(FunT::Println, range),
+                    "spill" => Token::fun(FunT::Spill, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
-                    "π" | "pi" => Token::val(ValT::PI, range),
-                    "τ" | "tau" => Token::val(ValT::TAU, range),
-                    "e" => Token::val(ValT::E, range ),
+                    "π" | "pi" => Token::val(ExprT::PI, range),
+                    "τ" | "tau" => Token::val(ExprT::TAU, range),
+                    "e" => Token::val(ExprT::E, range ),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let val = if let Ok(i) = literal.parse::<i128>() {
-                                ValT::int(i)
+                                ExprT::int(i)
                             } else if let Ok(f) = literal.parse::<f64>() {
-                                 ValT::float(f)
+                                 ExprT::float(f)
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(range));
                             };
                             Token::val(val, range)
-                        } else if let Some(v) = self.parse_ext(literal) {
-                            Token::val(ValT::Ext(v), range)
                         } else {
                             for (i, c) in literal.char_indices() {
                                 match c {
@@ -142,7 +140,7 @@ impl Context {
                             }
 
                             let id = self.push_var(literal);
-                            Token::val(ValT::Var(id), range)
+                            Token::val(ExprT::Var(id), range)
                         }
                     }
                 }
@@ -153,15 +151,6 @@ impl Context {
         }
 
         Ok(())
-    }
-
-    fn parse_ext(&self, literal: &str) -> Option<Ext> {
-        for (p_id, p) in self.providers.iter().enumerate() {
-            if let Some(e) = p.parse(literal) {
-                return Some(Ext::new(p_id, e));
-            }
-        }
-        None
     }
 
     fn push_var(&mut self, name: &str) -> VarId {
@@ -179,25 +168,25 @@ impl Context {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Token {
-    Val(Val),
+    Expr(Expr),
     Op(Op),
-    Cmd(Cmd),
+    Fun(Fun),
     Mod(Mod),
     Par(Par),
     Sep(Sep),
 }
 
 impl Token {
-    pub fn val(val: ValT, range: Range) -> Self {
-        Self::Val(Val::new(val, range))
+    pub fn val(val: ExprT, range: Range) -> Self {
+        Self::Expr(Expr::new(val, range))
     }
 
     pub fn op(typ: OpT, range: Range) -> Self {
         Self::Op(Op::new(typ, range))
     }
 
-    pub fn cmd(typ: CmdT, range: Range) -> Self {
-        Self::Cmd(Cmd::new(typ, range))
+    pub fn fun(typ: FunT, range: Range) -> Self {
+        Self::Fun(Fun::new(typ, range))
     }
 
     pub fn mood(typ: ModT, range: Range) -> Self {
@@ -213,15 +202,15 @@ impl Token {
     }
 
     pub fn is_val(&self) -> bool {
-        matches!(self, Self::Val(_))
+        matches!(self, Self::Expr(_))
     }
 
     pub fn is_op(&self) -> bool {
         matches!(self, Self::Op(_))
     }
 
-    pub fn is_cmd(&self) -> bool {
-        matches!(self, Self::Cmd(_))
+    pub fn is_fun(&self) -> bool {
+        matches!(self, Self::Fun(_))
     }
 
     pub fn is_par(&self) -> bool {
@@ -232,9 +221,9 @@ impl Token {
         matches!(self, Self::Sep(_))
     }
 
-    pub fn as_val(&self) -> Option<Val> {
+    pub fn as_val(&self) -> Option<Expr> {
         match self {
-            Self::Val(n) => Some(*n),
+            Self::Expr(n) => Some(*n),
             _ => None,
         }
     }
@@ -255,9 +244,9 @@ impl Token {
 
     pub fn range(&self) -> Range {
         match self {
-            Self::Val(n) => n.range,
+            Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Cmd(c) => c.range,
+            Self::Fun(c) => c.range,
             Self::Mod(m) => m.range,
             Self::Par(p) => p.range,
             Self::Sep(s) => s.range,
@@ -266,45 +255,44 @@ impl Token {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Val {
-    pub typ: ValT,
+pub struct Expr {
+    pub typ: ExprT,
     pub range: Range,
 }
 
-impl Val {
-    pub fn new(num: ValT, range: Range) -> Self {
+impl Expr {
+    pub fn new(num: ExprT, range: Range) -> Self {
         Self { typ: num, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ValT {
-    Data(Data),
-    Ext(Ext),
+pub enum ExprT {
+    Val(Val),
     Var(VarId),
 }
 
-impl ValT {
-    pub const TAU: Self = Self::Data(Data::Float(consts::TAU));
-    pub const PI: Self = Self::Data(Data::Float(consts::PI));
-    pub const E: Self = Self::Data(Data::Float(consts::E));
+impl ExprT {
+    pub const TAU: Self = Self::Val(Val::Float(consts::TAU));
+    pub const PI: Self = Self::Val(Val::Float(consts::PI));
+    pub const E: Self = Self::Val(Val::Float(consts::E));
 
     pub fn int(i: i128) -> Self {
-        Self::Data(Data::Int(i))
+        Self::Val(Val::Int(i))
     }
 
     pub fn float(f: f64) -> Self {
-        Self::Data(Data::Float(f))
+        Self::Val(Val::Float(f))
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Data {
+pub enum Val {
     Int(i128),
     Float(f64),
 }
 
-impl fmt::Display for Data {
+impl fmt::Display for Val {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int(v) => write!(f, "{v}"),
@@ -319,11 +307,11 @@ pub struct VarId(pub usize);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Var {
     pub name: String,
-    pub value: Option<Data>,
+    pub value: Option<Val>,
 }
 
 impl Var {
-    pub fn new(name: String, value: Option<Data>) -> Self {
+    pub fn new(name: String, value: Option<Val>) -> Self {
         Self { name, value }
     }
 }
@@ -417,19 +405,19 @@ impl Sign {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Cmd {
-    pub typ: CmdT,
+pub struct Fun {
+    pub typ: FunT,
     pub range: Range,
 }
 
-impl Cmd {
-    pub const fn new(typ: CmdT, range: Range) -> Self {
+impl Fun {
+    pub const fn new(typ: FunT, range: Range) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CmdT {
+pub enum FunT {
     Pow,
     Ln,
     Log,

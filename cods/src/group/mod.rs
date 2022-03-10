@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{Cmd, Context, Mod, Op, Par, ParKind, Range, Sep, Token, Val};
+use crate::{Context, Expr, Fun, Mod, Op, Par, ParKind, Range, Sep, Token};
 
 #[cfg(test)]
 mod test;
@@ -150,9 +150,9 @@ impl GroupRange {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
-    Val(Val),
+    Val(Expr),
     Op(Op),
-    Cmd(Cmd),
+    Fun(Fun),
     Mod(Mod),
     Sep(Sep),
 }
@@ -160,9 +160,9 @@ pub enum Item {
 impl Item {
     pub fn try_from(token: &Token) -> Option<Self> {
         match *token {
-            Token::Val(n) => Some(Self::Val(n)),
+            Token::Expr(n) => Some(Self::Val(n)),
             Token::Op(o) => Some(Self::Op(o)),
-            Token::Cmd(c) => Some(Self::Cmd(c)),
+            Token::Fun(c) => Some(Self::Fun(c)),
             Token::Mod(m) => Some(Self::Mod(m)),
             Token::Par(_) => None,
             Token::Sep(s) => Some(Self::Sep(s)),
@@ -183,9 +183,9 @@ impl Item {
         }
     }
 
-    pub fn as_cmd(&self) -> Option<Cmd> {
+    pub fn as_fun(&self) -> Option<Fun> {
         match self {
-            Self::Cmd(c) => Some(*c),
+            Self::Fun(c) => Some(*c),
             _ => None,
         }
     }
@@ -210,7 +210,7 @@ impl Item {
             Self::Group(g) => g.range,
             Self::Val(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Cmd(c) => c.range,
+            Self::Fun(c) => c.range,
             Self::Mod(m) => m.range,
             Self::Sep(s) => s.range,
         }
