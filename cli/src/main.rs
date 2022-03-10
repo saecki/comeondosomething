@@ -47,7 +47,10 @@ fn repl() {
 
         match buf.lines().next().map(|s| s.trim()) {
             Some("exit") => break,
-            Some("clear") => println!("\x1b[1;1\x1B[2J"),
+            Some("clear") => {
+                print!("\x1b[1;1H\x1B[2J");
+                let _ = output.flush();
+            }
             _ => print_calc(&mut ctx, &buf),
         }
     }
