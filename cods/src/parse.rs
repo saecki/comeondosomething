@@ -29,9 +29,9 @@ impl Context {
                 Item::Group(g) => return self.parse_items(g.range, &g.items),
                 Item::Val(n) => return Ok(Ast::val(*n)),
                 Item::Op(o) => crate::Error::UnexpectedOperator(*o),
-                Item::Fun(f) => crate::Error::MissingOperand(Range::pos(f.range.end)),
+                Item::Fun(f) => crate::Error::MissingFunctionParenthesis(Range::pos(f.range.end)),
                 Item::Mod(m) => crate::Error::MissingOperand(Range::pos(m.range.start)),
-                Item::Sep(s) => crate::Error::MissingOperand(Range::pos(s.range.start)),
+                Item::Sep(s) => crate::Error::UnexpectedSeparator(*s),
             };
             self.errors.push(err);
             return Ok(Ast::new(AstT::Error, range));

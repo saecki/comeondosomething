@@ -28,6 +28,7 @@ pub enum Error {
         found: usize,
     },
     UnexpectedOperator(Op),
+    UnexpectedSeparator(Sep),
     UnexpectedParenthesis(Par),
     InvalidChar(Range),
     UndefinedVar(String, Range),
@@ -81,6 +82,7 @@ impl UserFacing for Error {
                 format!("Found {over} unexpected command argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
             Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
+            Self::UnexpectedSeparator(_) => "Found an unexpected separator".into(),
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
             Self::InvalidChar(_) => "Unknown value".into(),
             Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
@@ -139,6 +141,7 @@ impl UserFacing for Error {
             Self::MissingCommandArguments { range: pos, .. } => vec![*pos],
             Self::UnexpectedCommandArguments { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
+            Self::UnexpectedSeparator(s) => vec![s.range],
             Self::UnexpectedParenthesis(p) => vec![p.range],
             Self::InvalidChar(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
