@@ -1,4 +1,4 @@
-use cods::{Error, Par, ParT, Range, Val};
+use cods::{Error, Par, ParT, Range, Val, ValRange};
 
 fn assert(expected: Val, input: &str) {
     match cods::eval(input) {
@@ -84,17 +84,26 @@ fn factorial() {
 
 #[test]
 fn factorial_overflow() {
-    assert_err(Error::FactorialOverflow(Range::of(0, 2)), "34!");
+    assert_err(
+        Error::FactorialOverflow(ValRange::new(Val::Int(34), Range::of(0, 2))),
+        "34!",
+    );
 }
 
 #[test]
 fn factorial_fraction() {
-    assert_err(Error::FractionFactorial(Range::of(0, 3)), "4.1!");
+    assert_err(
+        Error::FractionFactorial(ValRange::new(Val::Float(4.1), Range::of(0, 3))),
+        "4.1!",
+    );
 }
 
 #[test]
 fn factorial_negative() {
-    assert_err(Error::NegativeFactorial(Range::of(1, 3)), "(-3)!");
+    assert_err(
+        Error::NegativeFactorial(ValRange::new(Val::Int(-3), Range::of(1, 3))),
+        "(-3)!",
+    );
 }
 
 #[test]
@@ -114,13 +123,22 @@ fn binomial_coefficient_zero() {
 
 #[test]
 fn binomial_coefficient_invalid() {
-    assert_err(Error::InvalidNcr(Range::pos(4), Range::pos(7)), "nCr(3, 4)");
+    assert_err(
+        Error::InvalidNcr(
+            ValRange::new(Val::Int(3), Range::pos(4)),
+            ValRange::new(Val::Int(4), Range::pos(7)),
+        ),
+        "nCr(3, 4)",
+    );
 }
 
 #[test]
 fn binomial_coefficient_negative() {
     assert_err(
-        Error::NegativeNcr(Range::pos(4), Range::of(7, 9)),
+        Error::NegativeNcr(
+            ValRange::new(Val::Int(5), Range::pos(4)),
+            ValRange::new(Val::Int(-3), Range::of(7, 9)),
+        ),
         "nCr(5, -3)",
     );
 }
@@ -168,7 +186,10 @@ fn clamp_high() {
 #[test]
 fn clamp_bounds() {
     assert_err(
-        Error::InvalidClampBounds(Range::pos(9), Range::pos(12)),
+        Error::InvalidClampBounds(
+            ValRange::new(Val::Int(5), Range::pos(9)),
+            ValRange::new(Val::Int(4), Range::pos(12)),
+        ),
         "clamp(0, 5, 4)",
     );
 }
@@ -176,7 +197,10 @@ fn clamp_bounds() {
 #[test]
 fn clamp_bounds_float() {
     assert_err(
-        Error::InvalidClampBounds(Range::of(9, 12), Range::of(14, 17)),
+        Error::InvalidClampBounds(
+            ValRange::new(Val::Float(5.3), Range::of(9, 12)),
+            ValRange::new(Val::Float(4.5), Range::of(14, 17)),
+        ),
         "clamp(0, 5.3, 4.5)",
     );
 }

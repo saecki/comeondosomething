@@ -95,6 +95,11 @@ impl Context {
                 self,
                 range,
                 match literal {
+                    "π" | "pi" => Token::val(ExprT::PI, range),
+                    "τ" | "tau" => Token::val(ExprT::TAU, range),
+                    "e" => Token::val(ExprT::E, range ),
+                    "true" => Token::val(ExprT::bool(true), range),
+                    "false" => Token::val(ExprT::bool(false), range),
                     "pow" => Token::fun(FunT::Pow, range),
                     "ln" => Token::fun(FunT::Ln, range),
                     "log" => Token::fun(FunT::Log, range),
@@ -115,9 +120,6 @@ impl Context {
                     "spill" => Token::fun(FunT::Spill, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
-                    "π" | "pi" => Token::val(ExprT::PI, range),
-                    "τ" | "tau" => Token::val(ExprT::TAU, range),
-                    "e" => Token::val(ExprT::E, range ),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let val = if let Ok(i) = literal.parse::<i128>() {
@@ -261,8 +263,8 @@ pub struct Expr {
 }
 
 impl Expr {
-    pub fn new(num: ExprT, range: Range) -> Self {
-        Self { typ: num, range }
+    pub fn new(expr: ExprT, range: Range) -> Self {
+        Self { typ: expr, range }
     }
 }
 
@@ -284,12 +286,17 @@ impl ExprT {
     pub fn float(f: f64) -> Self {
         Self::Val(Val::Float(f))
     }
+
+    pub fn bool(b: bool) -> Self {
+        Self::Val(Val::Bool(b))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Val {
     Int(i128),
     Float(f64),
+    Bool(bool),
 }
 
 impl fmt::Display for Val {
@@ -297,6 +304,17 @@ impl fmt::Display for Val {
         match self {
             Self::Int(v) => write!(f, "{v}"),
             Self::Float(v) => write!(f, "{v}"),
+            Self::Bool(v) => write!(f, "{v}"),
+        }
+    }
+}
+
+impl Val {
+    pub const fn type_name(&self) -> &'static str {
+        match self {
+            Self::Int(_) => "int",
+            Self::Float(_) => "float",
+            Self::Bool(_) => "bool",
         }
     }
 }

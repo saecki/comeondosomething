@@ -13,26 +13,20 @@ impl Val {
                     None
                 }
             }
+            Self::Bool(_) => None,
         }
     }
 
-    pub fn to_f64(&self) -> f64 {
+    pub fn to_f64(&self) -> Option<f64> {
         match self {
-            Self::Int(i) => *i as f64,
-            Self::Float(f) => *f,
+            Self::Int(i) => Some(*i as f64),
+            Self::Float(f) => Some(*f),
+            Self::Bool(_) => None,
         }
     }
 }
 
 impl Context {
-    pub fn to_f64(&self, expr: &Expr) -> crate::Result<f64> {
-        Ok(self.to_val(expr)?.to_f64())
-    }
-
-    pub fn to_int(&self, expr: &Expr) -> crate::Result<Option<i128>> {
-        Ok(self.to_val(expr)?.to_int())
-    }
-
     pub fn to_val(&self, expr: &Expr) -> crate::Result<Val> {
         match self.resolve_val(expr.typ) {
             Ok(d) => Ok(d),

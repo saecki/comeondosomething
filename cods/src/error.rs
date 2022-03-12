@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Fun, Sep, SepT, Sign};
+use crate::{Fun, Sep, SepT, Sign, ValRange};
 use crate::{Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -32,27 +32,27 @@ pub enum Error {
     UnexpectedParenthesis(Par),
     InvalidChar(Range),
     UndefinedVar(String, Range),
-    CircularRef(Vec<String>, Range),
     InvalidNumberFormat(Range),
-    AddOverflow(Range, Range),
-    SubOverflow(Range, Range),
-    MulOverflow(Range, Range),
-    PowOverflow(Range, Range),
-    DivideByZero(Range, Range),
-    FractionEuclidDiv(Range, Range),
-    RemainderByZero(Range, Range),
-    FractionRemainder(Range, Range),
-    FractionGcd(Range, Range),
-    NegativeNcr(Range, Range),
-    InvalidNcr(Range, Range),
-    FractionNcr(Range, Range),
-    FactorialOverflow(Range),
-    NegativeFactorial(Range),
-    FractionFactorial(Range),
-    InvalidClampBounds(Range, Range),
+    AddOverflow(ValRange, ValRange),
+    SubOverflow(ValRange, ValRange),
+    MulOverflow(ValRange, ValRange),
+    PowOverflow(ValRange, ValRange),
+    DivideByZero(ValRange, ValRange),
+    FractionEuclidDiv(ValRange, ValRange),
+    RemainderByZero(ValRange, ValRange),
+    FractionRemainder(ValRange, ValRange),
+    FractionGcd(ValRange, ValRange),
+    NegativeNcr(ValRange, ValRange),
+    InvalidNcr(ValRange, ValRange),
+    FractionNcr(ValRange, ValRange),
+    FactorialOverflow(ValRange),
+    NegativeFactorial(ValRange),
+    FractionFactorial(ValRange),
+    InvalidClampBounds(ValRange, ValRange),
     MissingExpr,
     InvalidAssignment(Range, Range),
     ExpectedValue(Range),
+    ExpectedNumber(ValRange),
 }
 
 impl UserFacing for Error {
@@ -86,10 +86,6 @@ impl UserFacing for Error {
             Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
             Self::InvalidChar(_) => "Unknown value".into(),
             Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
-            Self::CircularRef(names, _) => format!(
-                "Circular reference in variable declaration: {}",
-                names.join(" -> ")
-            ),
             Self::InvalidNumberFormat(_) => "Invalid number format".into(),
             Self::AddOverflow(_, _) => "Addition would overflow".into(),
             Self::SubOverflow(_, _) => "Subtraction would overflow".into(),
@@ -118,16 +114,21 @@ impl UserFacing for Error {
             Self::NegativeFactorial(_) => {
                 "Attempted to calculate the factorial of a negative number".into()
             }
-            Self::FactorialOverflow(_) => "Factorial would overflow".into(),
+            Self::FactorialOverflow(v) => format!("Factorial of '{v}' would overflow"),
             Self::FractionFactorial(_) => {
                 "Attempted to calculate the factorial of a fraction".into()
             }
-            Self::InvalidClampBounds(_, _) => "Invalid clamp bounds min is greater than max".into(),
+            Self::InvalidClampBounds(min, max) => {
+                format!("Invalid clamp bounds '{min}' is greater than '{max}'")
+            }
             Self::MissingExpr => "Missing expression".into(),
             Self::InvalidAssignment(_, _) => {
                 "Cannot assign to something that is not a variable".into()
             }
-            Self::ExpectedValue(_) => "Expected a value".into(),
+            Self::ExpectedValue(_) => "Expected a value found unit".into(),
+            Self::ExpectedNumber(v) => {
+                format!("Expected a number found '{v}' of type {}", v.type_name())
+            }
         }
     }
 
@@ -145,27 +146,27 @@ impl UserFacing for Error {
             Self::UnexpectedParenthesis(p) => vec![p.range],
             Self::InvalidChar(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
-            Self::CircularRef(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
-            Self::AddOverflow(a, b) => vec![*a, *b],
-            Self::SubOverflow(a, b) => vec![*a, *b],
-            Self::MulOverflow(a, b) => vec![*a, *b],
-            Self::PowOverflow(a, b) => vec![*a, *b],
-            Self::DivideByZero(a, b) => vec![*a, *b],
-            Self::FractionEuclidDiv(a, b) => vec![*a, *b],
-            Self::RemainderByZero(a, b) => vec![*a, *b],
-            Self::FractionRemainder(a, b) => vec![*a, *b],
-            Self::FractionGcd(a, b) => vec![*a, *b],
-            Self::FractionNcr(a, b) => vec![*a, *b],
-            Self::NegativeNcr(a, b) => vec![*a, *b],
-            Self::InvalidNcr(a, b) => vec![*a, *b],
-            Self::FactorialOverflow(r) => vec![*r],
-            Self::NegativeFactorial(r) => vec![*r],
-            Self::FractionFactorial(r) => vec![*r],
-            Self::InvalidClampBounds(min, max) => vec![*min, *max],
+            Self::AddOverflow(a, b) => vec![a.range, b.range],
+            Self::SubOverflow(a, b) => vec![a.range, b.range],
+            Self::MulOverflow(a, b) => vec![a.range, b.range],
+            Self::PowOverflow(a, b) => vec![a.range, b.range],
+            Self::DivideByZero(a, b) => vec![a.range, b.range],
+            Self::FractionEuclidDiv(a, b) => vec![a.range, b.range],
+            Self::RemainderByZero(a, b) => vec![a.range, b.range],
+            Self::FractionRemainder(a, b) => vec![a.range, b.range],
+            Self::FractionGcd(a, b) => vec![a.range, b.range],
+            Self::FractionNcr(a, b) => vec![a.range, b.range],
+            Self::NegativeNcr(a, b) => vec![a.range, b.range],
+            Self::InvalidNcr(a, b) => vec![a.range, b.range],
+            Self::FactorialOverflow(v) => vec![v.range],
+            Self::NegativeFactorial(v) => vec![v.range],
+            Self::FractionFactorial(v) => vec![v.range],
+            Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
             Self::MissingExpr => vec![],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ExpectedValue(r) => vec![*r],
+            Self::ExpectedNumber(v) => vec![v.range],
         }
     }
 }

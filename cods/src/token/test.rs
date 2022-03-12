@@ -46,6 +46,17 @@ fn add_mul() {
 }
 
 #[test]
+fn bools() {
+    check(
+        "false true",
+        vec![
+            Token::val(ExprT::bool(false), Range::of(0, 5)),
+            Token::val(ExprT::bool(true), Range::of(6, 10)),
+        ],
+    );
+}
+
+#[test]
 fn vars() {
     let mut ctx = Context::default();
     let tokens = ctx.tokenize("x64 = 2; Arm = 3").unwrap();
