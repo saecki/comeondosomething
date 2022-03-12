@@ -1,12 +1,12 @@
-use std::fmt;
+use std::error;
+use std::fmt::{self, Debug, Display};
 
 use crate::{Fun, Sep, SepT, Sign, ValRange};
 use crate::{Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub trait UserFacing: Sized + fmt::Debug {
-    fn description(&self) -> String;
+pub trait UserFacing: Sized + Debug + Display {
     fn ranges(&self) -> Vec<Range>;
 }
 
@@ -55,14 +55,16 @@ pub enum Error {
     ExpectedNumber(ValRange),
 }
 
-impl UserFacing for Error {
-    fn description(&self) -> String {
+impl error::Error for Error {}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Parsing(_) => "A parsing error occured".into(),
-            Self::MissingOperand(_) => "Missing an operand".into(),
-            Self::MissingOperator(_) => "Missing an operator".into(),
-            Self::MissingFunctionParentheses(_) => "Missing function call parentheses".into(),
-            Self::MissingClosingParenthesis(_) => "Missing a closing parenthesis".into(),
+            Self::Parsing(_) => write!(f, "A parsing error occured"),
+            Self::MissingOperand(_) => write!(f, "Missing an operand"),
+            Self::MissingOperator(_) => write!(f, "Missing an operator"),
+            Self::MissingFunctionParentheses(_) => write!(f, "Missing function call parentheses"),
+            Self::MissingClosingParenthesis(_) => write!(f, "Missing a closing parenthesis"),
             Self::MissingFunctionArguments {
                 expected, found, ..
             } => {
@@ -70,7 +72,7 @@ impl UserFacing for Error {
                 let arg_s = if missing == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!("Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
+                write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
             Self::UnexpectedFunctionArguments {
                 expected, found, ..
@@ -79,59 +81,82 @@ impl UserFacing for Error {
                 let arg_s = if over == 1 { "" } else { "s" };
                 let are_is = if *expected == 1 { "is" } else { "are" };
                 let were_was = if *found == 1 { "was" } else { "were" };
-                format!("Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
+                write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
-            Self::UnexpectedOperator(_) => "Found an unexpected operator".into(),
-            Self::UnexpectedSeparator(_) => "Found an unexpected separator".into(),
-            Self::UnexpectedParenthesis(_) => "Found an unexpected parenthesis".into(),
-            Self::InvalidChar(_) => "Unknown value".into(),
-            Self::UndefinedVar(name, _) => format!("Undefined variable '{name}'"),
-            Self::InvalidNumberFormat(_) => "Invalid number format".into(),
-            Self::AddOverflow(_, _) => "Addition would overflow".into(),
-            Self::SubOverflow(_, _) => "Subtraction would overflow".into(),
-            Self::MulOverflow(_, _) => "Multiplication would overflow".into(),
-            Self::PowOverflow(_, _) => "Exponentiation would overflow".into(),
-            Self::DivideByZero(_, _) => "Attempted to divide by 0".into(),
-            Self::FractionEuclidDiv(_, _) => "Attempted divide fractions with remainder".into(),
+            Self::UnexpectedOperator(_) => write!(f, "Found an unexpected operator"),
+            Self::UnexpectedSeparator(_) => write!(f, "Found an unexpected separator"),
+            Self::UnexpectedParenthesis(_) => write!(f, "Found an unexpected parenthesis"),
+            Self::InvalidChar(_) => write!(f, "Unknown value"),
+            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
+            Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
+            Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
+            Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
+            Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
+            Self::PowOverflow(_, _) => write!(f, "Exponentiation would overflow"),
+            Self::DivideByZero(_, _) => write!(f, "Attempted to divide by 0"),
+            Self::FractionEuclidDiv(_, _) => write!(f, "Attempted divide fractions with remainder"),
             Self::RemainderByZero(_, _) => {
-                "Attempted to calculate the remainder with a divisor of 0".into()
+                write!(
+                    f,
+                    "Attempted to calculate the remainder with a divisor of 0"
+                )
             }
             Self::FractionRemainder(_, _) => {
-                "Attempted to calculate the remainder of a division of fractions".into()
+                write!(
+                    f,
+                    "Attempted to calculate the remainder of a division of fractions"
+                )
             }
             Self::FractionGcd(_, _) => {
-                "Attempted to calculate the greatest common divisor of fractions".into()
+                write!(
+                    f,
+                    "Attempted to calculate the greatest common divisor of fractions"
+                )
             }
             Self::FractionNcr(_, _) => {
-                "Attempted to calculate the binomial coefficent of fractions".into()
+                write!(
+                    f,
+                    "Attempted to calculate the binomial coefficent of fractions"
+                )
             }
             Self::NegativeNcr(_, _) => {
-                "Attempted to calculate the binomial coefficent with r < 0".into()
+                write!(
+                    f,
+                    "Attempted to calculate the binomial coefficent with r < 0"
+                )
             }
             Self::InvalidNcr(_, _) => {
-                "Attempted to calculate the binomial coefficent with n < r".into()
+                write!(
+                    f,
+                    "Attempted to calculate the binomial coefficent with n < r"
+                )
             }
             Self::NegativeFactorial(_) => {
-                "Attempted to calculate the factorial of a negative number".into()
+                write!(
+                    f,
+                    "Attempted to calculate the factorial of a negative number"
+                )
             }
-            Self::FactorialOverflow(v) => format!("Factorial of '{v}' would overflow"),
+            Self::FactorialOverflow(v) => write!(f, "Factorial of '{v}' would overflow"),
             Self::FractionFactorial(_) => {
-                "Attempted to calculate the factorial of a fraction".into()
+                write!(f, "Attempted to calculate the factorial of a fraction")
             }
             Self::InvalidClampBounds(min, max) => {
-                format!("Invalid clamp bounds '{min}' is greater than '{max}'")
+                write!(f, "Invalid clamp bounds '{min}' is greater than '{max}'")
             }
-            Self::MissingExpr => "Missing expression".into(),
+            Self::MissingExpr => write!(f, "Missing expression"),
             Self::InvalidAssignment(_, _) => {
-                "Cannot assign to something that is not a variable".into()
+                write!(f, "Cannot assign to something that is not a variable")
             }
-            Self::ExpectedValue(_) => "Expected a value found unit".into(),
+            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
             Self::ExpectedNumber(v) => {
-                format!("Expected a number found '{v}' of type {}", v.type_name())
+                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
             }
         }
     }
+}
 
+impl UserFacing for Error {
     fn ranges(&self) -> Vec<Range> {
         match self {
             Self::Parsing(r) => vec![*r],
@@ -189,10 +214,10 @@ pub enum Warning {
     },
 }
 
-impl UserFacing for Warning {
-    fn description(&self) -> String {
+impl Display for Warning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ConfusingCase(_, lit) => format!("Confusing casing, consider writing '{lit}'"),
+            Self::ConfusingCase(_, lit) => write!(f, "Confusing casing, consider writing '{lit}'"),
             Self::SignFollowingAddition(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
                 let suggestion = if s.is_positive() {
@@ -200,7 +225,7 @@ impl UserFacing for Warning {
                 } else {
                     "consider making this a subtraction"
                 };
-                format!("Sign{sign_s} following an addition, {suggestion}")
+                write!(f, "Sign{sign_s} following an addition, {suggestion}")
             }
             Self::SignFollowingSubtraction(_, _, s, c) => {
                 let sign_s = if *c == 1 { "" } else { "s" };
@@ -209,26 +234,34 @@ impl UserFacing for Warning {
                 } else {
                     "consider removing them"
                 };
-                format!("Sign{sign_s} following a subtraction, {suggestion}")
+                write!(f, "Sign{sign_s} following a subtraction, {suggestion}")
             }
             Self::MultipleSigns(_, s) => {
                 if s.is_positive() {
-                    "Multiple consecutive signs canceling each other out, consider removing them"
-                        .into()
+                    write!(f, "Multiple consecutive signs canceling each other out, consider removing them")
                 } else {
-                    "Multiple consecutive signs, consider using a single negation".into()
+                    write!(
+                        f,
+                        "Multiple consecutive signs, consider using a single negation"
+                    )
                 }
             }
-            Self::MismatchedParentheses(_, _) => "Parentheses do not match".into(),
+            Self::MismatchedParentheses(_, _) => write!(f, "Parentheses do not match"),
             Self::ConfusingFunctionParentheses { .. } => {
-                "Functions should use round parentheses".into()
+                write!(f, "Functions should use round parentheses")
             }
             Self::ConfusingSeparator { sep, expected } => {
-                format!("Confusing separator, expected {expected} found {}", sep.typ)
+                write!(
+                    f,
+                    "Confusing separator, expected {expected} found {}",
+                    sep.typ
+                )
             }
         }
     }
+}
 
+impl UserFacing for Warning {
     fn ranges(&self) -> Vec<Range> {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],

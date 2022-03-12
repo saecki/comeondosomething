@@ -1,6 +1,6 @@
 use std::cmp::min;
-use std::fmt;
 use std::fmt::Write;
+use std::fmt::{self, Display};
 use std::marker::PhantomData;
 
 use cods::{Range, UserFacing};
@@ -27,7 +27,7 @@ pub struct FmtUserFacing<'a, U: DisplayUserFacing<C>, C: Color> {
     c: PhantomData<C>,
 }
 
-impl<U: DisplayUserFacing<C>, C: Color> fmt::Display for FmtUserFacing<'_, U, C> {
+impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ranges = self.error.ranges();
         let lines = range_lines(self.input);
@@ -51,7 +51,7 @@ impl<U: DisplayUserFacing<C>, C: Color> fmt::Display for FmtUserFacing<'_, U, C>
         write!(
             f,
             "   {blue}│{esc} {col}{desc}{esc}",
-            desc = self.error.description(),
+            desc = self.error,
             col = C::bold(),
             blue = LBlue::bold(),
             esc = ANSI_ESC,

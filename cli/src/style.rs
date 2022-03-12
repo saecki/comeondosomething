@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 pub const ANSI_ESC: &str = "\x1B[0m";
 
@@ -61,7 +61,7 @@ pub struct WriteAnsi {
     color: u8,
 }
 
-impl fmt::Display for WriteAnsi {
+impl Display for WriteAnsi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\x1B[")?;
         if self.bold {

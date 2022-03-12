@@ -299,7 +299,7 @@ pub enum Val {
     Bool(bool),
 }
 
-impl fmt::Display for Val {
+impl Display for Val {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int(v) => write!(f, "{v}"),
