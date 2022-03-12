@@ -127,7 +127,7 @@ impl UserFacing for Error {
             Self::InvalidAssignment(_, _) => {
                 "Cannot assign to something that is not a variable".into()
             }
-            Self::ExpectedValue(_) => "Expected a value found".into(),
+            Self::ExpectedValue(_) => "Expected a value".into(),
         }
     }
 
