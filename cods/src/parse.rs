@@ -68,8 +68,8 @@ impl Context {
                 if i == 0 {
                     // operator is the first item -> sign
                     let a = &items[(first_i + 1)..];
-                    let ra = items_range(a).unwrap_or_else(|| Range::of(op.range.end, range.end));
-                    let ca = self.parse_items(ra, a)?;
+                    let range_a = items_range(a).unwrap_or_else(|| Range::of(op.range.end, range.end));
+                    let ast_a = self.parse_items(range_a, a)?;
 
                     if first_i != i {
                         let sign_range = Range::span(op.range, first_o.range);
@@ -77,9 +77,9 @@ impl Context {
                     }
 
                     if sign.is_positive() {
-                        return Ok(ca);
+                        return Ok(ast_a);
                     } else {
-                        return Ok(Ast::new(AstT::Neg(Box::new(ca)), Range::span(op.range, ra)));
+                        return Ok(Ast::new(AstT::Neg(Box::new(ast_a)), Range::span(op.range, range_a)));
                     }
                 } else if items[i - 1].is_op() {
                     // adjacent item is an operator
@@ -179,8 +179,8 @@ impl Context {
 
         if let Some((i, m)) = modifier {
             let a = &items[0..i];
-            let ar = items_range(a).unwrap_or_else(|| Range::of(range.start, m.range.start));
-            let ac = Box::new(self.parse_items(ar, a)?);
+            let range_a = items_range(a).unwrap_or_else(|| Range::of(range.start, m.range.start));
+            let ast_a = Box::new(self.parse_items(range_a, a)?);
 
             if let Some(i) = items.get(i + 1) {
                 let r = Range::between(m.range, i.range());
@@ -189,9 +189,9 @@ impl Context {
             }
 
             return Ok(match m.typ {
-                ModT::Degree => Ast::new(AstT::Degree(ac), range),
-                ModT::Radian => Ast::new(AstT::Radian(ac), range),
-                ModT::Factorial => Ast::new(AstT::Factorial(ac), range),
+                ModT::Degree => Ast::new(AstT::Degree(ast_a), range),
+                ModT::Radian => Ast::new(AstT::Radian(ast_a), range),
+                ModT::Factorial => Ast::new(AstT::Factorial(ast_a), range),
             });
         }
 
