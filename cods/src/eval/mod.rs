@@ -51,6 +51,7 @@ pub enum AstT {
     Max(Vec<Ast>),
     Clamp(Box<Ast>, Box<Ast>, Box<Ast>),
     Degree(Box<Ast>),
+    Radian(Box<Ast>),
     Factorial(Box<Ast>),
     Assignment(VarId, Box<Ast>),
     Print(Vec<Ast>),
@@ -198,7 +199,8 @@ impl Context {
             AstT::Min(args) => self.min(args, r),
             AstT::Max(args) => self.max(args, r),
             AstT::Clamp(num, min, max) => self.clamp(num, min, max, r),
-            AstT::Degree(a) => self.degree(a, r), // TODO add rad modifier and require a typed angle value as input for trigeometrical functions
+            AstT::Degree(a) => self.degree(a, r),
+            AstT::Radian(a) => self.radian(a, r),
             AstT::Factorial(a) => self.factorial(a, r),
             AstT::Assignment(a, b) => self.assign(*a, b, r),
             AstT::Print(args) => self.print(args, r),
@@ -507,8 +509,14 @@ impl Context {
         ok(val, range)
     }
 
+    // TODO add a angle value type as input for trigeometrical functions
     fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?.to_radians();
+        ok(Val::Float(rad), range)
+    }
+
+    fn radian(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let rad = self.eval_to_f64(n)?;
         ok(Val::Float(rad), range)
     }
 

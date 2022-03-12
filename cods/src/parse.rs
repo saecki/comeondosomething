@@ -190,6 +190,7 @@ impl Context {
 
             return Ok(match m.typ {
                 ModT::Degree => Ast::new(AstT::Degree(ac), range),
+                ModT::Radian => Ast::new(AstT::Radian(ac), range),
                 ModT::Factorial => Ast::new(AstT::Factorial(ac), range),
             });
         }

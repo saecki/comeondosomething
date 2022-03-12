@@ -7,6 +7,13 @@ use crate::Context;
 #[cfg(test)]
 mod test;
 
+const LITERAL_SUFFIXES: [(&'static str, ModT); 4] = [
+    ("_deg", ModT::Degree),
+    ("deg", ModT::Degree),
+    ("_rad", ModT::Radian),
+    ("rad", ModT::Radian),
+];
+
 macro_rules! match_warn_case {
     (
         $state:ident,
@@ -118,18 +125,40 @@ impl Context {
                     "print" => Token::fun(FunT::Print, range),
                     "println" => Token::fun(FunT::Println, range),
                     "spill" => Token::fun(FunT::Spill, range),
+                    "deg" => Token::mood(ModT::Degree, range),
+                    "rad" => Token::mood(ModT::Radian, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
-                            let val = if let Ok(i) = literal.parse::<i128>() {
+                            let mut mood = None;
+                            let mut num_lit = literal.as_str();
+                            for (s, m) in LITERAL_SUFFIXES {
+                                if literal.ends_with(s) {
+                                    let mod_range = Range::of(range.end - s.len(), range.end);
+                                    mood = Some(Token::mood(m, mod_range));
+
+                                    num_lit = &literal[0..(literal.len() - s.len())];
+                                    break;
+                                }
+                            }
+
+                            let num_range = Range::of(start, start + num_lit.len());
+                            let num = if let Ok(i) = num_lit.parse::<i128>() {
                                 ExprT::int(i)
-                            } else if let Ok(f) = literal.parse::<f64>() {
-                                 ExprT::float(f)
+                            } else if let Ok(f) = num_lit.parse::<f64>() {
+                                ExprT::float(f)
                             } else {
-                                return Err(crate::Error::InvalidNumberFormat(range));
+                                return Err(crate::Error::InvalidNumberFormat(num_range));
                             };
-                            Token::val(val, range)
+                            state.literal.clear();
+                            state.tokens.push(Token::val(num, num_range));
+
+                            if let Some(m) = mood {
+                                state.tokens.push(m);
+                            }
+
+                            return Ok(());
                         } else {
                             for (i, c) in literal.char_indices() {
                                 match c {
@@ -471,6 +500,7 @@ impl Mod {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModT {
     Degree,
+    Radian,
     Factorial,
 }
 

@@ -57,6 +57,50 @@ fn bools() {
 }
 
 #[test]
+fn angle_literal_deg1() {
+    check(
+        "234deg",
+        vec![
+            Token::val(ExprT::int(234), Range::of(0, 3)),
+            Token::mood(ModT::Degree, Range::of(3, 6)),
+        ],
+    );
+}
+
+#[test]
+fn angle_literal_deg2() {
+    check(
+        "94.3_deg",
+        vec![
+            Token::val(ExprT::float(94.3), Range::of(0, 4)),
+            Token::mood(ModT::Degree, Range::of(4, 8)),
+        ],
+    );
+}
+
+#[test]
+fn angle_literal_rad1() {
+    check(
+        "43_rad",
+        vec![
+            Token::val(ExprT::int(43), Range::of(0, 2)),
+            Token::mood(ModT::Radian, Range::of(2, 6)),
+        ],
+    );
+}
+
+#[test]
+fn angle_literal_rad2() {
+    check(
+        "1.45rad",
+        vec![
+            Token::val(ExprT::float(1.45_f64), Range::of(0, 4)),
+            Token::mood(ModT::Radian, Range::of(4, 7)),
+        ],
+    );
+}
+
+#[test]
 fn vars() {
     let mut ctx = Context::default();
     let tokens = ctx.tokenize("x64 = 2; Arm = 3").unwrap();
