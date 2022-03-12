@@ -155,7 +155,7 @@ impl Context {
         Ok(())
     }
 
-    fn push_var(&mut self, name: &str) -> VarId {
+    pub fn push_var(&mut self, name: &str) -> VarId {
         for (id, v) in self.vars.iter().enumerate() {
             if v.name == name {
                 return VarId(id);
