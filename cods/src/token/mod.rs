@@ -35,6 +35,39 @@ macro_rules! match_warn_case {
     }};
 }
 
+pub trait BindingPower {
+    fn bp(&self) -> (u8, u8);
+}
+
+impl BindingPower for Expr {
+    fn bp(&self) -> (u8, u8) {
+        (0, 0)
+    }
+}
+
+impl BindingPower for OpT {
+    fn bp(&self) -> (u8, u8) {
+        match self {
+            Self::Pow => (9, 10),
+            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => (7, 8),
+            Self::Add | Self::Sub => (5, 6),
+            Self::Equals => (3, 4),
+        }
+    }
+}
+
+impl BindingPower for ModT {
+    fn bp(&self) -> (u8, u8) {
+        (11, 0)
+    }
+}
+
+impl BindingPower for SepT {
+    fn bp(&self) -> (u8, u8) {
+        (1, 2)
+    }
+}
+
 struct Tokenizer {
     tokens: Vec<Token>,
     literal: String,
@@ -125,10 +158,10 @@ impl Context {
                     "print" => Token::fun(FunT::Print, range),
                     "println" => Token::fun(FunT::Println, range),
                     "spill" => Token::fun(FunT::Spill, range),
-                    "deg" => Token::mood(ModT::Degree, range),
-                    "rad" => Token::mood(ModT::Radian, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
+                    "deg" => Token::mood(ModT::Degree, range),
+                    "rad" => Token::mood(ModT::Radian, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let mut mood = None;
@@ -201,8 +234,8 @@ impl Context {
 pub enum Token {
     Expr(Expr),
     Op(Op),
-    Fun(Fun),
     Mod(Mod),
+    Fun(Fun),
     Par(Par),
     Sep(Sep),
 }
@@ -391,6 +424,7 @@ impl DerefMut for Op {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpT {
+    Equals,
     Add,
     Sub,
     Mul,
@@ -398,19 +432,9 @@ pub enum OpT {
     IntDiv,
     Rem,
     Pow,
-    Equals,
 }
 
 impl OpT {
-    pub const fn priority(&self) -> usize {
-        match self {
-            Self::Pow => 4,
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => 2,
-            Self::Add | Self::Sub => 1,
-            Self::Equals => 0,
-        }
-    }
-
     pub const fn as_sign(&self) -> Option<Sign> {
         match self {
             Self::Add => Some(Sign::Positive),

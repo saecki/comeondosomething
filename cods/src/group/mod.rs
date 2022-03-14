@@ -150,17 +150,17 @@ impl GroupRange {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
-    Val(Expr),
+    Expr(Expr),
     Op(Op),
-    Fun(Fun),
     Mod(Mod),
+    Fun(Fun),
     Sep(Sep),
 }
 
 impl Item {
     pub fn try_from(token: &Token) -> Option<Self> {
         match *token {
-            Token::Expr(n) => Some(Self::Val(n)),
+            Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Fun(c) => Some(Self::Fun(c)),
             Token::Mod(m) => Some(Self::Mod(m)),
@@ -172,13 +172,6 @@ impl Item {
     pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
-            _ => None,
-        }
-    }
-
-    pub fn as_mod(&self) -> Option<Mod> {
-        match self {
-            Self::Mod(m) => Some(*m),
             _ => None,
         }
     }
@@ -208,10 +201,10 @@ impl Item {
     pub fn range(&self) -> Range {
         match self {
             Self::Group(g) => g.range,
-            Self::Val(n) => n.range,
+            Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Fun(c) => c.range,
             Self::Mod(m) => m.range,
+            Self::Fun(c) => c.range,
             Self::Sep(s) => s.range,
         }
     }
