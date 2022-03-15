@@ -55,18 +55,37 @@ impl<'a> Parser<'a> {
 
 impl Context {
     pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Ast>> {
-        items
-            .split(|i| match i {
-                Item::Sep(s) => s.is_semi(),
-                _ => false,
-            })
-            .map(|i| {
-                let mut parser = Parser::new(i);
-                // TODO: determine range of empty items by looking at seperators
-                let r = items_range(i).unwrap_or_else(|| Range::pos(0));
-                self.parse_bp(&mut parser, 0, r)
-            })
-            .collect()
+        let range = items_range(items).unwrap_or(Range::of(0, 0));
+        let sep_count = items.iter().filter(|i| i.is_semi()).count();
+        let mut asts = Vec::with_capacity(sep_count + 1);
+        let mut start = (0, range.start);
+        let mut ti = 0;
+
+        for i in items.iter() {
+            if let Item::Sep(s) = i {
+                if !s.is_semi() {
+                    continue;
+                }
+
+                let r = Range::of(start.1, s.range.start);
+                let is = &items[(start.0)..ti];
+                let mut parser = Parser::new(is);
+                asts.push(self.parse_bp(&mut parser, 0, r)?);
+                start = (ti + 1, s.range.end);
+            }
+            ti += 1;
+        }
+
+        if let Some(i) = items.last() {
+            if !i.is_semi() {
+                let r = Range::of(start.1, range.end);
+                let is = &items[(start.0)..ti];
+                let mut parser = Parser::new(is);
+                asts.push(self.parse_bp(&mut parser, 0, r)?);
+            }
+        }
+
+        Ok(asts)
     }
 
     fn parse_bp(

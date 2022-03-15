@@ -187,6 +187,13 @@ impl Item {
         matches!(self, Self::Sep(_))
     }
 
+    pub fn is_semi(&self) -> bool {
+        match self {
+            Self::Sep(s) => s.is_semi(),
+            _ => false,
+        }
+    }
+
     pub fn range(&self) -> Range {
         match self {
             Self::Group(g) => g.range,
