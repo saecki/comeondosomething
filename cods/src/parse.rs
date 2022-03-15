@@ -142,7 +142,7 @@ impl Context {
                 parser.next();
             }
 
-            let rhs_r = Range::of(lhs.range.end, range.end);
+            let rhs_r = Range::of(op.range.end, range.end);
             let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
 
             let val_r = Range::span(lhs.range, rhs.range);
