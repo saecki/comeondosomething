@@ -12,6 +12,9 @@ pub trait UserFacing: Sized + Debug + Display {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
+    MissingExpr,
+    ExpectedValue(Range),
+    ExpectedNumber(ValRange),
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -49,10 +52,7 @@ pub enum Error {
     NegativeFactorial(ValRange),
     FractionFactorial(ValRange),
     InvalidClampBounds(ValRange, ValRange),
-    MissingExpr,
     InvalidAssignment(Range, Range),
-    ExpectedValue(Range),
-    ExpectedNumber(ValRange),
 }
 
 impl error::Error for Error {}
@@ -60,6 +60,11 @@ impl error::Error for Error {}
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingExpr => write!(f, "Missing expression"),
+            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
+            Self::ExpectedNumber(v) => {
+                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
+            }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
             Self::MissingOperand(_) => write!(f, "Missing an operand"),
             Self::MissingOperator(_) => write!(f, "Missing an operator"),
@@ -144,13 +149,8 @@ impl Display for Error {
             Self::InvalidClampBounds(min, max) => {
                 write!(f, "Invalid clamp bounds '{min}' is greater than '{max}'")
             }
-            Self::MissingExpr => write!(f, "Missing expression"),
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
-            }
-            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
-            Self::ExpectedNumber(v) => {
-                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
             }
         }
     }
@@ -159,6 +159,9 @@ impl Display for Error {
 impl UserFacing for Error {
     fn ranges(&self) -> Vec<Range> {
         match self {
+            Self::MissingExpr => vec![],
+            Self::ExpectedValue(r) => vec![*r],
+            Self::ExpectedNumber(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
@@ -188,10 +191,7 @@ impl UserFacing for Error {
             Self::NegativeFactorial(v) => vec![v.range],
             Self::FractionFactorial(v) => vec![v.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
-            Self::MissingExpr => vec![],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
-            Self::ExpectedValue(r) => vec![*r],
-            Self::ExpectedNumber(v) => vec![v.range],
         }
     }
 }
