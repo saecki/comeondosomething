@@ -55,7 +55,8 @@ impl Context {
     pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
         let mut state = Tokenizer::new();
 
-        for c in string.chars() {
+        let mut chars = string.chars().peekable();
+        while let Some(c) = chars.next() {
             let range = Range::pos(state.char_index);
             match c {
                 ' ' | '\n' | '\r' => self.complete_literal(&mut state)?,
@@ -65,7 +66,27 @@ impl Context {
                 '/' | '÷' => self.new_token(&mut state, Token::op(OpT::Div, range))?,
                 '%' => self.new_token(&mut state, Token::op(OpT::Rem, range))?,
                 '^' => self.new_token(&mut state, Token::op(OpT::Pow, range))?,
-                '=' => self.new_token(&mut state, Token::op(OpT::Equals, range))?,
+                '=' => match chars.peek() {
+                    Some('=') => {
+                        chars.next();
+                        self.new_token(&mut state, Token::op(OpT::Eq, range))?
+                    }
+                    _ => self.new_token(&mut state, Token::op(OpT::Assign, range))?,
+                },
+                '|' => match chars.peek() {
+                    Some('|') => {
+                        chars.next();
+                        self.new_token(&mut state, Token::op(OpT::Or, range))?
+                    }
+                    _ => self.new_token(&mut state, Token::op(OpT::BwOr, range))?,
+                },
+                '&' => match chars.peek() {
+                    Some('&') => {
+                        chars.next();
+                        self.new_token(&mut state, Token::op(OpT::And, range))?
+                    }
+                    _ => self.new_token(&mut state, Token::op(OpT::BwAnd, range))?,
+                },
                 '°' => self.new_token(&mut state, Token::mood(ModT::Degree, range))?,
                 '!' => self.new_token(&mut state, Token::mood(ModT::Factorial, range))?,
                 '(' => self.new_token(&mut state, Token::par(ParT::RoundOpen, range))?,
@@ -391,7 +412,7 @@ impl DerefMut for Op {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpT {
-    Equals,
+    Assign,
     Add,
     Sub,
     Mul,
@@ -399,6 +420,11 @@ pub enum OpT {
     IntDiv,
     Rem,
     Pow,
+    Eq,
+    BwOr,
+    BwAnd,
+    Or,
+    And,
 }
 
 impl OpT {
@@ -406,7 +432,7 @@ impl OpT {
         match self {
             Self::Add => Some(Sign::Positive),
             Self::Sub => Some(Sign::Negative),
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem | Self::Pow | Self::Equals => None,
+            _ => None,
         }
     }
 

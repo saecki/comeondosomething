@@ -114,11 +114,11 @@ fn vars() {
         tokens,
         [
             Token::val(ExprT::Var(VarId(0)), Range::of(0, 3)),
-            Token::op(OpT::Equals, Range::pos(4)),
+            Token::op(OpT::Assign, Range::pos(4)),
             Token::val(ExprT::int(2), Range::pos(6)),
             Token::sep(SepT::Semi, Range::pos(7)),
             Token::val(ExprT::Var(VarId(1)), Range::of(9, 12)),
-            Token::op(OpT::Equals, Range::pos(13)),
+            Token::op(OpT::Assign, Range::pos(13)),
             Token::val(ExprT::int(3), Range::pos(15)),
         ],
     );

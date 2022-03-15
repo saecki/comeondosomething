@@ -15,6 +15,7 @@ pub enum Error {
     MissingExpr,
     ExpectedValue(Range),
     ExpectedNumber(ValRange),
+    ExpectedBool(ValRange),
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -52,6 +53,8 @@ pub enum Error {
     NegativeFactorial(ValRange),
     FractionFactorial(ValRange),
     InvalidClampBounds(ValRange, ValRange),
+    InvalidBwOr(ValRange, ValRange),
+    InvalidBwAnd(ValRange, ValRange),
     InvalidAssignment(Range, Range),
 }
 
@@ -64,6 +67,9 @@ impl Display for Error {
             Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
             Self::ExpectedNumber(v) => {
                 write!(f, "Expected a number found '{v}' of type {}", v.type_name())
+            }
+            Self::ExpectedBool(v) => {
+                write!(f, "Expected a bool found '{v}' of type {}", v.type_name())
             }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
             Self::MissingOperand(_) => write!(f, "Missing operand"),
@@ -152,6 +158,22 @@ impl Display for Error {
                     "Invalid clamp bounds min: '{min}' is greater than max: '{max}'"
                 )
             }
+            Self::InvalidBwOr(a, b) => {
+                write!(
+                    f,
+                    "A bitwise or can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
+                    a.type_name(),
+                    b.type_name(),
+                )
+            }
+            Self::InvalidBwAnd(a, b) => {
+                write!(
+                    f,
+                    "A bitwise and can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
+                    a.type_name(),
+                    b.type_name(),
+                )
+            }
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
@@ -165,6 +187,7 @@ impl UserFacing for Error {
             Self::MissingExpr => vec![],
             Self::ExpectedValue(r) => vec![*r],
             Self::ExpectedNumber(v) => vec![v.range],
+            Self::ExpectedBool(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
@@ -194,6 +217,8 @@ impl UserFacing for Error {
             Self::NegativeFactorial(v) => vec![v.range],
             Self::FractionFactorial(v) => vec![v.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
+            Self::InvalidBwOr(a, b) => vec![a.range, b.range],
+            Self::InvalidBwAnd(a, b) => vec![a.range, b.range],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
         }
     }

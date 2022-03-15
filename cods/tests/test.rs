@@ -203,6 +203,46 @@ fn clamp_bounds_float() {
 }
 
 #[test]
+fn eq_bool() {
+    assert(Val::Bool(false), "false == true");
+}
+
+#[test]
+fn eq_int_float() {
+    assert(Val::Bool(true), "2.0 == 2");
+}
+
+#[test]
+fn or() {
+    assert(Val::Bool(true), "false || true");
+}
+
+#[test]
+fn and() {
+    assert(Val::Bool(false), "false && true");
+}
+
+#[test]
+fn bw_or_bool() {
+    assert(Val::Bool(true), "true | false");
+}
+
+#[test]
+fn bw_and_bool() {
+    assert(Val::Bool(false), "true & false");
+}
+
+#[test]
+fn bw_or_int() {
+    assert(Val::Int(14), "12 | 2");
+}
+
+#[test]
+fn bw_and_int() {
+    assert(Val::Int(4), "6 & 12");
+}
+
+#[test]
 fn unmatched_par() {
     assert_err(
         Error::UnexpectedParenthesis(Par::new(ParT::RoundClose, Range::pos(2))),

@@ -8,10 +8,15 @@ use crate::{
 impl OpT {
     pub fn bp(&self) -> (u8, u8) {
         match self {
-            Self::Pow => (9, 10),
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => (7, 8),
-            Self::Add | Self::Sub => (5, 6),
-            Self::Equals => (3, 4),
+            Self::Pow => (17, 18),
+            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => (15, 16),
+            Self::Add | Self::Sub => (13, 14),
+            Self::BwAnd => (11, 12),
+            Self::BwOr => (9, 10),
+            Self::And => (7, 8),
+            Self::Or => (5, 6),
+            Self::Eq => (3, 4),
+            Self::Assign => (1, 2),
         }
     }
 }
@@ -19,7 +24,7 @@ impl OpT {
 impl Sign {
     pub fn r_bp(&self) -> u8 {
         match self {
-            Self::Negative | Self::Positive => 6,
+            Self::Negative | Self::Positive => 14,
         }
     }
 }
@@ -27,7 +32,7 @@ impl Sign {
 impl ModT {
     pub fn l_bp(&self) -> u8 {
         match self {
-            Self::Degree | Self::Radian | Self::Factorial => 11,
+            Self::Degree | Self::Radian | Self::Factorial => 19,
         }
     }
 }
@@ -176,6 +181,13 @@ impl Context {
 
             let val_r = Range::span(lhs.range, rhs.range);
             let val = match op.typ {
+                OpT::Assign => match lhs.typ {
+                    AstT::Expr(e) => match e.typ {
+                        ExprT::Var(id) => AstT::Assignment(id, Box::new(rhs)),
+                        _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                    },
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                },
                 OpT::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),
                 OpT::Sub => AstT::Sub(Box::new(lhs), Box::new(rhs)),
                 OpT::Mul => AstT::Mul(Box::new(lhs), Box::new(rhs)),
@@ -183,13 +195,11 @@ impl Context {
                 OpT::IntDiv => AstT::IntDiv(Box::new(lhs), Box::new(rhs)),
                 OpT::Rem => AstT::Rem(Box::new(lhs), Box::new(rhs)),
                 OpT::Pow => AstT::Pow(Box::new(lhs), Box::new(rhs)),
-                OpT::Equals => match lhs.typ {
-                    AstT::Expr(e) => match e.typ {
-                        ExprT::Var(id) => AstT::Assignment(id, Box::new(rhs)),
-                        _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
-                    },
-                    _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
-                },
+                OpT::Eq => AstT::Eq(Box::new(lhs), Box::new(rhs)),
+                OpT::Or => AstT::Or(Box::new(lhs), Box::new(rhs)),
+                OpT::And => AstT::And(Box::new(lhs), Box::new(rhs)),
+                OpT::BwOr => AstT::BwOr(Box::new(lhs), Box::new(rhs)),
+                OpT::BwAnd => AstT::BwAnd(Box::new(lhs), Box::new(rhs)),
             };
             lhs = Ast::new(val, val_r);
         }
