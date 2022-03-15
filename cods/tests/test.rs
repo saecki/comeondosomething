@@ -101,7 +101,7 @@ fn factorial_fraction() {
 #[test]
 fn factorial_negative() {
     assert_err(
-        Error::NegativeFactorial(ValRange::new(Val::Int(-3), Range::of(1, 3))),
+        Error::NegativeFactorial(ValRange::new(Val::Int(-3), Range::of(0, 4))),
         "(-3)!",
     );
 }

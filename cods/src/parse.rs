@@ -1,7 +1,9 @@
 use std::cmp;
 use std::mem::MaybeUninit;
 
-use crate::{items_range, Ast, AstT, Context, ExprT, Fun, Item, ModT, OpT, Range, SepT, Sign, FunT};
+use crate::{
+    items_range, Ast, AstT, Context, ExprT, Fun, FunT, Item, ModT, OpT, Range, SepT, Sign,
+};
 
 impl OpT {
     pub fn bp(&self) -> (u8, u8) {

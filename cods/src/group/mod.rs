@@ -26,7 +26,7 @@ impl Context {
 
                 items.push(Item::Group(Group {
                     items: self.group(&tokens[group_range.tokens()])?,
-                    range: group_range.chars(tokens),
+                    range: group_range.char_range(tokens),
                     par_kind: group_range.par_type,
                 }));
                 pos = group_range.tokens_after(0).start;
@@ -65,7 +65,6 @@ impl Context {
                 if par_stack.is_empty() {
                     Some(GroupRange {
                         start: open_pos + 1,
-                        missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: open_par.kind(),
@@ -80,7 +79,6 @@ impl Context {
                 if par_stack.is_empty() {
                     Some(GroupRange {
                         start: open_pos + 1,
-                        missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: ParKind::Mixed,
@@ -100,7 +98,6 @@ impl Context {
 
 /// A range of token indices inside a group
 struct GroupRange {
-    missing_start_par: bool,
     /// including
     start: usize,
     missing_end_par: bool,
@@ -111,11 +108,7 @@ struct GroupRange {
 
 impl GroupRange {
     fn tokens_before(&self, start: usize) -> ops::Range<usize> {
-        if self.missing_start_par {
-            start..self.start.saturating_sub(2)
-        } else {
-            start..self.start.saturating_sub(1)
-        }
+        start..self.start.saturating_sub(1)
     }
 
     fn tokens(&self) -> ops::Range<usize> {
@@ -130,17 +123,13 @@ impl GroupRange {
         }
     }
 
-    fn chars(&self, tokens: &[Token]) -> Range {
-        let start = if self.missing_start_par {
-            tokens[self.start].range().start
-        } else {
-            tokens[self.start - 1].range().end
-        };
+    fn char_range(&self, tokens: &[Token]) -> Range {
+        let start = tokens[self.start - 1].range().start;
 
         let end = if self.missing_end_par {
             tokens[self.end - 1].range().end
         } else {
-            tokens[self.end].range().start
+            tokens[self.end].range().end
         };
 
         Range::of(start, end)

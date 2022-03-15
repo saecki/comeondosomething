@@ -33,7 +33,7 @@ fn add_parenthesis() {
                     Item::Op(Op::new(OpT::Add, Range::pos(7))),
                     Item::Expr(Expr::new(ExprT::float(543.23), Range::of(9, 15)))
                 ],
-                Range::of(1, 15),
+                Range::of(0, 16),
                 ParKind::Round,
             )),
             Item::Op(Op::new(OpT::Mul, Range::pos(17))),
