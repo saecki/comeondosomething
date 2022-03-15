@@ -482,6 +482,14 @@ pub struct Mod {
     pub range: Range,
 }
 
+impl Deref for Mod {
+    type Target = ModT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
 impl Mod {
     pub const fn new(typ: ModT, range: Range) -> Self {
         Self { typ, range }

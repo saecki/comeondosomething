@@ -112,6 +112,12 @@ impl Context {
                 }
                 Item::Op(o) => o,
                 Item::Mod(m) => {
+                    if m.l_bp() < min_bp {
+                        break;
+                    } else {
+                        parser.next();
+                    }
+
                     let val_r = Range::span(lhs.range, m.range);
                     let val = match m.typ {
                         ModT::Degree => AstT::Degree(Box::new(lhs)),
@@ -120,7 +126,6 @@ impl Context {
                     };
 
                     lhs = Ast::new(val, val_r);
-                    parser.next();
                     continue;
                 }
                 Item::Fun(f) => {
@@ -133,9 +138,10 @@ impl Context {
             let (l_bp, r_bp) = op.bp();
             if l_bp < min_bp {
                 break;
+            } else {
+                parser.next();
             }
 
-            parser.next();
             let rhs_r = Range::of(lhs.range.end, range.end);
             let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
 
