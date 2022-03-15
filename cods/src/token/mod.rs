@@ -7,7 +7,7 @@ use crate::Context;
 #[cfg(test)]
 mod test;
 
-const LITERAL_SUFFIXES: [(&'static str, ModT); 4] = [
+const LITERAL_SUFFIXES: [(&str, ModT); 4] = [
     ("_deg", ModT::Degree),
     ("deg", ModT::Degree),
     ("_rad", ModT::Radian),
