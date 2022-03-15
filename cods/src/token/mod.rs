@@ -1,6 +1,8 @@
 use std::f64::consts;
 use std::fmt::{self, Display};
+use std::iter::Peekable;
 use std::ops::{self, Deref, DerefMut};
+use std::str::Chars;
 
 use crate::Context;
 
@@ -35,29 +37,53 @@ macro_rules! match_warn_case {
     }};
 }
 
-struct Tokenizer {
+struct Tokenizer<'a> {
     tokens: Vec<Token>,
     literal: String,
-    char_index: usize,
+    chars: Peekable<Chars<'a>>,
+    cursor: usize,
 }
 
-impl Tokenizer {
-    fn new() -> Self {
+impl<'a> Tokenizer<'a> {
+    fn new(input: &'a str) -> Self {
         Self {
             tokens: Vec::new(),
             literal: String::new(),
-            char_index: 0,
+            chars: input.chars().peekable(),
+            cursor: 0,
         }
+    }
+
+    fn next(&mut self) -> Option<char> {
+        self.cursor += 1;
+        self.chars.next()
+    }
+
+    fn peek(&mut self) -> Option<char> {
+        self.chars.peek().copied()
+    }
+
+    fn next_if(&mut self, expected: char) -> Option<char> {
+        if let Some(c) = self.peek() {
+            if c == expected {
+                return self.next();
+            }
+        }
+
+        None
+    }
+
+    const fn pos(&self) -> usize {
+        self.cursor - 1
     }
 }
 
 impl Context {
     pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
-        let mut state = Tokenizer::new();
+        let mut state = Tokenizer::new(string);
 
-        let mut chars = string.chars().peekable();
-        while let Some(c) = chars.next() {
-            let range = Range::pos(state.char_index);
+        while let Some(c) = state.next() {
+            let range = Range::pos(state.pos());
             match c {
                 ' ' | '\r' => self.complete_literal(&mut state)?,
                 '\n' => self.new_token(&mut state, Token::sep(SepT::Newln, range))?,
@@ -67,35 +93,26 @@ impl Context {
                 '/' | '÷' => self.new_token(&mut state, Token::op(OpT::Div, range))?,
                 '%' => self.new_token(&mut state, Token::op(OpT::Rem, range))?,
                 '^' => self.new_token(&mut state, Token::op(OpT::Pow, range))?,
-                '=' => match chars.peek() {
-                    Some('=') => {
-                        chars.next();
-                        state.char_index += 1;
-
+                '=' => match state.next_if('=') {
+                    Some(_) => {
                         let r = Range::of(range.start, range.start + 2);
                         self.new_token(&mut state, Token::op(OpT::Eq, r))?
                     }
-                    _ => self.new_token(&mut state, Token::op(OpT::Assign, range))?,
+                    None => self.new_token(&mut state, Token::op(OpT::Assign, range))?,
                 },
-                '|' => match chars.peek() {
-                    Some('|') => {
-                        chars.next();
-                        state.char_index += 1;
-
+                '|' => match state.next_if('|') {
+                    Some(_) => {
                         let r = Range::of(range.start, range.start + 2);
                         self.new_token(&mut state, Token::op(OpT::Or, r))?
                     }
-                    _ => self.new_token(&mut state, Token::op(OpT::BwOr, range))?,
+                    None => self.new_token(&mut state, Token::op(OpT::BwOr, range))?,
                 },
-                '&' => match chars.peek() {
-                    Some('&') => {
-                        chars.next();
-                        state.char_index += 1;
-
+                '&' => match state.next_if('&') {
+                    Some(_) => {
                         let r = Range::of(range.start, range.start + 2);
                         self.new_token(&mut state, Token::op(OpT::And, r))?
                     }
-                    _ => self.new_token(&mut state, Token::op(OpT::BwAnd, range))?,
+                    None => self.new_token(&mut state, Token::op(OpT::BwAnd, range))?,
                 },
                 '°' => self.new_token(&mut state, Token::mood(ModT::Degree, range))?,
                 '!' => self.new_token(&mut state, Token::mood(ModT::Factorial, range))?,
@@ -109,7 +126,6 @@ impl Context {
                 ';' => self.new_token(&mut state, Token::sep(SepT::Semi, range))?,
                 c => state.literal.push(c),
             }
-            state.char_index += 1;
         }
 
         self.complete_literal(&mut state)?;
@@ -117,16 +133,16 @@ impl Context {
         Ok(state.tokens)
     }
 
-    fn new_token(&mut self, state: &mut Tokenizer, token: Token) -> crate::Result<()> {
+    fn new_token(&mut self, state: &mut Tokenizer<'_>, token: Token) -> crate::Result<()> {
         self.complete_literal(state)?;
         state.tokens.push(token);
         Ok(())
     }
 
-    fn complete_literal(&mut self, state: &mut Tokenizer) -> crate::Result<()> {
+    fn complete_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
         if !state.literal.is_empty() {
-            let start = state.char_index - state.literal.chars().count();
-            let range = Range::of(start, state.char_index);
+            let start = state.pos() - state.literal.chars().count();
+            let range = Range::of(start, state.pos());
 
             let literal = &state.literal;
             let token = match_warn_case! {
