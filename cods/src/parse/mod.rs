@@ -5,6 +5,9 @@ use crate::{
     items_range, Ast, AstT, Context, ExprT, Fun, FunT, Item, ModT, OpT, Range, SepT, Sign,
 };
 
+#[cfg(test)]
+mod test;
+
 impl OpT {
     pub fn bp(&self) -> (u8, u8) {
         match self {
@@ -56,38 +59,39 @@ impl<'a> Parser<'a> {
     fn peek(&mut self) -> Option<&'a Item> {
         self.items.get(self.cursor)
     }
+
+    fn peek_back(&mut self) -> Option<&'a Item> {
+        if self.cursor > 0 {
+            self.items.get(self.cursor)
+        } else {
+            None
+        }
+    }
+
+    fn eat_semi(&mut self) {
+        if let Some(i) = self.peek() {
+            if i.is_semi() {
+                self.next();
+            }
+        }
+    }
 }
 
 impl Context {
     pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Ast>> {
-        let range = items_range(items).unwrap_or(Range::of(0, 0));
+        let mut range = items_range(items).unwrap_or(Range::of(0, 0));
         let sep_count = items.iter().filter(|i| i.is_semi()).count();
         let mut asts = Vec::with_capacity(sep_count + 1);
-        let mut start = (0, range.start);
-        let mut ti = 0;
 
-        for i in items.iter() {
-            if let Item::Sep(s) = i {
-                if !s.is_semi() {
-                    continue;
-                }
+        let mut parser = Parser::new(items);
+        while parser.peek().is_some() {
+            if let Some(i) = parser.peek_back() {
+                range.start = i.range().end;
+            };
 
-                let r = Range::of(start.1, s.range.start);
-                let is = &items[(start.0)..ti];
-                let mut parser = Parser::new(is);
-                asts.push(self.parse_bp(&mut parser, 0, r)?);
-                start = (ti + 1, s.range.end);
-            }
-            ti += 1;
-        }
-
-        if let Some(i) = items.last() {
-            if !i.is_semi() {
-                let r = Range::of(start.1, range.end);
-                let is = &items[(start.0)..ti];
-                let mut parser = Parser::new(is);
-                asts.push(self.parse_bp(&mut parser, 0, r)?);
-            }
+            let ast = self.parse_bp(&mut parser, 0, range)?;
+            parser.eat_semi();
+            asts.push(ast);
         }
 
         Ok(asts)
@@ -125,7 +129,13 @@ impl Context {
                 return Err(crate::Error::MissingOperand(Range::pos(m.range.start)))
             }
             Some(Item::Fun(f)) => self.parse_fun(parser, *f)?,
-            Some(Item::Sep(s)) => return Err(crate::Error::UnexpectedSeparator(*s)),
+            Some(Item::Sep(s)) => match s.typ {
+                SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
+                SepT::Semi => {
+                    let r = Range::of(range.start, s.range.end);
+                    return Ok(Ast::new(AstT::Empty, r));
+                }
+            },
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
@@ -161,7 +171,12 @@ impl Context {
                     let r = Range::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
-                Item::Sep(s) => return Err(crate::Error::UnexpectedSeparator(*s)),
+                Item::Sep(s) => match s.typ {
+                    SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
+                    SepT::Semi => {
+                        break;
+                    }
+                },
             };
 
             let (l_bp, r_bp) = op.bp();
