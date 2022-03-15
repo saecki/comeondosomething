@@ -69,7 +69,6 @@ fn calc_file(path: Option<String>) {
         Ok(input) => {
             let mut ctx = Context::default();
             print_calc(&mut ctx, &input);
-            println!();
         }
         Err(_) => {
             bprintln!(LRed, "Error reading file: {p}");
