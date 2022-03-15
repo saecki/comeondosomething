@@ -7,7 +7,7 @@ use crate::Context;
 #[cfg(test)]
 mod test;
 
-const LITERAL_SUFFIXES: [(&'static str, ModT); 4] = [
+const LITERAL_SUFFIXES: [(&str, ModT); 4] = [
     ("_deg", ModT::Degree),
     ("deg", ModT::Degree),
     ("_rad", ModT::Radian),
@@ -125,10 +125,10 @@ impl Context {
                     "print" => Token::fun(FunT::Print, range),
                     "println" => Token::fun(FunT::Println, range),
                     "spill" => Token::fun(FunT::Spill, range),
-                    "deg" => Token::mood(ModT::Degree, range),
-                    "rad" => Token::mood(ModT::Radian, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
+                    "deg" => Token::mood(ModT::Degree, range),
+                    "rad" => Token::mood(ModT::Radian, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let mut mood = None;
@@ -201,8 +201,8 @@ impl Context {
 pub enum Token {
     Expr(Expr),
     Op(Op),
-    Fun(Fun),
     Mod(Mod),
+    Fun(Fun),
     Par(Par),
     Sep(Sep),
 }
@@ -391,6 +391,7 @@ impl DerefMut for Op {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpT {
+    Equals,
     Add,
     Sub,
     Mul,
@@ -398,19 +399,9 @@ pub enum OpT {
     IntDiv,
     Rem,
     Pow,
-    Equals,
 }
 
 impl OpT {
-    pub const fn priority(&self) -> usize {
-        match self {
-            Self::Pow => 4,
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => 2,
-            Self::Add | Self::Sub => 1,
-            Self::Equals => 0,
-        }
-    }
-
     pub const fn as_sign(&self) -> Option<Sign> {
         match self {
             Self::Add => Some(Sign::Positive),
@@ -489,6 +480,14 @@ pub enum FunT {
 pub struct Mod {
     pub typ: ModT,
     pub range: Range,
+}
+
+impl Deref for Mod {
+    type Target = ModT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
 }
 
 impl Mod {

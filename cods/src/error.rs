@@ -12,6 +12,9 @@ pub trait UserFacing: Sized + Debug + Display {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
+    MissingExpr,
+    ExpectedValue(Range),
+    ExpectedNumber(ValRange),
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
@@ -42,17 +45,14 @@ pub enum Error {
     RemainderByZero(ValRange, ValRange),
     FractionRemainder(ValRange, ValRange),
     FractionGcd(ValRange, ValRange),
-    NegativeNcr(ValRange, ValRange),
+    NegativeNcr(ValRange),
     InvalidNcr(ValRange, ValRange),
     FractionNcr(ValRange, ValRange),
     FactorialOverflow(ValRange),
     NegativeFactorial(ValRange),
     FractionFactorial(ValRange),
     InvalidClampBounds(ValRange, ValRange),
-    MissingExpr,
     InvalidAssignment(Range, Range),
-    ExpectedValue(Range),
-    ExpectedNumber(ValRange),
 }
 
 impl error::Error for Error {}
@@ -60,11 +60,16 @@ impl error::Error for Error {}
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingExpr => write!(f, "Missing expression"),
+            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
+            Self::ExpectedNumber(v) => {
+                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
+            }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
-            Self::MissingOperand(_) => write!(f, "Missing an operand"),
-            Self::MissingOperator(_) => write!(f, "Missing an operator"),
+            Self::MissingOperand(_) => write!(f, "Missing operand"),
+            Self::MissingOperator(_) => write!(f, "Missing operator"),
             Self::MissingFunctionParentheses(_) => write!(f, "Missing function call parentheses"),
-            Self::MissingClosingParenthesis(_) => write!(f, "Missing a closing parenthesis"),
+            Self::MissingClosingParenthesis(_) => write!(f, "Missing closing parenthesis"),
             Self::MissingFunctionArguments {
                 expected, found, ..
             } => {
@@ -83,9 +88,9 @@ impl Display for Error {
                 let were_was = if *found == 1 { "was" } else { "were" };
                 write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
-            Self::UnexpectedOperator(_) => write!(f, "Found an unexpected operator"),
-            Self::UnexpectedSeparator(_) => write!(f, "Found an unexpected separator"),
-            Self::UnexpectedParenthesis(_) => write!(f, "Found an unexpected parenthesis"),
+            Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
+            Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
+            Self::UnexpectedParenthesis(_) => write!(f, "Unexpected parenthesis"),
             Self::InvalidChar(_) => write!(f, "Unknown value"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
@@ -119,16 +124,16 @@ impl Display for Error {
                     "Attempted to calculate the binomial coefficent of fractions"
                 )
             }
-            Self::NegativeNcr(_, _) => {
+            Self::NegativeNcr(r) => {
                 write!(
                     f,
-                    "Attempted to calculate the binomial coefficent with r < 0"
+                    "Attempted to calculate the binomial coefficent with a negative value for r: '{r}'"
                 )
             }
-            Self::InvalidNcr(_, _) => {
+            Self::InvalidNcr(n, r) => {
                 write!(
                     f,
-                    "Attempted to calculate the binomial coefficent with n < r"
+                    "Attempted to calculate the binomial coefficent with n: '{n}' less than r: '{r}'"
                 )
             }
             Self::NegativeFactorial(_) => {
@@ -142,15 +147,13 @@ impl Display for Error {
                 write!(f, "Attempted to calculate the factorial of a fraction")
             }
             Self::InvalidClampBounds(min, max) => {
-                write!(f, "Invalid clamp bounds '{min}' is greater than '{max}'")
+                write!(
+                    f,
+                    "Invalid clamp bounds min: '{min}' is greater than max: '{max}'"
+                )
             }
-            Self::MissingExpr => write!(f, "Missing expression"),
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
-            }
-            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
-            Self::ExpectedNumber(v) => {
-                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
             }
         }
     }
@@ -159,6 +162,9 @@ impl Display for Error {
 impl UserFacing for Error {
     fn ranges(&self) -> Vec<Range> {
         match self {
+            Self::MissingExpr => vec![],
+            Self::ExpectedValue(r) => vec![*r],
+            Self::ExpectedNumber(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
@@ -182,16 +188,13 @@ impl UserFacing for Error {
             Self::FractionRemainder(a, b) => vec![a.range, b.range],
             Self::FractionGcd(a, b) => vec![a.range, b.range],
             Self::FractionNcr(a, b) => vec![a.range, b.range],
-            Self::NegativeNcr(a, b) => vec![a.range, b.range],
+            Self::NegativeNcr(a) => vec![a.range],
             Self::InvalidNcr(a, b) => vec![a.range, b.range],
             Self::FactorialOverflow(v) => vec![v.range],
             Self::NegativeFactorial(v) => vec![v.range],
             Self::FractionFactorial(v) => vec![v.range],
             Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
-            Self::MissingExpr => vec![],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
-            Self::ExpectedValue(r) => vec![*r],
-            Self::ExpectedNumber(v) => vec![v.range],
         }
     }
 }

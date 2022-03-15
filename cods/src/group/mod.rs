@@ -26,7 +26,7 @@ impl Context {
 
                 items.push(Item::Group(Group {
                     items: self.group(&tokens[group_range.tokens()])?,
-                    range: group_range.chars(tokens),
+                    range: group_range.char_range(tokens),
                     par_kind: group_range.par_type,
                 }));
                 pos = group_range.tokens_after(0).start;
@@ -65,7 +65,6 @@ impl Context {
                 if par_stack.is_empty() {
                     Some(GroupRange {
                         start: open_pos + 1,
-                        missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: open_par.kind(),
@@ -80,7 +79,6 @@ impl Context {
                 if par_stack.is_empty() {
                     Some(GroupRange {
                         start: open_pos + 1,
-                        missing_start_par: false,
                         end: close_pos,
                         missing_end_par: false,
                         par_type: ParKind::Mixed,
@@ -100,7 +98,6 @@ impl Context {
 
 /// A range of token indices inside a group
 struct GroupRange {
-    missing_start_par: bool,
     /// including
     start: usize,
     missing_end_par: bool,
@@ -111,11 +108,7 @@ struct GroupRange {
 
 impl GroupRange {
     fn tokens_before(&self, start: usize) -> ops::Range<usize> {
-        if self.missing_start_par {
-            start..self.start.saturating_sub(2)
-        } else {
-            start..self.start.saturating_sub(1)
-        }
+        start..self.start.saturating_sub(1)
     }
 
     fn tokens(&self) -> ops::Range<usize> {
@@ -130,17 +123,13 @@ impl GroupRange {
         }
     }
 
-    fn chars(&self, tokens: &[Token]) -> Range {
-        let start = if self.missing_start_par {
-            tokens[self.start].range().start
-        } else {
-            tokens[self.start - 1].range().end
-        };
+    fn char_range(&self, tokens: &[Token]) -> Range {
+        let start = tokens[self.start - 1].range().start;
 
         let end = if self.missing_end_par {
             tokens[self.end - 1].range().end
         } else {
-            tokens[self.end].range().start
+            tokens[self.end].range().end
         };
 
         Range::of(start, end)
@@ -150,17 +139,17 @@ impl GroupRange {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
-    Val(Expr),
+    Expr(Expr),
     Op(Op),
-    Fun(Fun),
     Mod(Mod),
+    Fun(Fun),
     Sep(Sep),
 }
 
 impl Item {
     pub fn try_from(token: &Token) -> Option<Self> {
         match *token {
-            Token::Expr(n) => Some(Self::Val(n)),
+            Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Fun(c) => Some(Self::Fun(c)),
             Token::Mod(m) => Some(Self::Mod(m)),
@@ -172,13 +161,6 @@ impl Item {
     pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
-            _ => None,
-        }
-    }
-
-    pub fn as_mod(&self) -> Option<Mod> {
-        match self {
-            Self::Mod(m) => Some(*m),
             _ => None,
         }
     }
@@ -205,13 +187,20 @@ impl Item {
         matches!(self, Self::Sep(_))
     }
 
+    pub fn is_semi(&self) -> bool {
+        match self {
+            Self::Sep(s) => s.is_semi(),
+            _ => false,
+        }
+    }
+
     pub fn range(&self) -> Range {
         match self {
             Self::Group(g) => g.range,
-            Self::Val(n) => n.range,
+            Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Fun(c) => c.range,
             Self::Mod(m) => m.range,
+            Self::Fun(c) => c.range,
             Self::Sep(s) => s.range,
         }
     }

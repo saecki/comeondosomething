@@ -11,9 +11,9 @@ fn no_parenthesis() {
     assert_eq!(
         items,
         vec![
-            Item::Val(Expr::new(ExprT::float(423.42), Range::of(0, 6))),
+            Item::Expr(Expr::new(ExprT::float(423.42), Range::of(0, 6))),
             Item::Op(Op::new(OpT::Mul, Range::pos(7))),
-            Item::Val(Expr::new(ExprT::float(64.52), Range::of(9, 14))),
+            Item::Expr(Expr::new(ExprT::float(64.52), Range::of(9, 14))),
         ]
     );
 }
@@ -29,15 +29,15 @@ fn add_parenthesis() {
         vec![
             Item::Group(Group::new(
                 vec![
-                    Item::Val(Expr::new(ExprT::float(23.13), Range::of(1, 6))),
+                    Item::Expr(Expr::new(ExprT::float(23.13), Range::of(1, 6))),
                     Item::Op(Op::new(OpT::Add, Range::pos(7))),
-                    Item::Val(Expr::new(ExprT::float(543.23), Range::of(9, 15)))
+                    Item::Expr(Expr::new(ExprT::float(543.23), Range::of(9, 15)))
                 ],
-                Range::of(1, 15),
+                Range::of(0, 16),
                 ParKind::Round,
             )),
             Item::Op(Op::new(OpT::Mul, Range::pos(17))),
-            Item::Val(Expr::new(ExprT::int(34), Range::of(19, 21))),
+            Item::Expr(Expr::new(ExprT::int(34), Range::of(19, 21))),
         ]
     );
 }
