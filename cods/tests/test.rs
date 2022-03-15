@@ -135,10 +135,7 @@ fn binomial_coefficient_invalid() {
 #[test]
 fn binomial_coefficient_negative() {
     assert_err(
-        Error::NegativeNcr(
-            ValRange::new(Val::Int(5), Range::pos(4)),
-            ValRange::new(Val::Int(-3), Range::of(7, 9)),
-        ),
+        Error::NegativeNcr(ValRange::new(Val::Int(-3), Range::of(7, 9))),
         "nCr(5, -3)",
     );
 }

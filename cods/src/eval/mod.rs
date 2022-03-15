@@ -375,7 +375,7 @@ impl Context {
         let val = match (va.val, vb.val) {
             (Val::Int(n), Val::Int(mut r)) => {
                 if r < 0 {
-                    return Err(crate::Error::NegativeNcr(va, vb));
+                    return Err(crate::Error::NegativeNcr(vb));
                 }
                 if n < r {
                     return Err(crate::Error::InvalidNcr(va, vb));
