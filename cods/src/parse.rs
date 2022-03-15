@@ -85,6 +85,11 @@ impl Context {
             Some(Item::Expr(e)) => Ast::new(AstT::Expr(*e), e.range),
             Some(Item::Op(o)) => match o.as_sign() {
                 Some(s) => {
+                    if let None = parser.peek() {
+                        let r = Range::pos(o.range.end);
+                        return Err(crate::Error::MissingOperand(r));
+                    }
+
                     let val_r = Range::of(o.range.end, range.end);
                     let val = self.parse_bp(parser, s.r_bp(), val_r)?;
                     let r = Range::span(o.range, val.range);
@@ -140,6 +145,11 @@ impl Context {
                 break;
             } else {
                 parser.next();
+            }
+
+            if let None = parser.peek() {
+                let r = Range::pos(op.range.end);
+                return Err(crate::Error::MissingOperand(r));
             }
 
             let rhs_r = Range::of(op.range.end, range.end);
