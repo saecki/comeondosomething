@@ -69,21 +69,30 @@ impl Context {
                 '=' => match chars.peek() {
                     Some('=') => {
                         chars.next();
-                        self.new_token(&mut state, Token::op(OpT::Eq, range))?
+                        state.char_index += 1;
+
+                        let r = Range::of(range.start, range.start + 2);
+                        self.new_token(&mut state, Token::op(OpT::Eq, r))?
                     }
                     _ => self.new_token(&mut state, Token::op(OpT::Assign, range))?,
                 },
                 '|' => match chars.peek() {
                     Some('|') => {
                         chars.next();
-                        self.new_token(&mut state, Token::op(OpT::Or, range))?
+                        state.char_index += 1;
+
+                        let r = Range::of(range.start, range.start + 2);
+                        self.new_token(&mut state, Token::op(OpT::Or, r))?
                     }
                     _ => self.new_token(&mut state, Token::op(OpT::BwOr, range))?,
                 },
                 '&' => match chars.peek() {
                     Some('&') => {
                         chars.next();
-                        self.new_token(&mut state, Token::op(OpT::And, range))?
+                        state.char_index += 1;
+
+                        let r = Range::of(range.start, range.start + 2);
+                        self.new_token(&mut state, Token::op(OpT::And, r))?
                     }
                     _ => self.new_token(&mut state, Token::op(OpT::BwAnd, range))?,
                 },

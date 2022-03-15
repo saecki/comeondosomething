@@ -101,6 +101,18 @@ fn angle_literal_rad2() {
 }
 
 #[test]
+fn eq_range() {
+    check(
+        "234 == 43",
+        vec![
+            Token::val(ExprT::int(234), Range::of(0, 3)),
+            Token::op(OpT::Eq, Range::of(4, 6)),
+            Token::val(ExprT::int(43), Range::of(7, 9)),
+        ],
+    );
+}
+
+#[test]
 fn vars() {
     let mut ctx = Context::default();
     let tokens = ctx.tokenize("x64 = 2; Arm = 3").unwrap();
