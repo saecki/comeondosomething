@@ -171,6 +171,17 @@ impl Context {
     fn parse_fun(&mut self, parser: &mut Parser, fun: Fun) -> crate::Result<Ast> {
         match parser.next() {
             Some(Item::Group(g)) => {
+                match g.par_kind {
+                    crate::ParKind::Round => (),
+                    _ => self
+                        .warnings
+                        .push(crate::Warning::ConfusingFunctionParentheses {
+                            fun,
+                            open_par: Range::pos(g.range.start),
+                            close_par: Range::pos(g.range.end - 1),
+                        }),
+                }
+
                 let f = match fun.typ {
                     FunT::Pow => {
                         let [base, exp] = self.parse_fun_args(&g.items, g.range)?;
