@@ -35,39 +35,6 @@ macro_rules! match_warn_case {
     }};
 }
 
-pub trait BindingPower {
-    fn bp(&self) -> (u8, u8);
-}
-
-impl BindingPower for Expr {
-    fn bp(&self) -> (u8, u8) {
-        (0, 0)
-    }
-}
-
-impl BindingPower for OpT {
-    fn bp(&self) -> (u8, u8) {
-        match self {
-            Self::Pow => (9, 10),
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => (7, 8),
-            Self::Add | Self::Sub => (5, 6),
-            Self::Equals => (3, 4),
-        }
-    }
-}
-
-impl BindingPower for ModT {
-    fn bp(&self) -> (u8, u8) {
-        (11, 0)
-    }
-}
-
-impl BindingPower for SepT {
-    fn bp(&self) -> (u8, u8) {
-        (1, 2)
-    }
-}
-
 struct Tokenizer {
     tokens: Vec<Token>,
     literal: String,
