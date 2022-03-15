@@ -140,9 +140,10 @@ impl GroupRange {
 pub enum Item {
     Group(Group),
     Expr(Expr),
+    Fun(Fun),
+
     Op(Op),
     Mod(Mod),
-    Fun(Fun),
     Sep(Sep),
 }
 
@@ -190,6 +191,13 @@ impl Item {
     pub fn is_semi(&self) -> bool {
         match self {
             Self::Sep(s) => s.is_semi(),
+            _ => false,
+        }
+    }
+
+    pub fn is_newln(&self) -> bool {
+        match self {
+            Self::Sep(s) => s.is_newln(),
             _ => false,
         }
     }

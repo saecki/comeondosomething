@@ -254,3 +254,18 @@ fn unmatched_par() {
 fn var() {
     assert(Val::Int(7), "x = 7; x");
 }
+
+#[test]
+fn newline_sep() {
+    assert(Val::Int(7), "x = 7\n x");
+}
+
+#[test]
+fn newline_ignored_after_op() {
+    assert(Val::Int(21), "x = 9 + \n 12 \n x");
+}
+
+#[test]
+fn newline_ignored_before_op() {
+    assert(Val::Int(-11), "x = 34\n - 45 \n x");
+}

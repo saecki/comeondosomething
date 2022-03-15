@@ -1,5 +1,5 @@
 use std::f64::consts;
-use std::fmt::{self, Display, Write};
+use std::fmt::{self, Display};
 use std::ops::{self, Deref, DerefMut};
 
 use crate::Context;
@@ -59,7 +59,8 @@ impl Context {
         while let Some(c) = chars.next() {
             let range = Range::pos(state.char_index);
             match c {
-                ' ' | '\n' | '\r' => self.complete_literal(&mut state)?,
+                ' ' | '\r' => self.complete_literal(&mut state)?,
+                '\n' => self.new_token(&mut state, Token::sep(SepT::Newln, range))?,
                 '+' => self.new_token(&mut state, Token::op(OpT::Add, range))?,
                 '-' | '−' => self.new_token(&mut state, Token::op(OpT::Sub, range))?,
                 '*' | '×' => self.new_token(&mut state, Token::op(OpT::Mul, range))?,
@@ -230,9 +231,9 @@ impl Context {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Token {
     Expr(Expr),
+    Fun(Fun),
     Op(Op),
     Mod(Mod),
-    Fun(Fun),
     Par(Par),
     Sep(Sep),
 }
@@ -634,13 +635,15 @@ impl Sep {
 pub enum SepT {
     Comma,
     Semi,
+    Newln,
 }
 
 impl Display for SepT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Comma => f.write_char(','),
-            Self::Semi => f.write_char(';'),
+            Self::Comma => write!(f, ","),
+            Self::Semi => write!(f, ";"),
+            Self::Newln => write!(f, "\\n"),
         }
     }
 }
@@ -648,6 +651,10 @@ impl Display for SepT {
 impl SepT {
     pub fn is_semi(&self) -> bool {
         matches!(self, Self::Semi)
+    }
+
+    pub fn is_newln(&self) -> bool {
+        matches!(self, Self::Newln)
     }
 }
 

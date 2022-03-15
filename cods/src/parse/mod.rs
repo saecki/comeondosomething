@@ -50,6 +50,14 @@ impl<'a> Parser<'a> {
         Self { items, cursor: 0 }
     }
 
+    fn back(&mut self) -> Option<&'a Item> {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+            return self.peek();
+        }
+        None
+    }
+
     fn next(&mut self) -> Option<&'a Item> {
         let i = self.peek();
         self.cursor += 1;
@@ -68,12 +76,27 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_semi(&mut self) {
+    fn eat_semi(&mut self) -> bool {
         if let Some(i) = self.peek() {
             if i.is_semi() {
                 self.next();
+                return true;
             }
         }
+        false
+    }
+
+    fn eat_newlns(&mut self) -> bool {
+        let mut newln = false;
+        while let Some(i) = self.peek() {
+            if i.is_newln() {
+                self.next();
+                newln = true;
+            } else {
+                break;
+            }
+        }
+        newln
     }
 }
 
@@ -103,6 +126,8 @@ impl Context {
         min_bp: u8,
         range: Range,
     ) -> crate::Result<Ast> {
+        parser.eat_newlns();
+
         let mut lhs = match parser.next() {
             Some(Item::Group(g)) => {
                 let mut group_parser = Parser::new(&g.items);
@@ -111,9 +136,10 @@ impl Context {
                 val
             }
             Some(Item::Expr(e)) => Ast::new(AstT::Expr(*e), e.range),
+            Some(Item::Fun(f)) => self.parse_fun(parser, *f)?,
             Some(Item::Op(o)) => match o.as_sign() {
                 Some(s) => {
-                    if let None = parser.peek() {
+                    if parser.peek().is_none() {
                         let r = Range::pos(o.range.end);
                         return Err(crate::Error::MissingOperand(r));
                     }
@@ -128,10 +154,9 @@ impl Context {
             Some(Item::Mod(m)) => {
                 return Err(crate::Error::MissingOperand(Range::pos(m.range.start)))
             }
-            Some(Item::Fun(f)) => self.parse_fun(parser, *f)?,
             Some(Item::Sep(s)) => match s.typ {
                 SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
-                SepT::Semi => {
+                SepT::Semi | SepT::Newln => {
                     let r = Range::of(range.start, s.range.end);
                     return Ok(Ast::new(AstT::Empty, r));
                 }
@@ -139,14 +164,34 @@ impl Context {
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
+        let newln = parser.eat_newlns();
         while let Some(i) = parser.peek() {
             let op = match i {
                 Item::Group(g) => {
+                    if newln {
+                        parser.back();
+                        break;
+                    }
+
                     let r = Range::between(lhs.range, g.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 Item::Expr(e) => {
+                    if newln {
+                        parser.back();
+                        break;
+                    }
+
                     let r = Range::between(lhs.range, e.range);
+                    return Err(crate::Error::MissingOperator(r));
+                }
+                Item::Fun(f) => {
+                    if newln {
+                        parser.back();
+                        break;
+                    }
+
+                    let r = Range::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 Item::Op(o) => o,
@@ -167,15 +212,9 @@ impl Context {
                     lhs = Ast::new(val, val_r);
                     continue;
                 }
-                Item::Fun(f) => {
-                    let r = Range::between(lhs.range, f.range);
-                    return Err(crate::Error::MissingOperator(r));
-                }
                 Item::Sep(s) => match s.typ {
                     SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
-                    SepT::Semi => {
-                        break;
-                    }
+                    SepT::Semi | SepT::Newln => break,
                 },
             };
 
@@ -186,7 +225,7 @@ impl Context {
                 parser.next();
             }
 
-            if let None = parser.peek() {
+            if parser.peek().is_none() {
                 let r = Range::pos(op.range.end);
                 return Err(crate::Error::MissingOperand(r));
             }
@@ -342,6 +381,7 @@ impl Context {
                         sep: *s,
                         expected: SepT::Comma,
                     }),
+                    SepT::Newln => continue,
                 }
 
                 let r = Range::of(start.1, s.range.start);
@@ -412,6 +452,7 @@ impl Context {
                         sep: *s,
                         expected: SepT::Comma,
                     }),
+                    SepT::Newln => continue,
                 }
 
                 let r = Range::of(start.1, s.range.start);
