@@ -28,8 +28,8 @@ pub enum Infix {
 }
 
 pub enum Prefix {
-    Pos,
-    Neg,
+    UnaryPlus,
+    UnaryMinus,
     Not,
 }
 
@@ -93,8 +93,8 @@ impl OpT {
     pub fn prefix_bp(&self) -> Option<(Prefix, u8)> {
         match self {
             Self::Bang => Some((Prefix::Not, 20)),
-            Self::Add => Some((Prefix::Pos, 14)),
-            Self::Sub => Some((Prefix::Neg, 14)),
+            Self::Add => Some((Prefix::UnaryPlus, 20)),
+            Self::Sub => Some((Prefix::UnaryMinus, 20)),
             OpT::Assign
             | OpT::Mul
             | OpT::Div
@@ -225,8 +225,8 @@ impl Context {
                     let val = self.parse_bp(parser, r_bp, val_r)?;
                     let ast_r = Range::span(o.range, val.range);
                     let ast = match prefix {
-                        Prefix::Pos => val.typ,
-                        Prefix::Neg => AstT::Neg(Box::new(val)),
+                        Prefix::UnaryPlus => val.typ,
+                        Prefix::UnaryMinus => AstT::Neg(Box::new(val)),
                         Prefix::Not => AstT::Not(Box::new(val)),
                     };
 
