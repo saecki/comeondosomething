@@ -28,6 +28,7 @@ pub enum AstT {
     Empty,
     Error,
     Expr(Expr),
+    Assign(VarId, Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -36,6 +37,20 @@ pub enum AstT {
     IntDiv(Box<Ast>, Box<Ast>),
     Rem(Box<Ast>, Box<Ast>),
     Pow(Box<Ast>, Box<Ast>),
+    Eq(Box<Ast>, Box<Ast>),
+    Ne(Box<Ast>, Box<Ast>),
+    Lt(Box<Ast>, Box<Ast>),
+    Le(Box<Ast>, Box<Ast>),
+    Gt(Box<Ast>, Box<Ast>),
+    Ge(Box<Ast>, Box<Ast>),
+    Or(Box<Ast>, Box<Ast>),
+    And(Box<Ast>, Box<Ast>),
+    BwOr(Box<Ast>, Box<Ast>),
+    BwAnd(Box<Ast>, Box<Ast>),
+    Not(Box<Ast>),
+    Degree(Box<Ast>),
+    Radian(Box<Ast>),
+    Factorial(Box<Ast>),
     Ln(Box<Ast>),
     Log(Box<Ast>, Box<Ast>),
     Sqrt(Box<Ast>),
@@ -50,15 +65,6 @@ pub enum AstT {
     Min(Vec<Ast>),
     Max(Vec<Ast>),
     Clamp(Box<Ast>, Box<Ast>, Box<Ast>),
-    Degree(Box<Ast>),
-    Radian(Box<Ast>),
-    Factorial(Box<Ast>),
-    Eq(Box<Ast>, Box<Ast>),
-    Or(Box<Ast>, Box<Ast>),
-    And(Box<Ast>, Box<Ast>),
-    BwOr(Box<Ast>, Box<Ast>),
-    BwAnd(Box<Ast>, Box<Ast>),
-    Assign(VarId, Box<Ast>),
     Print(Vec<Ast>),
     Println(Vec<Ast>),
     Spill,
@@ -199,6 +205,7 @@ impl Context {
             AstT::Empty => Ok(Return::Unit(r)),
             AstT::Error => Err(crate::Error::Parsing(r)),
             AstT::Expr(e) => ok(self.to_val(e)?, r),
+            AstT::Assign(a, b) => self.assign(*a, b, r),
             AstT::Neg(a) => self.neg(a, r),
             AstT::Add(a, b) => self.add(a, b, r),
             AstT::Sub(a, b) => self.sub(a, b, r),
@@ -207,6 +214,20 @@ impl Context {
             AstT::IntDiv(a, b) => self.int_div(a, b, r),
             AstT::Rem(a, b) => self.rem(a, b, r),
             AstT::Pow(a, b) => self.pow(a, b, r),
+            AstT::Eq(a, b) => self.eq(a, b, r),
+            AstT::Ne(a, b) => self.ne(a, b, r),
+            AstT::Lt(a, b) => self.lt(a, b, r),
+            AstT::Le(a, b) => self.le(a, b, r),
+            AstT::Gt(a, b) => self.gt(a, b, r),
+            AstT::Ge(a, b) => self.ge(a, b, r),
+            AstT::Or(a, b) => self.or(a, b, r),
+            AstT::And(a, b) => self.and(a, b, r),
+            AstT::BwOr(a, b) => self.bw_or(a, b, r),
+            AstT::BwAnd(a, b) => self.bw_and(a, b, r),
+            AstT::Not(a) => self.not(a, r),
+            AstT::Degree(a) => self.degree(a, r),
+            AstT::Radian(a) => self.radian(a, r),
+            AstT::Factorial(a) => self.factorial(a, r),
             AstT::Ln(a) => self.ln(a, r),
             AstT::Log(a, b) => self.log(a, b, r),
             AstT::Sqrt(a) => self.sqrt(a, r),
@@ -221,15 +242,6 @@ impl Context {
             AstT::Min(args) => self.min(args, r),
             AstT::Max(args) => self.max(args, r),
             AstT::Clamp(num, min, max) => self.clamp(num, min, max, r),
-            AstT::Degree(a) => self.degree(a, r),
-            AstT::Radian(a) => self.radian(a, r),
-            AstT::Factorial(a) => self.factorial(a, r),
-            AstT::Eq(a, b) => self.eq(a, b, r),
-            AstT::Or(a, b) => self.or(a, b, r),
-            AstT::And(a, b) => self.and(a, b, r),
-            AstT::BwOr(a, b) => self.bw_or(a, b, r),
-            AstT::BwAnd(a, b) => self.bw_and(a, b, r),
-            AstT::Assign(a, b) => self.assign(*a, b, r),
             AstT::Print(args) => self.print(args, r),
             AstT::Println(args) => self.println(args, r),
             AstT::Spill => self.spill(r),
@@ -244,6 +256,12 @@ impl Context {
             }
             r
         })
+    }
+
+    fn assign(&mut self, id: VarId, n: &Ast, range: Range) -> crate::Result<Return> {
+        let v = self.eval_to_val(n)?;
+        self.set_var(id, Some(v.val));
+        Ok(Return::Unit(range))
     }
 
     fn neg(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
@@ -379,6 +397,126 @@ impl Context {
             _ => Val::Float(va.to_f64()?.powf(vb.to_f64()?)),
         };
         ok(val, range)
+    }
+
+    fn eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_val(a)?;
+        let b = self.eval_to_val(b)?;
+
+        ok(Val::Bool(a.val == b.val), range)
+    }
+
+    fn ne(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_val(a)?;
+        let b = self.eval_to_val(b)?;
+
+        ok(Val::Bool(a.val != b.val), range)
+    }
+
+    fn lt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_f64(a)?;
+        let vb = self.eval_to_f64(b)?;
+
+        ok(Val::Bool(va < vb), range)
+    }
+
+    fn le(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_f64(a)?;
+        let vb = self.eval_to_f64(b)?;
+
+        ok(Val::Bool(va <= vb), range)
+    }
+
+    fn gt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_f64(a)?;
+        let vb = self.eval_to_f64(b)?;
+
+        ok(Val::Bool(va > vb), range)
+    }
+
+    fn ge(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_f64(a)?;
+        let vb = self.eval_to_f64(b)?;
+
+        ok(Val::Bool(va >= vb), range)
+    }
+
+    fn or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_bool(a)?;
+        let b = self.eval_to_bool(b)?;
+
+        ok(Val::Bool(a || b), range)
+    }
+
+    fn and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let a = self.eval_to_bool(a)?;
+        let b = self.eval_to_bool(b)?;
+
+        ok(Val::Bool(a && b), range)
+    }
+
+    fn bw_or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_val(a)?;
+        let vb = self.eval_to_val(b)?;
+
+        let val = match (va.val, vb.val) {
+            (Val::Int(a), Val::Int(b)) => Val::Int(a | b),
+            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a | b),
+            _ => return Err(crate::Error::InvalidBwOr(va, vb)),
+        };
+
+        ok(val, range)
+    }
+
+    fn bw_and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_val(a)?;
+        let vb = self.eval_to_val(b)?;
+
+        let val = match (va.val, vb.val) {
+            (Val::Int(a), Val::Int(b)) => Val::Int(a & b),
+            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a & b),
+            _ => return Err(crate::Error::InvalidBwAnd(va, vb)),
+        };
+
+        ok(val, range)
+    }
+
+    fn not(&mut self, a: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_bool(a)?;
+        ok(Val::Bool(!va), range)
+    }
+
+    // TODO add a angle value type as input for trigeometrical functions
+    fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let rad = self.eval_to_f64(n)?.to_radians();
+        ok(Val::Float(rad), range)
+    }
+
+    fn radian(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let rad = self.eval_to_f64(n)?;
+        ok(Val::Float(rad), range)
+    }
+
+    fn factorial(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+        let v = self.eval_to_val(n)?;
+        match v.val {
+            Val::Int(i) => {
+                if i < 0 {
+                    Err(crate::Error::NegativeFactorial(v))
+                } else {
+                    let mut f: i128 = 1;
+                    for i in 1..=i {
+                        match f.checked_mul(i) {
+                            Some(v) => f = v,
+                            None => return Err(crate::Error::FactorialOverflow(v)),
+                        }
+                    }
+
+                    ok(Val::Int(f), range)
+                }
+            }
+            _ => Err(crate::Error::FractionFactorial(v)),
+        }
     }
 
     fn ln(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
@@ -538,92 +676,6 @@ impl Context {
         ok(val, range)
     }
 
-    // TODO add a angle value type as input for trigeometrical functions
-    fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?.to_radians();
-        ok(Val::Float(rad), range)
-    }
-
-    fn radian(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?;
-        ok(Val::Float(rad), range)
-    }
-
-    fn factorial(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
-        let v = self.eval_to_val(n)?;
-        match v.val {
-            Val::Int(i) => {
-                if i < 0 {
-                    Err(crate::Error::NegativeFactorial(v))
-                } else {
-                    let mut f: i128 = 1;
-                    for i in 1..=i {
-                        match f.checked_mul(i) {
-                            Some(v) => f = v,
-                            None => return Err(crate::Error::FactorialOverflow(v)),
-                        }
-                    }
-
-                    ok(Val::Int(f), range)
-                }
-            }
-            _ => Err(crate::Error::FractionFactorial(v)),
-        }
-    }
-
-    fn eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
-        let a = self.eval_to_val(a)?;
-        let b = self.eval_to_val(b)?;
-
-        ok(Val::Bool(a.val == b.val), range)
-    }
-
-    fn or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
-        let a = self.eval_to_bool(a)?;
-        let b = self.eval_to_bool(b)?;
-
-        ok(Val::Bool(a || b), range)
-    }
-
-    fn and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
-        let a = self.eval_to_bool(a)?;
-        let b = self.eval_to_bool(b)?;
-
-        ok(Val::Bool(a && b), range)
-    }
-
-    fn bw_or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => Val::Int(a | b),
-            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a | b),
-            _ => return Err(crate::Error::InvalidBwOr(va, vb)),
-        };
-
-        ok(val, range)
-    }
-
-    fn bw_and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => Val::Int(a & b),
-            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a & b),
-            _ => return Err(crate::Error::InvalidBwAnd(va, vb)),
-        };
-
-        ok(val, range)
-    }
-
-    fn assign(&mut self, id: VarId, n: &Ast, range: Range) -> crate::Result<Return> {
-        let v = self.eval_to_val(n)?;
-        self.set_var(id, Some(v.val));
-        Ok(Return::Unit(range))
-    }
-
     fn print(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
         let vals = self.eval_to_vals(args)?;
         if let Some((first, others)) = vals.split_first() {
@@ -659,7 +711,7 @@ impl Context {
 
         Ok(Return::Unit(range))
     }
-    
+
     fn assert_eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;

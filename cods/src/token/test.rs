@@ -1,8 +1,8 @@
 use super::*;
 
-fn check(input: &str, output: Vec<Token>) {
+fn check(input: &str, expected: Vec<Token>) {
     let tokens = Context::default().tokenize(input).unwrap();
-    assert_eq!(output, tokens);
+    assert_eq!(tokens, expected);
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn angle_literal_deg1() {
         "234deg",
         vec![
             Token::val(ExprT::int(234), Range::of(0, 3)),
-            Token::mood(ModT::Degree, Range::of(3, 6)),
+            Token::op(OpT::Degree, Range::of(3, 6)),
         ],
     );
 }
@@ -73,7 +73,7 @@ fn angle_literal_deg2() {
         "94.3_deg",
         vec![
             Token::val(ExprT::float(94.3), Range::of(0, 4)),
-            Token::mood(ModT::Degree, Range::of(4, 8)),
+            Token::op(OpT::Degree, Range::of(4, 8)),
         ],
     );
 }
@@ -84,7 +84,7 @@ fn angle_literal_rad1() {
         "43_rad",
         vec![
             Token::val(ExprT::int(43), Range::of(0, 2)),
-            Token::mood(ModT::Radian, Range::of(2, 6)),
+            Token::op(OpT::Radian, Range::of(2, 6)),
         ],
     );
 }
@@ -95,7 +95,7 @@ fn angle_literal_rad2() {
         "1.45rad",
         vec![
             Token::val(ExprT::float(1.45_f64), Range::of(0, 4)),
-            Token::mood(ModT::Radian, Range::of(4, 7)),
+            Token::op(OpT::Radian, Range::of(4, 7)),
         ],
     );
 }

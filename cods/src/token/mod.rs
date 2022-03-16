@@ -1,7 +1,7 @@
 use std::f64::consts;
 use std::fmt::{self, Display};
 use std::iter::Peekable;
-use std::ops::{self, Deref, DerefMut};
+use std::ops::{Deref, DerefMut};
 use std::str::Chars;
 
 use crate::Context;
@@ -9,11 +9,11 @@ use crate::Context;
 #[cfg(test)]
 mod test;
 
-const LITERAL_SUFFIXES: [(&str, ModT); 4] = [
-    ("_deg", ModT::Degree),
-    ("deg", ModT::Degree),
-    ("_rad", ModT::Radian),
-    ("rad", ModT::Radian),
+const LITERAL_SUFFIXES: [(&str, OpT); 4] = [
+    ("_deg", OpT::Degree),
+    ("deg", OpT::Degree),
+    ("_rad", OpT::Radian),
+    ("rad", OpT::Radian),
 ];
 
 macro_rules! match_warn_case {
@@ -93,29 +93,13 @@ impl Context {
                 '/' | '÷' => self.new_token(&mut state, Token::op(OpT::Div, range))?,
                 '%' => self.new_token(&mut state, Token::op(OpT::Rem, range))?,
                 '^' => self.new_token(&mut state, Token::op(OpT::Pow, range))?,
-                '=' => match state.next_if('=') {
-                    Some(_) => {
-                        let r = Range::of(range.start, range.start + 2);
-                        self.new_token(&mut state, Token::op(OpT::Eq, r))?
-                    }
-                    None => self.new_token(&mut state, Token::op(OpT::Assign, range))?,
-                },
-                '|' => match state.next_if('|') {
-                    Some(_) => {
-                        let r = Range::of(range.start, range.start + 2);
-                        self.new_token(&mut state, Token::op(OpT::Or, r))?
-                    }
-                    None => self.new_token(&mut state, Token::op(OpT::BwOr, range))?,
-                },
-                '&' => match state.next_if('&') {
-                    Some(_) => {
-                        let r = Range::of(range.start, range.start + 2);
-                        self.new_token(&mut state, Token::op(OpT::And, r))?
-                    }
-                    None => self.new_token(&mut state, Token::op(OpT::BwAnd, range))?,
-                },
-                '°' => self.new_token(&mut state, Token::mood(ModT::Degree, range))?,
-                '!' => self.new_token(&mut state, Token::mood(ModT::Factorial, range))?,
+                '=' => self.two_char_op(&mut state, OpT::Assign, OpT::Eq, '=')?,
+                '<' => self.two_char_op(&mut state, OpT::Lt, OpT::Le, '=')?,
+                '>' => self.two_char_op(&mut state, OpT::Gt, OpT::Ge, '=')?,
+                '|' => self.two_char_op(&mut state, OpT::BwOr, OpT::Or, '|')?,
+                '&' => self.two_char_op(&mut state, OpT::BwAnd, OpT::And, '&')?,
+                '!' => self.two_char_op(&mut state, OpT::Bang, OpT::Ne, '=')?,
+                '°' => self.new_token(&mut state, Token::op(OpT::Degree, range))?,
                 '(' => self.new_token(&mut state, Token::par(ParT::RoundOpen, range))?,
                 '[' => self.new_token(&mut state, Token::par(ParT::SquareOpen, range))?,
                 '{' => self.new_token(&mut state, Token::par(ParT::CurlyOpen, range))?,
@@ -131,6 +115,25 @@ impl Context {
         self.complete_literal(&mut state)?;
 
         Ok(state.tokens)
+    }
+
+    fn two_char_op(
+        &mut self,
+        state: &mut Tokenizer<'_>,
+        one: OpT,
+        two: OpT,
+        expected: char,
+    ) -> crate::Result<()> {
+        match state.next_if(expected) {
+            Some(_) => {
+                let r = Range::of(state.pos() - 1, state.pos() + 1);
+                self.new_token(state, Token::op(two, r))
+            }
+            None => {
+                let r = Range::pos(state.pos());
+                self.new_token(state, Token::op(one, r))
+            }
+        }
     }
 
     fn new_token(&mut self, state: &mut Tokenizer<'_>, token: Token) -> crate::Result<()> {
@@ -176,16 +179,16 @@ impl Context {
                     "assert_eq" => Token::fun(FunT::AssertEq, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
-                    "deg" => Token::mood(ModT::Degree, range),
-                    "rad" => Token::mood(ModT::Radian, range),
+                    "deg" => Token::op(OpT::Degree, range),
+                    "rad" => Token::op(OpT::Radian, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let mut mood = None;
                             let mut num_lit = literal.as_str();
-                            for (s, m) in LITERAL_SUFFIXES {
+                            for (s, op) in LITERAL_SUFFIXES {
                                 if literal.ends_with(s) {
-                                    let mod_range = Range::of(range.end - s.len(), range.end);
-                                    mood = Some(Token::mood(m, mod_range));
+                                    let op_r = Range::of(range.end - s.len(), range.end);
+                                    mood = Some(Token::op(op, op_r));
 
                                     num_lit = &literal[0..(literal.len() - s.len())];
                                     break;
@@ -251,7 +254,6 @@ pub enum Token {
     Expr(Expr),
     Fun(Fun),
     Op(Op),
-    Mod(Mod),
     Par(Par),
     Sep(Sep),
 }
@@ -267,10 +269,6 @@ impl Token {
 
     pub fn fun(typ: FunT, range: Range) -> Self {
         Self::Fun(Fun::new(typ, range))
-    }
-
-    pub fn mood(typ: ModT, range: Range) -> Self {
-        Self::Mod(Mod::new(typ, range))
     }
 
     pub fn par(typ: ParT, range: Range) -> Self {
@@ -327,7 +325,6 @@ impl Token {
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
             Self::Fun(c) => c.range,
-            Self::Mod(m) => m.range,
             Self::Par(p) => p.range,
             Self::Sep(s) => s.range,
         }
@@ -449,51 +446,19 @@ pub enum OpT {
     Rem,
     Pow,
     Eq,
-    BwOr,
-    BwAnd,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
     Or,
     And,
-}
-
-impl OpT {
-    pub const fn as_sign(&self) -> Option<Sign> {
-        match self {
-            Self::Add => Some(Sign::Positive),
-            Self::Sub => Some(Sign::Negative),
-            _ => None,
-        }
-    }
-
-    pub const fn is_sign(&self) -> bool {
-        self.as_sign().is_some()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sign {
-    Negative,
-    Positive,
-}
-
-impl ops::Not for Sign {
-    type Output = Sign;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Self::Negative => Self::Positive,
-            Self::Positive => Self::Negative,
-        }
-    }
-}
-
-impl Sign {
-    pub const fn is_negative(&self) -> bool {
-        matches!(self, Self::Negative)
-    }
-
-    pub const fn is_positive(&self) -> bool {
-        matches!(self, Self::Positive)
-    }
+    BwOr,
+    BwAnd,
+    /// Not or Factorial depending on position
+    Bang,
+    Degree,
+    Radian,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -530,33 +495,6 @@ pub enum FunT {
     Spill,
     Assert,
     AssertEq,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Mod {
-    pub typ: ModT,
-    pub range: Range,
-}
-
-impl Deref for Mod {
-    type Target = ModT;
-
-    fn deref(&self) -> &Self::Target {
-        &self.typ
-    }
-}
-
-impl Mod {
-    pub const fn new(typ: ModT, range: Range) -> Self {
-        Self { typ, range }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ModT {
-    Degree,
-    Radian,
-    Factorial,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{Context, Expr, Fun, Mod, Op, Par, ParKind, Range, Sep, Token};
+use crate::{Context, Expr, Fun, Op, Par, ParKind, Range, Sep, Token};
 
 #[cfg(test)]
 mod test;
@@ -143,7 +143,6 @@ pub enum Item {
     Fun(Fun),
 
     Op(Op),
-    Mod(Mod),
     Sep(Sep),
 }
 
@@ -153,7 +152,6 @@ impl Item {
             Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Fun(c) => Some(Self::Fun(c)),
-            Token::Mod(m) => Some(Self::Mod(m)),
             Token::Par(_) => None,
             Token::Sep(s) => Some(Self::Sep(s)),
         }
@@ -207,7 +205,6 @@ impl Item {
             Self::Group(g) => g.range,
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Mod(m) => m.range,
             Self::Fun(c) => c.range,
             Self::Sep(s) => s.range,
         }

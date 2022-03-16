@@ -1,41 +1,118 @@
 use std::cmp;
 use std::mem::MaybeUninit;
 
-use crate::{
-    items_range, Ast, AstT, Context, ExprT, Fun, FunT, Item, ModT, OpT, Range, SepT, Sign,
-};
+use crate::{items_range, Ast, AstT, Context, ExprT, Fun, FunT, Item, OpT, Range, SepT};
 
 #[cfg(test)]
 mod test;
 
+pub enum Infix {
+    Assign,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    IntDiv,
+    Rem,
+    Pow,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    BwOr,
+    BwAnd,
+    Or,
+    And,
+}
+
+pub enum Prefix {
+    Pos,
+    Neg,
+    Not,
+}
+
+pub enum Suffix {
+    Degree,
+    Radian,
+    Factorial,
+}
+
 impl OpT {
-    pub fn bp(&self) -> (u8, u8) {
+    pub fn infix_bp(&self) -> Option<(u8, Infix, u8)> {
         match self {
-            Self::Pow => (17, 18),
-            Self::Mul | Self::Div | Self::IntDiv | Self::Rem => (15, 16),
-            Self::Add | Self::Sub => (13, 14),
-            Self::BwAnd => (11, 12),
-            Self::BwOr => (9, 10),
-            Self::And => (7, 8),
-            Self::Or => (5, 6),
-            Self::Eq => (3, 4),
-            Self::Assign => (1, 2),
+            Self::Pow => Some((17, Infix::Pow, 18)),
+            Self::Mul => Some((15, Infix::Mul, 16)),
+            Self::Div => Some((15, Infix::Div, 16)),
+            Self::IntDiv => Some((15, Infix::IntDiv, 16)),
+            Self::Rem => Some((15, Infix::Rem, 16)),
+            Self::Add => Some((13, Infix::Add, 14)),
+            Self::Sub => Some((13, Infix::Sub, 14)),
+            Self::BwAnd => Some((11, Infix::BwAnd, 12)),
+            Self::BwOr => Some((9, Infix::BwOr, 10)),
+            Self::Eq => Some((7, Infix::Eq, 8)),
+            Self::Ne => Some((7, Infix::Ne, 8)),
+            Self::Lt => Some((7, Infix::Lt, 8)),
+            Self::Le => Some((7, Infix::Le, 8)),
+            Self::Gt => Some((7, Infix::Gt, 8)),
+            Self::Ge => Some((7, Infix::Ge, 8)),
+            Self::And => Some((5, Infix::And, 6)),
+            Self::Or => Some((3, Infix::Or, 4)),
+            Self::Assign => Some((1, Infix::Assign, 2)),
+            Self::Bang | Self::Degree | Self::Radian => None,
         }
     }
-}
 
-impl Sign {
-    pub fn r_bp(&self) -> u8 {
+    pub fn suffix_bp(&self) -> Option<(u8, Suffix)> {
         match self {
-            Self::Negative | Self::Positive => 14,
+            Self::Degree => Some((19, Suffix::Degree)),
+            Self::Radian => Some((19, Suffix::Radian)),
+            Self::Bang => Some((19, Suffix::Factorial)),
+            Self::Assign
+            | Self::Add
+            | Self::Sub
+            | Self::Mul
+            | Self::Div
+            | Self::IntDiv
+            | Self::Rem
+            | Self::Pow
+            | Self::Eq
+            | Self::Ne
+            | Self::Lt
+            | Self::Le
+            | Self::Gt
+            | Self::Ge
+            | Self::BwOr
+            | Self::BwAnd
+            | Self::Or
+            | Self::And => None,
         }
     }
-}
 
-impl ModT {
-    pub fn l_bp(&self) -> u8 {
+    pub fn prefix_bp(&self) -> Option<(Prefix, u8)> {
         match self {
-            Self::Degree | Self::Radian | Self::Factorial => 19,
+            Self::Bang => Some((Prefix::Not, 20)),
+            Self::Add => Some((Prefix::Pos, 14)),
+            Self::Sub => Some((Prefix::Neg, 14)),
+            OpT::Assign
+            | OpT::Mul
+            | OpT::Div
+            | OpT::IntDiv
+            | OpT::Rem
+            | OpT::Pow
+            | OpT::Eq
+            | OpT::Ne
+            | OpT::Lt
+            | OpT::Le
+            | OpT::Gt
+            | OpT::Ge
+            | OpT::BwOr
+            | OpT::BwAnd
+            | OpT::Or
+            | OpT::And
+            | OpT::Degree
+            | OpT::Radian => None,
         }
     }
 }
@@ -137,23 +214,26 @@ impl Context {
             }
             Some(Item::Expr(e)) => Ast::new(AstT::Expr(*e), e.range),
             Some(Item::Fun(f)) => self.parse_fun(parser, *f)?,
-            Some(Item::Op(o)) => match o.as_sign() {
-                Some(s) => {
+            Some(Item::Op(o)) => match o.prefix_bp() {
+                Some((prefix, r_bp)) => {
                     if parser.peek().is_none() {
                         let r = Range::pos(o.range.end);
                         return Err(crate::Error::MissingOperand(r));
                     }
 
                     let val_r = Range::of(o.range.end, range.end);
-                    let val = self.parse_bp(parser, s.r_bp(), val_r)?;
-                    let r = Range::span(o.range, val.range);
-                    Ast::new(AstT::Neg(Box::new(val)), r)
+                    let val = self.parse_bp(parser, r_bp, val_r)?;
+                    let ast_r = Range::span(o.range, val.range);
+                    let ast = match prefix {
+                        Prefix::Pos => val.typ,
+                        Prefix::Neg => AstT::Neg(Box::new(val)),
+                        Prefix::Not => AstT::Not(Box::new(val)),
+                    };
+
+                    Ast::new(ast, ast_r)
                 }
                 None => return Err(crate::Error::UnexpectedOperator(*o)),
             },
-            Some(Item::Mod(m)) => {
-                return Err(crate::Error::MissingOperand(Range::pos(m.range.start)))
-            }
             Some(Item::Sep(s)) => match s.typ {
                 SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
                 SepT::Semi | SepT::Newln => {
@@ -194,31 +274,39 @@ impl Context {
                     let r = Range::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
-                Item::Op(o) => o,
-                Item::Mod(m) => {
-                    if m.l_bp() < min_bp {
-                        break;
-                    } else {
-                        parser.next();
+                Item::Op(o) => match o.suffix_bp() {
+                    Some((l_bp, suffix)) => {
+                        if l_bp < min_bp {
+                            break;
+                        } else {
+                            parser.next();
+                        }
+
+                        let val_r = Range::span(lhs.range, o.range);
+                        let val = match suffix {
+                            Suffix::Degree => AstT::Degree(Box::new(lhs)),
+                            Suffix::Radian => AstT::Radian(Box::new(lhs)),
+                            Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
+                        };
+
+                        lhs = Ast::new(val, val_r);
+                        continue;
                     }
-
-                    let val_r = Range::span(lhs.range, m.range);
-                    let val = match m.typ {
-                        ModT::Degree => AstT::Degree(Box::new(lhs)),
-                        ModT::Radian => AstT::Radian(Box::new(lhs)),
-                        ModT::Factorial => AstT::Factorial(Box::new(lhs)),
-                    };
-
-                    lhs = Ast::new(val, val_r);
-                    continue;
-                }
+                    None => o,
+                },
                 Item::Sep(s) => match s.typ {
                     SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
                     SepT::Semi | SepT::Newln => break,
                 },
             };
 
-            let (l_bp, r_bp) = op.bp();
+            let (l_bp, infix, r_bp) = match op.infix_bp() {
+                Some(bp) => bp,
+                None => {
+                    let r = Range::between(lhs.range, op.range);
+                    return Err(crate::Error::MissingOperator(r));
+                }
+            };
             if l_bp < min_bp {
                 break;
             } else {
@@ -234,26 +322,31 @@ impl Context {
             let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
 
             let val_r = Range::span(lhs.range, rhs.range);
-            let val = match op.typ {
-                OpT::Assign => match lhs.typ {
+            let val = match infix {
+                Infix::Assign => match lhs.typ {
                     AstT::Expr(e) => match e.typ {
                         ExprT::Var(id) => AstT::Assign(id, Box::new(rhs)),
                         _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                     },
                     _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                 },
-                OpT::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),
-                OpT::Sub => AstT::Sub(Box::new(lhs), Box::new(rhs)),
-                OpT::Mul => AstT::Mul(Box::new(lhs), Box::new(rhs)),
-                OpT::Div => AstT::Div(Box::new(lhs), Box::new(rhs)),
-                OpT::IntDiv => AstT::IntDiv(Box::new(lhs), Box::new(rhs)),
-                OpT::Rem => AstT::Rem(Box::new(lhs), Box::new(rhs)),
-                OpT::Pow => AstT::Pow(Box::new(lhs), Box::new(rhs)),
-                OpT::Eq => AstT::Eq(Box::new(lhs), Box::new(rhs)),
-                OpT::Or => AstT::Or(Box::new(lhs), Box::new(rhs)),
-                OpT::And => AstT::And(Box::new(lhs), Box::new(rhs)),
-                OpT::BwOr => AstT::BwOr(Box::new(lhs), Box::new(rhs)),
-                OpT::BwAnd => AstT::BwAnd(Box::new(lhs), Box::new(rhs)),
+                Infix::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),
+                Infix::Sub => AstT::Sub(Box::new(lhs), Box::new(rhs)),
+                Infix::Mul => AstT::Mul(Box::new(lhs), Box::new(rhs)),
+                Infix::Div => AstT::Div(Box::new(lhs), Box::new(rhs)),
+                Infix::IntDiv => AstT::IntDiv(Box::new(lhs), Box::new(rhs)),
+                Infix::Rem => AstT::Rem(Box::new(lhs), Box::new(rhs)),
+                Infix::Pow => AstT::Pow(Box::new(lhs), Box::new(rhs)),
+                Infix::Eq => AstT::Eq(Box::new(lhs), Box::new(rhs)),
+                Infix::Ne => AstT::Ne(Box::new(lhs), Box::new(rhs)),
+                Infix::Lt => AstT::Lt(Box::new(lhs), Box::new(rhs)),
+                Infix::Le => AstT::Le(Box::new(lhs), Box::new(rhs)),
+                Infix::Gt => AstT::Gt(Box::new(lhs), Box::new(rhs)),
+                Infix::Ge => AstT::Ge(Box::new(lhs), Box::new(rhs)),
+                Infix::Or => AstT::Or(Box::new(lhs), Box::new(rhs)),
+                Infix::And => AstT::And(Box::new(lhs), Box::new(rhs)),
+                Infix::BwOr => AstT::BwOr(Box::new(lhs), Box::new(rhs)),
+                Infix::BwAnd => AstT::BwAnd(Box::new(lhs), Box::new(rhs)),
             };
             lhs = Ast::new(val, val_r);
         }

@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Fun, Sep, SepT, Sign, ValRange};
+use crate::{Fun, Sep, SepT, ValRange};
 use crate::{Op, Par, Range};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -237,9 +237,10 @@ impl UserFacing for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     ConfusingCase(Range, &'static str),
-    SignFollowingAddition(Range, Range, Sign, usize),
-    SignFollowingSubtraction(Range, Range, Sign, usize),
-    MultipleSigns(Range, Sign),
+    // TODO
+    // SignFollowingAddition(Range, Range, Sign, usize),
+    // SignFollowingSubtraction(Range, Range, Sign, usize),
+    // MultipleSigns(Range, Sign),
     MismatchedParentheses(Par, Par),
     ConfusingFunctionParentheses {
         fun: Fun,
@@ -256,34 +257,34 @@ impl Display for Warning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ConfusingCase(_, lit) => write!(f, "Confusing casing, consider writing '{lit}'"),
-            Self::SignFollowingAddition(_, _, s, c) => {
-                let sign_s = if *c == 1 { "" } else { "s" };
-                let suggestion = if s.is_positive() {
-                    "consider removing them"
-                } else {
-                    "consider making this a subtraction"
-                };
-                write!(f, "Sign{sign_s} following an addition, {suggestion}")
-            }
-            Self::SignFollowingSubtraction(_, _, s, c) => {
-                let sign_s = if *c == 1 { "" } else { "s" };
-                let suggestion = if s.is_positive() {
-                    "consider making this an addition"
-                } else {
-                    "consider removing them"
-                };
-                write!(f, "Sign{sign_s} following a subtraction, {suggestion}")
-            }
-            Self::MultipleSigns(_, s) => {
-                if s.is_positive() {
-                    write!(f, "Multiple consecutive signs canceling each other out, consider removing them")
-                } else {
-                    write!(
-                        f,
-                        "Multiple consecutive signs, consider using a single negation"
-                    )
-                }
-            }
+            // Self::SignFollowingAddition(_, _, s, c) => {
+            //     let sign_s = if *c == 1 { "" } else { "s" };
+            //     let suggestion = if s.is_positive() {
+            //         "consider removing them"
+            //     } else {
+            //         "consider making this a subtraction"
+            //     };
+            //     write!(f, "Sign{sign_s} following an addition, {suggestion}")
+            // }
+            // Self::SignFollowingSubtraction(_, _, s, c) => {
+            //     let sign_s = if *c == 1 { "" } else { "s" };
+            //     let suggestion = if s.is_positive() {
+            //         "consider making this an addition"
+            //     } else {
+            //         "consider removing them"
+            //     };
+            //     write!(f, "Sign{sign_s} following a subtraction, {suggestion}")
+            // }
+            // Self::MultipleSigns(_, s) => {
+            //     if s.is_positive() {
+            //         write!(f, "Multiple consecutive signs canceling each other out, consider removing them")
+            //     } else {
+            //         write!(
+            //             f,
+            //             "Multiple consecutive signs, consider using a single negation"
+            //         )
+            //     }
+            // }
             Self::MismatchedParentheses(_, _) => write!(f, "Parentheses do not match"),
             Self::ConfusingFunctionParentheses { .. } => {
                 write!(f, "Functions should use round parentheses")
@@ -303,21 +304,21 @@ impl UserFacing for Warning {
     fn ranges(&self) -> Vec<Range> {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],
-            Self::SignFollowingAddition(or, sr, s, _) => {
-                if s.is_positive() {
-                    vec![*sr]
-                } else {
-                    vec![*or, *sr]
-                }
-            }
-            Self::SignFollowingSubtraction(or, sr, s, _) => {
-                if s.is_positive() {
-                    vec![*or, *sr]
-                } else {
-                    vec![*sr]
-                }
-            }
-            Self::MultipleSigns(r, _) => vec![*r],
+            // Self::SignFollowingAddition(or, sr, s, _) => {
+            //     if s.is_positive() {
+            //         vec![*sr]
+            //     } else {
+            //         vec![*or, *sr]
+            //     }
+            // }
+            // Self::SignFollowingSubtraction(or, sr, s, _) => {
+            //     if s.is_positive() {
+            //         vec![*or, *sr]
+            //     } else {
+            //         vec![*sr]
+            //     }
+            // }
+            // Self::MultipleSigns(r, _) => vec![*r],
             Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
             Self::ConfusingFunctionParentheses {
                 fun,
