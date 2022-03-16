@@ -172,6 +172,8 @@ impl Context {
                     "print" => Token::fun(FunT::Print, range),
                     "println" => Token::fun(FunT::Println, range),
                     "spill" => Token::fun(FunT::Spill, range),
+                    "assert" => Token::fun(FunT::Assert, range),
+                    "assert_eq" => Token::fun(FunT::AssertEq, range),
                     "div" => Token::op(OpT::IntDiv, range),
                     "mod" => Token::op(OpT::Rem, range),
                     "deg" => Token::mood(ModT::Degree, range),
@@ -526,6 +528,8 @@ pub enum FunT {
     Print,
     Println,
     Spill,
+    Assert,
+    AssertEq,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

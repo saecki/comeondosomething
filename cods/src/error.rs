@@ -56,6 +56,8 @@ pub enum Error {
     InvalidBwOr(ValRange, ValRange),
     InvalidBwAnd(ValRange, ValRange),
     InvalidAssignment(Range, Range),
+    AssertFailed(Range),
+    AssertEqFailed(ValRange, ValRange),
 }
 
 impl error::Error for Error {}
@@ -177,6 +179,12 @@ impl Display for Error {
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
+            Self::AssertFailed(_) => {
+                write!(f, "Assertion failed")
+            }
+            Self::AssertEqFailed(a, b) => {
+                write!(f, "Assertion failed: '{a}' == '{b}'")
+            }
         }
     }
 }
@@ -220,6 +228,8 @@ impl UserFacing for Error {
             Self::InvalidBwOr(a, b) => vec![a.range, b.range],
             Self::InvalidBwAnd(a, b) => vec![a.range, b.range],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
+            Self::AssertFailed(r) => vec![*r],
+            Self::AssertEqFailed(a, b) => vec![a.range, b.range],
         }
     }
 }

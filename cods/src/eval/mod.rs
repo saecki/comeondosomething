@@ -62,6 +62,8 @@ pub enum AstT {
     Print(Vec<Ast>),
     Println(Vec<Ast>),
     Spill,
+    Assert(Box<Ast>),
+    AssertEq(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -231,6 +233,8 @@ impl Context {
             AstT::Print(args) => self.print(args, r),
             AstT::Println(args) => self.println(args, r),
             AstT::Spill => self.spill(r),
+            AstT::Assert(a) => self.assert(a, r),
+            AstT::AssertEq(a, b) => self.assert_eq(a, b, r),
         }
         .map(|mut r| {
             if let Return::Val(v) = &mut r {
@@ -643,6 +647,27 @@ impl Context {
                 println!("{} = {}", var.name, val);
             }
         }
+        Ok(Return::Unit(range))
+    }
+
+    fn assert(&mut self, a: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_bool(a)?;
+
+        if !va {
+            return Err(crate::Error::AssertFailed(a.range));
+        }
+
+        Ok(Return::Unit(range))
+    }
+    
+    fn assert_eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_val(a)?;
+        let vb = self.eval_to_val(b)?;
+
+        if va.val != vb.val {
+            return Err(crate::Error::AssertEqFailed(va, vb));
+        }
+
         Ok(Return::Unit(range))
     }
 }

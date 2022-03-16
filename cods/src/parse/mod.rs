@@ -348,6 +348,14 @@ impl Context {
                         self.parse_fun_args::<0>(&g.items, g.range)?;
                         AstT::Spill
                     }
+                    FunT::Assert => {
+                        let [a] = self.parse_fun_args(&g.items, g.range)?;
+                        AstT::Assert(Box::new(a))
+                    }
+                    FunT::AssertEq => {
+                        let [a, b] = self.parse_fun_args(&g.items, g.range)?;
+                        AstT::AssertEq(Box::new(a), Box::new(b))
+                    }
                 };
                 let r = Range::span(fun.range, g.range);
                 Ok(Ast::new(f, r))

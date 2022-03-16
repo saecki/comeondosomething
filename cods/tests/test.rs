@@ -10,6 +10,16 @@ fn assert(expected: Val, input: &str) {
     }
 }
 
+fn assert_unit(input: &str) {
+    match cods::eval(input) {
+        Ok(Some(val)) => panic!("Expected unit found value: '{val}'"),
+        Ok(None) => (),
+        Err(e) => {
+            panic!("{e:?}");
+        }
+    }
+}
+
 fn assert_err(expected: Error, input: &str) {
     match cods::eval(input) {
         Ok(_) => panic!("Expected error: {expected:?}"),
@@ -268,4 +278,33 @@ fn newline_ignored_after_op() {
 #[test]
 fn newline_ignored_before_op() {
     assert(Val::Int(-11), "x = 34\n - 45 \n x");
+}
+
+#[test]
+fn assertion() {
+    assert_unit("assert(5 == 5)");
+}
+
+#[test]
+fn assert_failed() {
+    assert_err(
+        crate::Error::AssertFailed(Range::of(7, 13)),
+        "assert(4 == 5)",
+    );
+}
+
+#[test]
+fn assert_eq() {
+    assert_unit("assert_eq(false, 4 == 3)");
+}
+
+#[test]
+fn assert_eq_failed() {
+    assert_err(
+        crate::Error::AssertEqFailed(
+            ValRange::new(Val::Bool(false), Range::of(10, 15)),
+            ValRange::new(Val::Bool(true), Range::of(17, 23)),
+        ),
+        "assert_eq(false, 5 == 5)",
+    );
 }
