@@ -28,6 +28,16 @@ fn assert_err(expected: Error, input: &str) {
 }
 
 #[test]
+fn neg_int() {
+    assert("-32", Val::Int(-32));
+}
+
+#[test]
+fn neg_float() {
+    assert("-5.3", Val::Float(-5.3));
+}
+
+#[test]
 fn float() {
     assert(
         Val::Float(20713257.3385426),

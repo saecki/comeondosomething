@@ -250,7 +250,7 @@ impl Context {
         let v = self.eval_to_val(n)?;
         let val = match v.val {
             Val::Int(i) => Val::Int(-i),
-            _ => Val::Float(v.to_f64()?),
+            _ => Val::Float(-v.to_f64()?),
         };
         ok(val, range)
     }
