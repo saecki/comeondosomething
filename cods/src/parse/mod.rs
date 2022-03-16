@@ -237,7 +237,7 @@ impl Context {
             let val = match op.typ {
                 OpT::Assign => match lhs.typ {
                     AstT::Expr(e) => match e.typ {
-                        ExprT::Var(id) => AstT::Assignment(id, Box::new(rhs)),
+                        ExprT::Var(id) => AstT::Assign(id, Box::new(rhs)),
                         _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                     },
                     _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),

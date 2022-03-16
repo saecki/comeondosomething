@@ -6,7 +6,7 @@ fn semi() {
     let asts = ctx.parse_str("y = 34; y").unwrap();
     let expected = vec![
         Ast::new(
-            AstT::Assignment(
+            AstT::Assign(
                 VarId(0),
                 Box::new(Ast::new(
                     AstT::Expr(Expr::new(ExprT::Val(Val::Int(34)), Range::of(4, 6))),
