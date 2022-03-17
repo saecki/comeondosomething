@@ -541,6 +541,10 @@ impl ParT {
         }
     }
 
+    pub const fn is_closing(&self) -> bool {
+        !self.is_opening()
+    }
+
     pub const fn matches(&self, other: Self) -> bool {
         match self {
             Self::RoundOpen => matches!(other, Self::RoundClose),
@@ -567,6 +571,16 @@ pub enum ParKind {
     Square,
     Curly,
     Mixed,
+}
+
+impl ParKind {
+    pub const fn of(l: ParT, r: ParT) -> ParKind {
+        if l.matches(r) {
+            l.kind()
+        } else {
+            ParKind::Mixed
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

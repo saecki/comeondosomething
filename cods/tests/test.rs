@@ -289,7 +289,7 @@ fn var() {
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
-        Error::UnexpectedParenthesis(Par::new(ParT::RoundClose, Range::pos(2))),
+        Error::UnexpectedPar(Par::new(ParT::RoundClose, Range::pos(2))),
     );
 }
 

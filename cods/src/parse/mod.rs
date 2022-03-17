@@ -455,7 +455,7 @@ impl Context {
             }
             _ => {
                 let r = Range::pos(fun.range.end);
-                Err(crate::Error::MissingFunctionParentheses(r))
+                Err(crate::Error::MissingFunPars(r))
             }
         }
     }
@@ -514,7 +514,7 @@ impl Context {
         }
 
         if !unexpected_args.is_empty() {
-            self.errors.push(crate::Error::UnexpectedFunctionArguments {
+            self.errors.push(crate::Error::UnexpectedFunArgs {
                 ranges: unexpected_args,
                 expected: max,
                 found: parsed_args,
@@ -524,7 +524,7 @@ impl Context {
                 Some(i) => Range::of(i.range().end, range.end),
                 None => Range::pos(range.end),
             };
-            self.errors.push(crate::Error::MissingFunctionArguments {
+            self.errors.push(crate::Error::MissingFunArgs {
                 range,
                 expected: min,
                 found: parsed_args,
@@ -585,7 +585,7 @@ impl Context {
         }
 
         if !unexpected_args.is_empty() {
-            self.errors.push(crate::Error::UnexpectedFunctionArguments {
+            self.errors.push(crate::Error::UnexpectedFunArgs {
                 ranges: unexpected_args,
                 expected: COUNT,
                 found: parsed_args,
@@ -595,7 +595,7 @@ impl Context {
                 Some(i) => Range::of(i.range().end, range.end),
                 None => Range::pos(range.end),
             };
-            self.errors.push(crate::Error::MissingFunctionArguments {
+            self.errors.push(crate::Error::MissingFunArgs {
                 range,
                 expected: COUNT,
                 found: parsed_args,

@@ -1,138 +1,105 @@
-use std::ops;
+use std::iter::Peekable;
+use std::vec::IntoIter;
 
 use crate::{Context, Expr, Fun, Op, Par, ParKind, Range, Sep, Token};
 
 #[cfg(test)]
 mod test;
 
-impl Context {
-    pub fn group(&mut self, tokens: &[Token]) -> crate::Result<Vec<Item>> {
-        let mut items = Vec::new();
-        let mut pos = 0;
+struct Lexer {
+    tokens: Peekable<IntoIter<Token>>,
+    pos: usize,
+}
 
-        let mut par_stack = Vec::new();
-        let pars = tokens
-            .iter()
-            .enumerate()
-            .filter_map(|(i, t)| t.as_par().map(|o| (i, o)));
-
-        for (i, p) in pars {
-            if p.is_opening() {
-                par_stack.push((i, p));
-            } else if let Some(group_range) = self.matching_parentheses(i, p, &mut par_stack) {
-                let prev_range = group_range.tokens_before(pos);
-                let prev_tokens = tokens[prev_range].iter().filter_map(Item::try_from);
-                items.extend(prev_tokens);
-
-                items.push(Item::Group(Group {
-                    items: self.group(&tokens[group_range.tokens()])?,
-                    range: group_range.char_range(tokens),
-                    par_kind: group_range.par_type,
-                }));
-                pos = group_range.tokens_after(0).start;
-            }
+impl Lexer {
+    fn new(tokens: Vec<Token>) -> Self {
+        Self {
+            tokens: tokens.into_iter().peekable(),
+            pos: 0,
         }
+    }
 
-        if let Some(&(i, p)) = par_stack.first() {
-            self.errors.push(crate::Error::MissingClosingParenthesis(p));
+    fn next(&mut self) -> Option<Token> {
+        self.pos += 1;
+        self.tokens.next()
+    }
 
-            let prev_tokens = tokens[pos..i].iter().filter_map(Item::try_from);
-            items.extend(prev_tokens);
+    fn peek(&mut self) -> Option<&Token> {
+        self.tokens.peek()
+    }
+}
 
-            let range = Range::of(p.range.end, tokens.last().unwrap().range().end);
-            items.push(Item::Group(Group {
-                items: self.group(&tokens[(i + 1)..])?,
-                range,
-                par_kind: p.kind(),
-            }));
-        } else {
-            let remaining_tokens = tokens[pos..].iter().filter_map(Item::try_from);
-            items.extend(remaining_tokens);
+impl Context {
+    pub fn group(&mut self, tokens: Vec<Token>) -> crate::Result<Vec<Item>> {
+        let mut lexer = Lexer::new(tokens);
+        self.group_tokens(&mut lexer, None)
+    }
+
+    fn group_tokens(
+        &mut self,
+        lexer: &mut Lexer,
+        current_par: Option<Par>,
+    ) -> crate::Result<Vec<Item>> {
+        let mut items = Vec::new();
+
+        while lexer.peek().is_some() {
+            if let Some(Token::Par(r_par)) = lexer.peek() {
+                if r_par.is_closing() {
+                    match current_par {
+                        Some(l_par) => {
+                            if !l_par.matches(r_par.typ) {
+                                self.warnings
+                                    .push(crate::Warning::MismatchedParentheses(l_par, *r_par));
+                            }
+                            break;
+                        }
+                        None => {
+                            self.errors.push(crate::Error::UnexpectedPar(*r_par));
+                            lexer.next();
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            let i = match lexer.next() {
+                Some(Token::Par(l_par)) => {
+                    let inner = self.group_tokens(lexer, Some(l_par))?;
+                    match lexer.peek() {
+                        Some(Token::Par(r_par)) => {
+                            let kind = ParKind::of(l_par.typ, r_par.typ);
+                            let r = Range::span(l_par.range, r_par.range);
+                            let g = Group::new(inner, r, kind);
+
+                            lexer.next();
+
+                            Item::Group(g)
+                        }
+                        _ => {
+                            self.errors.push(crate::Error::MissingClosingPar(l_par));
+
+                            if let Some(i) = inner.last() {
+                                let kind = ParKind::Mixed;
+                                let r = Range::span(l_par.range, i.range());
+                                let g = Group::new(inner, r, kind);
+                                Item::Group(g)
+                            } else {
+                                continue;
+                            }
+                        }
+                    }
+                }
+                Some(Token::Expr(e)) => Item::Expr(e),
+                Some(Token::Fun(f)) => Item::Fun(f),
+                Some(Token::Op(o)) => Item::Op(o),
+                Some(Token::Sep(s)) => Item::Sep(s),
+                None => break,
+            };
+
+            items.push(i);
         }
 
         Ok(items)
-    }
-
-    /// Returns the indices of parentheses enclosing the outermost group or tokens
-    fn matching_parentheses(
-        &mut self,
-        close_pos: usize,
-        close_par: Par,
-        par_stack: &mut Vec<(usize, Par)>,
-    ) -> Option<GroupRange> {
-        match par_stack.pop() {
-            Some((open_pos, open_par)) if open_par.matches(close_par.typ) => {
-                if par_stack.is_empty() {
-                    Some(GroupRange {
-                        start: open_pos + 1,
-                        end: close_pos,
-                        missing_end_par: false,
-                        par_type: open_par.kind(),
-                    })
-                } else {
-                    None
-                }
-            }
-            Some((open_pos, open_par)) => {
-                self.warnings
-                    .push(crate::Warning::MismatchedParentheses(open_par, close_par));
-                if par_stack.is_empty() {
-                    Some(GroupRange {
-                        start: open_pos + 1,
-                        end: close_pos,
-                        missing_end_par: false,
-                        par_type: ParKind::Mixed,
-                    })
-                } else {
-                    None
-                }
-            }
-            None => {
-                self.errors
-                    .push(crate::Error::UnexpectedParenthesis(close_par));
-                None
-            }
-        }
-    }
-}
-
-/// A range of token indices inside a group
-struct GroupRange {
-    /// including
-    start: usize,
-    missing_end_par: bool,
-    /// excluding
-    end: usize,
-    par_type: ParKind,
-}
-
-impl GroupRange {
-    fn tokens_before(&self, start: usize) -> ops::Range<usize> {
-        start..self.start.saturating_sub(1)
-    }
-
-    fn tokens(&self) -> ops::Range<usize> {
-        (self.start)..(self.end)
-    }
-
-    fn tokens_after(&self, end: usize) -> ops::Range<usize> {
-        if self.missing_end_par {
-            (self.end)..end
-        } else {
-            (self.end + 1)..end
-        }
-    }
-
-    fn char_range(&self, tokens: &[Token]) -> Range {
-        let start = tokens[self.start - 1].range().start;
-
-        let end = if self.missing_end_par {
-            tokens[self.end - 1].range().end
-        } else {
-            tokens[self.end].range().end
-        };
-
-        Range::of(start, end)
     }
 }
 
@@ -212,11 +179,11 @@ impl Item {
 }
 
 pub fn items_range(items: &[Item]) -> Option<Range> {
-    let first = items.first().map(|i| i.range());
-    let last = items.last().map(|i| i.range());
+    let first = items.first();
+    let last = items.last();
 
     match (first, last) {
-        (Some(f), Some(l)) => Some(Range::of(f.start, l.end)),
+        (Some(f), Some(l)) => Some(Range::span(f.range(), l.range())),
         _ => None,
     }
 }

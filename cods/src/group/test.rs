@@ -6,7 +6,7 @@ use super::*;
 fn no_parenthesis() {
     let mut ctx = Context::default();
     let tokens = ctx.tokenize("423.42 * 64.52").unwrap();
-    let items = ctx.group(&tokens).unwrap();
+    let items = ctx.group(tokens).unwrap();
 
     assert_eq!(
         items,
@@ -22,7 +22,7 @@ fn no_parenthesis() {
 fn add_parenthesis() {
     let mut ctx = Context::default();
     let tokens = ctx.tokenize("(23.13 + 543.23) * 34").unwrap();
-    let items = ctx.group(&tokens).unwrap();
+    let items = ctx.group(tokens).unwrap();
 
     assert_eq!(
         items,

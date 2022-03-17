@@ -19,21 +19,21 @@ pub enum Error {
     Parsing(Range),
     MissingOperand(Range),
     MissingOperator(Range),
-    MissingClosingParenthesis(Par),
-    MissingFunctionParentheses(Range),
-    MissingFunctionArguments {
+    MissingClosingPar(Par),
+    MissingFunPars(Range),
+    MissingFunArgs {
         range: Range,
         expected: usize,
         found: usize,
     },
-    UnexpectedFunctionArguments {
+    UnexpectedFunArgs {
         ranges: Vec<Range>,
         expected: usize,
         found: usize,
     },
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
-    UnexpectedParenthesis(Par),
+    UnexpectedPar(Par),
     InvalidChar(Range),
     UndefinedVar(String, Range),
     InvalidNumberFormat(Range),
@@ -76,9 +76,9 @@ impl Display for Error {
             Self::Parsing(_) => write!(f, "A parsing error occured"),
             Self::MissingOperand(_) => write!(f, "Missing operand"),
             Self::MissingOperator(_) => write!(f, "Missing operator"),
-            Self::MissingFunctionParentheses(_) => write!(f, "Missing function call parentheses"),
-            Self::MissingClosingParenthesis(_) => write!(f, "Missing closing parenthesis"),
-            Self::MissingFunctionArguments {
+            Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
+            Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
+            Self::MissingFunArgs {
                 expected, found, ..
             } => {
                 let missing = expected - found;
@@ -87,7 +87,7 @@ impl Display for Error {
                 let were_was = if *found == 1 { "was" } else { "were" };
                 write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
-            Self::UnexpectedFunctionArguments {
+            Self::UnexpectedFunArgs {
                 expected, found, ..
             } => {
                 let over = found - expected;
@@ -98,7 +98,7 @@ impl Display for Error {
             }
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
             Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
-            Self::UnexpectedParenthesis(_) => write!(f, "Unexpected parenthesis"),
+            Self::UnexpectedPar(_) => write!(f, "Unexpected parenthesis"),
             Self::InvalidChar(_) => write!(f, "Unknown value"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
@@ -199,13 +199,13 @@ impl UserFacing for Error {
             Self::Parsing(r) => vec![*r],
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
-            Self::MissingFunctionParentheses(r) => vec![*r],
-            Self::MissingClosingParenthesis(p) => vec![p.range],
-            Self::MissingFunctionArguments { range: pos, .. } => vec![*pos],
-            Self::UnexpectedFunctionArguments { ranges, .. } => ranges.clone(),
+            Self::MissingFunPars(r) => vec![*r],
+            Self::MissingClosingPar(p) => vec![p.range],
+            Self::MissingFunArgs { range: pos, .. } => vec![*pos],
+            Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
-            Self::UnexpectedParenthesis(p) => vec![p.range],
+            Self::UnexpectedPar(p) => vec![p.range],
             Self::InvalidChar(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
