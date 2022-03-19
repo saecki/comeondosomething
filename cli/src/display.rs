@@ -32,6 +32,7 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
         let ranges = self.error.ranges();
         let lines = range_lines(self.input);
 
+        let mut hl_lines = Vec::new();
         for (nr, (lr, l)) in lines.iter().enumerate() {
             let intersecting: Vec<_> = ranges
                 .iter()
@@ -44,13 +45,22 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
                 .collect();
 
             if !intersecting.is_empty() {
-                mark_ranges::<C>(f, nr + 1, l, &intersecting)?;
+                hl_lines.push((nr + 1, l, intersecting));
             }
+        }
+
+        let nr_width = hl_lines.last().map_or(2, |(nr, _, _)| {
+            (*nr as f32).log10() as usize + 1
+        });
+
+        for (nr, l, ranges) in hl_lines {
+            mark_ranges::<C>(f, nr, nr_width, l, &ranges)?;
         }
 
         write!(
             f,
-            "   {blue}│{esc} {col}{desc}{esc}",
+            "{spc:nr_width$} {blue}│{esc} {col}{desc}{esc}",
+            spc = ' ',
             desc = self.error,
             col = C::bold(),
             blue = LBlue::bold(),
@@ -64,14 +74,17 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
 fn mark_ranges<C: Color>(
     f: &mut fmt::Formatter<'_>,
     line_nr: usize,
+    nr_width: usize,
     line: &str,
     ranges: &[Range],
 ) -> fmt::Result {
     write!(
         f,
-        "{blue}{nr:02} │{esc} {ln}\n   {blue}│{esc} ",
+        "{blue}{nr:nr_w$} │{esc} {ln}\n{spc:nr_w$} {blue}│{esc} ",
         nr = line_nr,
+        nr_w = nr_width,
         ln = line,
+        spc = ' ',
         blue = LBlue::bold(),
         esc = ANSI_ESC,
     )?;
