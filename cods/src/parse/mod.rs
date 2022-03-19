@@ -313,13 +313,13 @@ impl Context {
                 parser.next();
             }
 
-            if parser.peek().is_none() {
+            let rhs_r = Range::of(op.range.end, range.end);
+            let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
+
+            if let AstT::Empty = rhs.typ {
                 let r = Range::pos(op.range.end);
                 return Err(crate::Error::MissingOperand(r));
             }
-
-            let rhs_r = Range::of(op.range.end, range.end);
-            let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
 
             let val_r = Range::span(lhs.range, rhs.range);
             let val = match infix {
