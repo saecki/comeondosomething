@@ -164,7 +164,8 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
 
                 // We know this char is 1 byte wide
                 line_start = (pos.0 + 1, pos.1 + 1);
-                pushed_line = true;
+                // Also push empty lines
+                pushed_line = false;
             }
             _ => pushed_line = false,
         }
