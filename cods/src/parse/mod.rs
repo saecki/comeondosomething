@@ -1,4 +1,5 @@
 use std::cmp;
+use std::collections::VecDeque;
 use std::mem::MaybeUninit;
 
 use crate::{items_range, Ast, AstT, Context, ExprT, Fun, FunT, Item, OpT, Range, SepT};
@@ -118,30 +119,26 @@ impl OpT {
 }
 
 struct Parser {
-    items: Vec<Item>,
+    items: VecDeque<Item>,
 }
 
 impl Parser {
     fn new(items: Vec<Item>) -> Self {
         Self {
-            items: items.into_iter().rev().collect(),
+            items: VecDeque::from(items),
         }
     }
 
     fn next(&mut self) -> Option<Item> {
-        self.items.pop()
+        self.items.pop_front()
     }
 
     fn peek(&mut self) -> Option<&Item> {
-        self.items.last()
+        self.items.get(0)
     }
 
     fn peek2(&mut self) -> Option<&Item> {
-        if let [.., i, _] = self.items.as_slice() {
-            Some(i)
-        } else {
-            None
-        }
+        self.items.get(1)
     }
 
     fn eat_semi(&mut self) -> bool {
