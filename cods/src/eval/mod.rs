@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::fmt::Display;
+use std::ops::{Deref, DerefMut};
 
 use crate::{Context, Expr, Range, Val, VarId};
 
@@ -11,6 +12,20 @@ mod val;
 pub struct Ast {
     pub typ: AstT,
     pub range: Range,
+}
+
+impl Deref for Ast {
+    type Target = AstT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl DerefMut for Ast {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.typ
+    }
 }
 
 impl Ast {
@@ -72,6 +87,12 @@ pub enum AstT {
     AssertEq(Box<Ast>, Box<Ast>),
 }
 
+impl AstT {
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Return {
     Val(ValRange),
@@ -117,7 +138,7 @@ pub struct ValRange {
     pub range: Range,
 }
 
-impl std::ops::Deref for ValRange {
+impl Deref for ValRange {
     type Target = Val;
 
     fn deref(&self) -> &Self::Target {

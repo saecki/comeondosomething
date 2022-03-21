@@ -202,7 +202,9 @@ impl Context {
 
             let ast = self.parse_bp(&mut parser, 0, range)?;
             parser.eat_semi();
-            asts.push(ast);
+            if !ast.is_empty() {
+                asts.push(ast);
+            }
         }
 
         Ok(asts)
