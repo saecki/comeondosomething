@@ -63,6 +63,13 @@ fn signs() {
 }
 
 #[test]
+fn pow() {
+    assert("2^-1", Val::Float(0.5));
+    assert("3^3", Val::Int(27));
+    assert("9^0.5", Val::Int(3));
+}
+
+#[test]
 fn euclid_div() {
     assert("8 div 3", Val::Int(2));
 }

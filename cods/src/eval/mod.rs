@@ -389,7 +389,7 @@ impl Context {
                 if let Ok(e) = u32::try_from(exp) {
                     Val::Int(base.pow(e))
                 } else if let Ok(e) = i32::try_from(exp) {
-                    Val::Float((e as f64).powi(e))
+                    Val::Float((base as f64).powi(e))
                 } else {
                     return Err(crate::Error::PowOverflow(va, vb));
                 }
