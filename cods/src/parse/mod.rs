@@ -117,37 +117,28 @@ impl OpT {
     }
 }
 
-struct Parser<'a> {
-    items: &'a [Item],
-    cursor: usize,
+struct Parser {
+    items: Vec<Item>,
 }
 
-impl<'a> Parser<'a> {
-    fn new(items: &'a [Item]) -> Self {
-        Self { items, cursor: 0 }
-    }
-
-    fn back(&mut self) -> Option<&'a Item> {
-        if self.cursor > 0 {
-            self.cursor -= 1;
-            return self.peek();
+impl Parser {
+    fn new(items: Vec<Item>) -> Self {
+        Self {
+            items: items.into_iter().rev().collect(),
         }
-        None
     }
 
-    fn next(&mut self) -> Option<&'a Item> {
-        let i = self.peek();
-        self.cursor += 1;
-        i
+    fn next(&mut self) -> Option<Item> {
+        self.items.pop()
     }
 
-    fn peek(&mut self) -> Option<&'a Item> {
-        self.items.get(self.cursor)
+    fn peek(&mut self) -> Option<&Item> {
+        self.items.last()
     }
 
-    fn peek_back(&mut self) -> Option<&'a Item> {
-        if self.cursor > 0 {
-            self.items.get(self.cursor)
+    fn peek2(&mut self) -> Option<&Item> {
+        if let [.., i, _] = self.items.as_slice() {
+            Some(i)
         } else {
             None
         }
@@ -175,18 +166,38 @@ impl<'a> Parser<'a> {
         }
         newln
     }
+
+    fn eat_newlns_leaving_one(&mut self) -> bool {
+        let mut newln = false;
+        if let Some(i) = self.peek() {
+            if i.is_newln() {
+                newln = true;
+            } else {
+                return false;
+            }
+        }
+        while let Some(i) = self.peek2() {
+            if i.is_newln() {
+                self.next();
+                newln = true;
+            } else {
+                break;
+            }
+        }
+        newln
+    }
 }
 
 impl Context {
-    pub fn parse(&mut self, items: &[Item]) -> crate::Result<Vec<Ast>> {
-        let mut range = items_range(items).unwrap_or(Range::of(0, 0));
+    pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Ast>> {
+        let mut range = items_range(&items).unwrap_or(Range::of(0, 0));
         let sep_count = items.iter().filter(|i| i.is_semi()).count();
-        let mut asts = Vec::with_capacity(sep_count + 1);
+        let mut asts: Vec<Ast> = Vec::with_capacity(sep_count + 1);
 
         let mut parser = Parser::new(items);
         while parser.peek().is_some() {
-            if let Some(i) = parser.peek_back() {
-                range.start = i.range().end;
+            if let Some(a) = asts.last() {
+                range.start = a.range.end;
             };
 
             let ast = self.parse_bp(&mut parser, 0, range)?;
@@ -197,23 +208,18 @@ impl Context {
         Ok(asts)
     }
 
-    fn parse_bp(
-        &mut self,
-        parser: &mut Parser<'_>,
-        min_bp: u8,
-        range: Range,
-    ) -> crate::Result<Ast> {
+    fn parse_bp(&mut self, parser: &mut Parser, min_bp: u8, range: Range) -> crate::Result<Ast> {
         parser.eat_newlns();
 
         let mut lhs = match parser.next() {
             Some(Item::Group(g)) => {
-                let mut group_parser = Parser::new(&g.items);
+                let mut group_parser = Parser::new(g.items);
                 let mut val = self.parse_bp(&mut group_parser, 0, g.range)?;
                 val.range = g.range;
                 val
             }
-            Some(Item::Expr(e)) => Ast::new(AstT::Expr(*e), e.range),
-            Some(Item::Fun(f)) => self.parse_fun(parser, *f)?,
+            Some(Item::Expr(e)) => Ast::new(AstT::Expr(e), e.range),
+            Some(Item::Fun(f)) => self.parse_fun(parser, f)?,
             Some(Item::Op(o)) => match o.prefix_bp() {
                 Some((prefix, r_bp)) => {
                     if parser.peek().is_none() {
@@ -232,10 +238,10 @@ impl Context {
 
                     Ast::new(ast, ast_r)
                 }
-                None => return Err(crate::Error::UnexpectedOperator(*o)),
+                None => return Err(crate::Error::UnexpectedOperator(o)),
             },
             Some(Item::Sep(s)) => match s.typ {
-                SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
+                SepT::Comma => return Err(crate::Error::UnexpectedSeparator(s)),
                 SepT::Semi | SepT::Newln => {
                     let r = Range::of(range.start, s.range.end);
                     return Ok(Ast::new(AstT::Empty, r));
@@ -244,12 +250,11 @@ impl Context {
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
-        let newln = parser.eat_newlns();
-        while let Some(i) = parser.peek() {
+        let newln = parser.eat_newlns_leaving_one();
+        while let Some(i) = if newln { parser.peek2() } else { parser.peek() } {
             let op = match i {
                 Item::Group(g) => {
                     if newln {
-                        parser.back();
                         break;
                     }
 
@@ -258,7 +263,6 @@ impl Context {
                 }
                 Item::Expr(e) => {
                     if newln {
-                        parser.back();
                         break;
                     }
 
@@ -267,37 +271,46 @@ impl Context {
                 }
                 Item::Fun(f) => {
                     if newln {
-                        parser.back();
                         break;
                     }
 
                     let r = Range::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
-                Item::Op(o) => match o.suffix_bp() {
-                    Some((l_bp, suffix)) => {
-                        if l_bp < min_bp {
-                            break;
-                        } else {
-                            parser.next();
-                        }
-
-                        let val_r = Range::span(lhs.range, o.range);
-                        let val = match suffix {
-                            Suffix::Degree => AstT::Degree(Box::new(lhs)),
-                            Suffix::Radian => AstT::Radian(Box::new(lhs)),
-                            Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
-                        };
-
-                        lhs = Ast::new(val, val_r);
-                        continue;
+                &Item::Op(o) => {
+                    if newln {
+                        parser.next();
                     }
-                    None => o,
-                },
-                Item::Sep(s) => match s.typ {
-                    SepT::Comma => return Err(crate::Error::UnexpectedSeparator(*s)),
-                    SepT::Semi | SepT::Newln => break,
-                },
+                    match o.suffix_bp() {
+                        Some((l_bp, suffix)) => {
+                            if l_bp < min_bp {
+                                break;
+                            } else {
+                                parser.next();
+                            }
+
+                            let val_r = Range::span(lhs.range, o.range);
+                            let val = match suffix {
+                                Suffix::Degree => AstT::Degree(Box::new(lhs)),
+                                Suffix::Radian => AstT::Radian(Box::new(lhs)),
+                                Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
+                            };
+
+                            lhs = Ast::new(val, val_r);
+                            continue;
+                        }
+                        None => o,
+                    }
+                }
+                &Item::Sep(s) => {
+                    if newln {
+                        parser.next();
+                    }
+                    match s.typ {
+                        SepT::Comma => return Err(crate::Error::UnexpectedSeparator(s)),
+                        SepT::Semi | SepT::Newln => break,
+                    }
+                }
             };
 
             let (l_bp, infix, r_bp) = match op.infix_bp() {
@@ -370,83 +383,83 @@ impl Context {
 
                 let f = match fun.typ {
                     FunT::Pow => {
-                        let [base, exp] = self.parse_fun_args(&g.items, g.range)?;
+                        let [base, exp] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Pow(Box::new(base), Box::new(exp))
                     }
                     FunT::Ln => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Ln(Box::new(n))
                     }
                     FunT::Log => {
-                        let [base, n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [base, n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Log(Box::new(base), Box::new(n))
                     }
                     FunT::Sqrt => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Sqrt(Box::new(n))
                     }
                     FunT::Ncr => {
-                        let [n, r] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n, r] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Ncr(Box::new(n), Box::new(r))
                     }
                     FunT::Sin => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Sin(Box::new(n))
                     }
                     FunT::Cos => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Cos(Box::new(n))
                     }
                     FunT::Tan => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Tan(Box::new(n))
                     }
                     FunT::Asin => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Asin(Box::new(n))
                     }
                     FunT::Acos => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Acos(Box::new(n))
                     }
                     FunT::Atan => {
-                        let [n] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Atan(Box::new(n))
                     }
                     FunT::Gcd => {
-                        let [a, b] = self.parse_fun_args(&g.items, g.range)?;
+                        let [a, b] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Gcd(Box::new(a), Box::new(b))
                     }
                     FunT::Min => {
-                        let args = self.parse_dyn_fun_args(2, usize::MAX, &g.items, g.range)?;
+                        let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                         AstT::Min(args)
                     }
                     FunT::Max => {
-                        let args = self.parse_dyn_fun_args(2, usize::MAX, &g.items, g.range)?;
+                        let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                         AstT::Max(args)
                     }
                     FunT::Clamp => {
-                        let [n, min, max] = self.parse_fun_args(&g.items, g.range)?;
+                        let [n, min, max] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Clamp(Box::new(n), Box::new(min), Box::new(max))
                     }
                     FunT::Print => {
-                        let args = self.parse_dyn_fun_args(0, usize::MAX, &g.items, g.range)?;
+                        let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                         AstT::Print(args)
                     }
                     FunT::Println => {
-                        let args = self.parse_dyn_fun_args(0, usize::MAX, &g.items, g.range)?;
+                        let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                         AstT::Println(args)
                     }
                     FunT::Spill => {
-                        self.parse_fun_args::<0>(&g.items, g.range)?;
+                        self.parse_fun_args::<0>(g.items, g.range)?;
                         AstT::Spill
                     }
                     FunT::Assert => {
-                        let [a] = self.parse_fun_args(&g.items, g.range)?;
+                        let [a] = self.parse_fun_args(g.items, g.range)?;
                         AstT::Assert(Box::new(a))
                     }
                     FunT::AssertEq => {
-                        let [a, b] = self.parse_fun_args(&g.items, g.range)?;
+                        let [a, b] = self.parse_fun_args(g.items, g.range)?;
                         AstT::AssertEq(Box::new(a), Box::new(b))
                     }
                 };
@@ -464,7 +477,7 @@ impl Context {
         &mut self,
         min: usize,
         max: usize,
-        items: &[Item],
+        items: Vec<Item>,
         range: Range,
     ) -> crate::Result<Vec<Ast>> {
         let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
@@ -473,13 +486,14 @@ impl Context {
         let mut parsed_args = 0;
         let mut start = (0, range.start);
         let mut ti = 0;
+        let mut arg_items = Vec::new();
 
-        for i in items.iter() {
+        for i in items {
             if let Item::Sep(s) = i {
                 match s.typ {
                     SepT::Comma => (),
                     SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
-                        sep: *s,
+                        sep: s,
                         expected: SepT::Comma,
                     }),
                     SepT::Newln => continue,
@@ -487,30 +501,29 @@ impl Context {
 
                 let r = Range::of(start.1, s.range.start);
                 if parsed_args < max {
-                    let is = &items[(start.0)..ti];
-                    let mut parser = Parser::new(is);
+                    let mut parser = Parser::new(arg_items.clone());
+                    arg_items.clear();
                     args.push(self.parse_bp(&mut parser, 0, r)?);
                 } else {
                     unexpected_args.push(r);
                 }
                 start = (ti + 1, s.range.end);
                 parsed_args += 1;
+            } else {
+                arg_items.push(i);
             }
             ti += 1;
         }
 
-        if let Some(i) = items.last() {
-            if !i.is_sep() {
-                let r = Range::of(start.1, range.end);
-                if parsed_args < max {
-                    let is = &items[(start.0)..ti];
-                    let mut parser = Parser::new(is);
-                    args.push(self.parse_bp(&mut parser, 0, r)?);
-                } else {
-                    unexpected_args.push(r);
-                }
-                parsed_args += 1;
+        if !arg_items.is_empty() {
+            let r = Range::of(start.1, range.end);
+            if parsed_args < max {
+                let mut parser = Parser::new(arg_items);
+                args.push(self.parse_bp(&mut parser, 0, r)?);
+            } else {
+                unexpected_args.push(r);
             }
+            parsed_args += 1;
         }
 
         if !unexpected_args.is_empty() {
@@ -520,8 +533,8 @@ impl Context {
                 found: parsed_args,
             });
         } else if parsed_args < min {
-            let range = match items.last() {
-                Some(i) => Range::of(i.range().end, range.end),
+            let range = match args.last() {
+                Some(a) => Range::of(a.range.end, range.end),
                 None => Range::pos(range.end),
             };
             self.errors.push(crate::Error::MissingFunArgs {
@@ -536,7 +549,7 @@ impl Context {
 
     fn parse_fun_args<const COUNT: usize>(
         &mut self,
-        items: &[Item],
+        items: Vec<Item>,
         range: Range,
     ) -> crate::Result<[Ast; COUNT]> {
         let mut args: [Ast; COUNT] = array_of(|_| Ast::new(AstT::Error, range));
@@ -544,13 +557,14 @@ impl Context {
         let mut parsed_args = 0;
         let mut start = (0, range.start);
         let mut ti = 0;
+        let mut arg_items = Vec::new();
 
-        for i in items.iter() {
+        for i in items {
             if let Item::Sep(s) = i {
                 match s.typ {
                     SepT::Comma => (),
                     SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
-                        sep: *s,
+                        sep: s,
                         expected: SepT::Comma,
                     }),
                     SepT::Newln => continue,
@@ -558,30 +572,29 @@ impl Context {
 
                 let r = Range::of(start.1, s.range.start);
                 if parsed_args < COUNT {
-                    let is = &items[(start.0)..ti];
-                    let mut parser = Parser::new(is);
+                    let mut parser = Parser::new(arg_items.clone());
+                    arg_items.clear();
                     args[parsed_args] = self.parse_bp(&mut parser, 0, r)?;
                 } else {
                     unexpected_args.push(r);
                 }
                 start = (ti + 1, s.range.end);
                 parsed_args += 1;
+            } else {
+                arg_items.push(i);
             }
             ti += 1;
         }
 
-        if let Some(i) = items.last() {
-            if !i.is_sep() {
-                let r = Range::of(start.1, range.end);
-                if parsed_args < COUNT {
-                    let is = &items[(start.0)..ti];
-                    let mut parser = Parser::new(is);
-                    args[parsed_args] = self.parse_bp(&mut parser, 0, r)?;
-                } else {
-                    unexpected_args.push(r);
-                }
-                parsed_args += 1;
+        if !arg_items.is_empty() {
+            let r = Range::of(start.1, range.end);
+            if parsed_args < COUNT {
+                let mut parser = Parser::new(arg_items);
+                args[parsed_args] = self.parse_bp(&mut parser, 0, r)?;
+            } else {
+                unexpected_args.push(r);
             }
+            parsed_args += 1;
         }
 
         if !unexpected_args.is_empty() {
@@ -591,8 +604,8 @@ impl Context {
                 found: parsed_args,
             });
         } else if parsed_args < COUNT {
-            let range = match items.last() {
-                Some(i) => Range::of(i.range().end, range.end),
+            let range = match args.last() {
+                Some(a) => Range::of(a.range.end, range.end),
                 None => Range::pos(range.end),
             };
             self.errors.push(crate::Error::MissingFunArgs {

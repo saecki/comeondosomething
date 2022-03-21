@@ -45,7 +45,7 @@ impl Context {
     pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<Ast>> {
         let tokens = self.tokenize(input.as_ref())?;
         let items = self.group(tokens)?;
-        let asts = self.parse(&items)?;
+        let asts = self.parse(items)?;
         Ok(asts)
     }
 }
