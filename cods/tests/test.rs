@@ -50,6 +50,19 @@ fn int() {
 }
 
 #[test]
+fn string_escape() {
+    assert(r#""\b""#, Val::Str("\x08".into()));
+    assert(r#""\t""#, Val::Str("\t".into()));
+    assert(r#""\n""#, Val::Str("\n".into()));
+    assert(r#""\r""#, Val::Str("\r".into()));
+    assert(r#""\x1b""#, Val::Str("\x1b".into()));
+    assert(r#""\x{1a}""#, Val::Str("\u{1a}".into()));
+    assert(r#""\u03a0""#, Val::Str("\u{03a0}".into()));
+    assert(r#""\u{102230}""#, Val::Str("\u{102230}".into()));
+    assert(r#"  "\u03c0"  "#, Val::Str("\u{03c0}".into()));
+}
+
+#[test]
 fn unicode_ops() {
     assert(
         "(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234",
@@ -321,7 +334,7 @@ fn assertion() {
 }
 
 #[test]
-fn assert_failed() {
+fn assertion_failed() {
     assert_err(
         "assert(4 == 5)",
         crate::Error::AssertFailed(Range::of(7, 13)),
@@ -329,12 +342,12 @@ fn assert_failed() {
 }
 
 #[test]
-fn assert_eq() {
+fn assertion_eq() {
     assert_unit("assert_eq(false, 4 == 3)");
 }
 
 #[test]
-fn assert_eq_failed() {
+fn assertion_eq_failed() {
     assert_err(
         "assert_eq(false, 5 == 5)",
         crate::Error::AssertEqFailed(

@@ -33,8 +33,9 @@ impl Ast {
         Self { typ, range }
     }
 
-    pub fn val(val: Expr) -> Self {
-        Self::new(AstT::Expr(val), val.range)
+    pub fn expr(val: Expr) -> Self {
+        let r = val.range;
+        Self::new(AstT::Expr(val), r)
     }
 }
 
@@ -93,7 +94,7 @@ impl AstT {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Return {
     Val(ValRange),
     Unit(Range),
@@ -116,10 +117,17 @@ impl Return {
         }
     }
 
-    pub fn to_val(&self) -> crate::Result<ValRange> {
+    pub fn to_val(&self) -> crate::Result<&ValRange> {
         match self {
-            Self::Val(v) => Ok(*v),
+            Self::Val(v) => Ok(v),
             Self::Unit(r) => Err(crate::Error::ExpectedValue(*r)),
+        }
+    }
+
+    pub fn into_val(self) -> crate::Result<ValRange> {
+        match self {
+            Self::Val(v) => Ok(v),
+            Self::Unit(r) => Err(crate::Error::ExpectedValue(r)),
         }
     }
 
@@ -132,7 +140,7 @@ impl Return {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ValRange {
     pub val: Val,
     pub range: Range,
@@ -167,14 +175,16 @@ impl ValRange {
         match self.val {
             Val::Int(i) => Ok(i as f64),
             Val::Float(f) => Ok(f),
-            Val::Bool(_) => Err(crate::Error::ExpectedNumber(*self)),
+            Val::Bool(_) | Val::Str(_) => Err(crate::Error::ExpectedNumber(self.clone())),
         }
     }
 
     pub fn to_bool(&self) -> crate::Result<bool> {
         match self.val {
             Val::Bool(b) => Ok(b),
-            Val::Int(_) | Val::Float(_) => Err(crate::Error::ExpectedBool(*self)),
+            Val::Int(_) | Val::Float(_) | Val::Str(_) => {
+                Err(crate::Error::ExpectedBool(self.clone()))
+            }
         }
     }
 }
@@ -209,7 +219,7 @@ impl Context {
     }
 
     pub fn eval_to_val(&mut self, ast: &Ast) -> crate::Result<ValRange> {
-        self.eval_ast(ast)?.to_val()
+        self.eval_ast(ast)?.into_val()
     }
 
     pub fn eval_to_bool(&mut self, ast: &Ast) -> crate::Result<bool> {
@@ -225,7 +235,7 @@ impl Context {
         match &ast.typ {
             AstT::Empty => Ok(Return::Unit(r)),
             AstT::Error => Err(crate::Error::Parsing(r)),
-            AstT::Expr(e) => ok(self.to_val(e)?, r),
+            AstT::Expr(e) => ok(self.to_val(e)?.clone(), r),
             AstT::Assign(a, b) => self.assign(*a, b, r),
             AstT::Neg(a) => self.neg(a, r),
             AstT::Add(a, b) => self.add(a, b, r),
@@ -298,8 +308,8 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => match a.checked_add(b) {
+        let val = match (&va.val, &vb.val) {
+            (Val::Int(a), Val::Int(b)) => match a.checked_add(*b) {
                 Some(v) => Val::Int(v),
                 None => return Err(crate::Error::AddOverflow(va, vb)),
             },
@@ -312,10 +322,10 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => match a.checked_sub(b) {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(a), &Val::Int(b)) => match a.checked_sub(b) {
                 Some(v) => Val::Int(v),
-                None => return Err(crate::Error::SubOverflow(va, vb)),
+                None => return Err(crate::Error::SubOverflow(va.clone(), vb.clone())),
             },
             _ => Val::Float(va.to_f64()? - vb.to_f64()?),
         };
@@ -326,10 +336,10 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => match a.checked_mul(b) {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(a), &Val::Int(b)) => match a.checked_mul(b) {
                 Some(v) => Val::Int(v),
-                None => return Err(crate::Error::MulOverflow(va, vb)),
+                None => return Err(crate::Error::MulOverflow(va.clone(), vb.clone())),
             },
             _ => Val::Float(va.to_f64()? * vb.to_f64()?),
         };
@@ -340,10 +350,10 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(a), &Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::DivideByZero(va, vb));
+                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
                 } else if a % b == 0 {
                     Val::Int(a / b)
                 } else {
@@ -353,7 +363,7 @@ impl Context {
             _ => {
                 let divisor = vb.to_f64()?;
                 if divisor == 0.0 {
-                    return Err(crate::Error::DivideByZero(va, vb));
+                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
                 } else {
                     Val::Float(va.to_f64()? / divisor)
                 }
@@ -366,15 +376,15 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(a), &Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::DivideByZero(va, vb));
+                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
                 } else {
                     Val::Int(a / b)
                 }
             }
-            _ => return Err(crate::Error::FractionEuclidDiv(va, vb)),
+            _ => return Err(crate::Error::FractionEuclidDiv(va.clone(), vb.clone())),
         };
         ok(val, range)
     }
@@ -383,10 +393,10 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(a), Val::Int(b)) => {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(a), &Val::Int(b)) => {
                 if b == 0 {
-                    return Err(crate::Error::RemainderByZero(va, vb));
+                    return Err(crate::Error::RemainderByZero(va.clone(), vb.clone()));
                 } else {
                     let r = a % b;
                     if (r > 0 && b < 0) || (r < 0 && b > 0) {
@@ -396,7 +406,7 @@ impl Context {
                     }
                 }
             }
-            _ => return Err(crate::Error::FractionRemainder(va, vb)),
+            _ => return Err(crate::Error::FractionRemainder(va.clone(), vb.clone())),
         };
         ok(val, range)
     }
@@ -405,14 +415,14 @@ impl Context {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
-        let val = match (va.val, vb.val) {
-            (Val::Int(base), Val::Int(exp)) => {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(base), &Val::Int(exp)) => {
                 if let Ok(e) = u32::try_from(exp) {
                     Val::Int(base.pow(e))
                 } else if let Ok(e) = i32::try_from(exp) {
                     Val::Float((base as f64).powi(e))
                 } else {
-                    return Err(crate::Error::PowOverflow(va, vb));
+                    return Err(crate::Error::PowOverflow(va.clone(), vb.clone()));
                 }
             }
             _ => Val::Float(va.to_f64()?.powf(vb.to_f64()?)),
@@ -480,7 +490,7 @@ impl Context {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
 
-        let val = match (va.val, vb.val) {
+        let val = match (&va.val, &vb.val) {
             (Val::Int(a), Val::Int(b)) => Val::Int(a | b),
             (Val::Bool(a), Val::Bool(b)) => Val::Bool(a | b),
             _ => return Err(crate::Error::InvalidBwOr(va, vb)),
@@ -493,7 +503,7 @@ impl Context {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
 
-        let val = match (va.val, vb.val) {
+        let val = match (&va.val, &vb.val) {
             (Val::Int(a), Val::Int(b)) => Val::Int(a & b),
             (Val::Bool(a), Val::Bool(b)) => Val::Bool(a & b),
             _ => return Err(crate::Error::InvalidBwAnd(va, vb)),
@@ -560,8 +570,8 @@ impl Context {
     fn ncr(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
-        let val = match (va.val, vb.val) {
-            (Val::Int(n), Val::Int(mut r)) => {
+        let val = match (&va.val, &vb.val) {
+            (&Val::Int(n), &Val::Int(mut r)) => {
                 if r < 0 {
                     return Err(crate::Error::NegativeNcr(vb));
                 }
@@ -620,7 +630,7 @@ impl Context {
     fn gcd(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
-        match (va.val, vb.val) {
+        match (&va.val, &vb.val) {
             (Val::Int(mut a), Val::Int(mut b)) => {
                 let mut _t = 0;
                 while b != 0 {
@@ -675,8 +685,8 @@ impl Context {
         let vmin = self.eval_to_val(min)?;
         let vmax = self.eval_to_val(max)?;
 
-        let val = match (vnum.val, vmin.val, vmax.val) {
-            (Val::Int(num), Val::Int(min), Val::Int(max)) => {
+        let val = match (&vnum.val, &vmin.val, &vmax.val) {
+            (&Val::Int(num), &Val::Int(min), &Val::Int(max)) => {
                 if min > max {
                     return Err(crate::Error::InvalidClampBounds(vmin, vmax));
                 }
@@ -716,7 +726,7 @@ impl Context {
 
     fn spill(&mut self, range: Range) -> crate::Result<Return> {
         for var in self.vars.iter() {
-            if let Some(val) = var.value {
+            if let Some(val) = &var.value {
                 println!("{} = {}", var.name, val);
             }
         }

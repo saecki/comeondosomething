@@ -114,8 +114,8 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn try_from(token: &Token) -> Option<Self> {
-        match *token {
+    pub fn try_from(token: Token) -> Option<Self> {
+        match token {
             Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Fun(c) => Some(Self::Fun(c)),

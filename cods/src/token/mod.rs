@@ -74,7 +74,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     const fn pos(&self) -> usize {
-        self.cursor - 1
+        self.cursor.saturating_sub(1)
     }
 }
 
@@ -85,36 +85,43 @@ impl Context {
         while let Some(c) = state.next() {
             let range = Range::pos(state.pos());
             match c {
-                ' ' | '\r' => self.complete_literal(&mut state)?,
-                '\n' => self.new_token(&mut state, Token::sep(SepT::Newln, range))?,
-                '+' => self.new_token(&mut state, Token::op(OpT::Add, range))?,
-                '-' | '−' => self.new_token(&mut state, Token::op(OpT::Sub, range))?,
-                '*' | '×' => self.new_token(&mut state, Token::op(OpT::Mul, range))?,
-                '/' | '÷' => self.new_token(&mut state, Token::op(OpT::Div, range))?,
-                '%' => self.new_token(&mut state, Token::op(OpT::Rem, range))?,
-                '^' => self.new_token(&mut state, Token::op(OpT::Pow, range))?,
+                '"' => self.string_literal(&mut state)?,
+                ' ' | '\r' => self.end_literal(&mut state)?,
+                '\n' => self.new_atom(&mut state, Token::sep(SepT::Newln, range))?,
+                '+' => self.new_atom(&mut state, Token::op(OpT::Add, range))?,
+                '-' | '−' => self.new_atom(&mut state, Token::op(OpT::Sub, range))?,
+                '*' | '×' => self.new_atom(&mut state, Token::op(OpT::Mul, range))?,
+                '/' | '÷' => self.new_atom(&mut state, Token::op(OpT::Div, range))?,
+                '%' => self.new_atom(&mut state, Token::op(OpT::Rem, range))?,
+                '^' => self.new_atom(&mut state, Token::op(OpT::Pow, range))?,
                 '=' => self.two_char_op(&mut state, OpT::Assign, OpT::Eq, '=')?,
                 '<' => self.two_char_op(&mut state, OpT::Lt, OpT::Le, '=')?,
                 '>' => self.two_char_op(&mut state, OpT::Gt, OpT::Ge, '=')?,
                 '|' => self.two_char_op(&mut state, OpT::BwOr, OpT::Or, '|')?,
                 '&' => self.two_char_op(&mut state, OpT::BwAnd, OpT::And, '&')?,
                 '!' => self.two_char_op(&mut state, OpT::Bang, OpT::Ne, '=')?,
-                '°' => self.new_token(&mut state, Token::op(OpT::Degree, range))?,
-                '(' => self.new_token(&mut state, Token::par(ParT::RoundOpen, range))?,
-                '[' => self.new_token(&mut state, Token::par(ParT::SquareOpen, range))?,
-                '{' => self.new_token(&mut state, Token::par(ParT::CurlyOpen, range))?,
-                ')' => self.new_token(&mut state, Token::par(ParT::RoundClose, range))?,
-                ']' => self.new_token(&mut state, Token::par(ParT::SquareClose, range))?,
-                '}' => self.new_token(&mut state, Token::par(ParT::CurlyClose, range))?,
-                ',' => self.new_token(&mut state, Token::sep(SepT::Comma, range))?,
-                ';' => self.new_token(&mut state, Token::sep(SepT::Semi, range))?,
+                '°' => self.new_atom(&mut state, Token::op(OpT::Degree, range))?,
+                '(' => self.new_atom(&mut state, Token::par(ParT::RoundOpen, range))?,
+                '[' => self.new_atom(&mut state, Token::par(ParT::SquareOpen, range))?,
+                '{' => self.new_atom(&mut state, Token::par(ParT::CurlyOpen, range))?,
+                ')' => self.new_atom(&mut state, Token::par(ParT::RoundClose, range))?,
+                ']' => self.new_atom(&mut state, Token::par(ParT::SquareClose, range))?,
+                '}' => self.new_atom(&mut state, Token::par(ParT::CurlyClose, range))?,
+                ',' => self.new_atom(&mut state, Token::sep(SepT::Comma, range))?,
+                ';' => self.new_atom(&mut state, Token::sep(SepT::Semi, range))?,
                 c => state.literal.push(c),
             }
         }
 
-        self.complete_literal(&mut state)?;
+        self.end_literal(&mut state)?;
 
         Ok(state.tokens)
+    }
+
+    fn new_atom(&mut self, state: &mut Tokenizer<'_>, token: Token) -> crate::Result<()> {
+        self.end_literal(state)?;
+        state.tokens.push(token);
+        Ok(())
     }
 
     fn two_char_op(
@@ -127,22 +134,16 @@ impl Context {
         match state.next_if(expected) {
             Some(_) => {
                 let r = Range::of(state.pos() - 1, state.pos() + 1);
-                self.new_token(state, Token::op(two, r))
+                self.new_atom(state, Token::op(two, r))
             }
             None => {
                 let r = Range::pos(state.pos());
-                self.new_token(state, Token::op(one, r))
+                self.new_atom(state, Token::op(one, r))
             }
         }
     }
 
-    fn new_token(&mut self, state: &mut Tokenizer<'_>, token: Token) -> crate::Result<()> {
-        self.complete_literal(state)?;
-        state.tokens.push(token);
-        Ok(())
-    }
-
-    fn complete_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
+    fn end_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
         if !state.literal.is_empty() {
             let start = state.pos() - state.literal.chars().count();
             let range = Range::of(start, state.pos());
@@ -152,11 +153,11 @@ impl Context {
                 self,
                 range,
                 match literal {
-                    "π" | "pi" => Token::val(ExprT::PI, range),
-                    "τ" | "tau" => Token::val(ExprT::TAU, range),
-                    "e" => Token::val(ExprT::E, range ),
-                    "true" => Token::val(ExprT::bool(true), range),
-                    "false" => Token::val(ExprT::bool(false), range),
+                    "π" | "pi" => Token::expr(ExprT::PI, range),
+                    "τ" | "tau" => Token::expr(ExprT::TAU, range),
+                    "e" => Token::expr(ExprT::E, range ),
+                    "true" => Token::expr(ExprT::bool(true), range),
+                    "false" => Token::expr(ExprT::bool(false), range),
                     "pow" => Token::fun(FunT::Pow, range),
                     "ln" => Token::fun(FunT::Ln, range),
                     "log" => Token::fun(FunT::Log, range),
@@ -204,7 +205,7 @@ impl Context {
                                 return Err(crate::Error::InvalidNumberFormat(num_range));
                             };
                             state.literal.clear();
-                            state.tokens.push(Token::val(num, num_range));
+                            state.tokens.push(Token::expr(num, num_range));
 
                             if let Some(m) = mood {
                                 state.tokens.push(m);
@@ -223,7 +224,7 @@ impl Context {
                             }
 
                             let id = self.push_var(literal);
-                            Token::val(ExprT::Var(id), range)
+                            Token::expr(ExprT::Var(id), range)
                         }
                     }
                 }
@@ -236,20 +237,214 @@ impl Context {
         Ok(())
     }
 
-    pub fn push_var(&mut self, name: &str) -> VarId {
-        for (id, v) in self.vars.iter().enumerate() {
-            if v.name == name {
-                return VarId(id);
+    fn string_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
+        self.end_literal(state)?;
+
+        let start = state.pos();
+        while let Some(c) = state.next() {
+            match c {
+                '"' => {
+                    self.end_string_literal(state, start)?;
+                    return Ok(());
+                }
+                '\\' => match self.escape_char(state) {
+                    Ok(c) => state.literal.push(c),
+                    Err(e) => {
+                        if e.fail {
+                            if e.end_str {
+                                self.end_string_literal(state, start)?;
+                            }
+                            return Err(e.error);
+                        } else {
+                            self.errors.push(e.error);
+                            if e.end_str {
+                                self.end_string_literal(state, start)?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                },
+                _ => state.literal.push(c),
             }
         }
 
-        let id = self.vars.len();
-        self.vars.push(Var::new(name.to_owned(), None));
-        VarId(id)
+        let r = Range::pos(start);
+        return Err(crate::Error::MissingClosingQuote(r));
+    }
+
+    fn end_string_literal(&mut self, state: &mut Tokenizer<'_>, start: usize) -> crate::Result<()> {
+        let str = Val::Str(state.literal.clone());
+        let range = Range::of(start, state.pos() + 1);
+        state.tokens.push(Token::expr(ExprT::Val(str), range));
+        state.literal.clear();
+        Ok(())
+    }
+
+    fn escape_char(&mut self, state: &mut Tokenizer<'_>) -> Result<char, EscError> {
+        let esc_start = state.pos();
+        let c = match state.next() {
+            Some(c) => c,
+            None => {
+                let r = Range::pos(state.pos());
+                return Err(EscError {
+                    error: crate::Error::MissingEscapeChar(r),
+                    end_str: false,
+                    fail: true,
+                });
+            }
+        };
+
+        let escaped = match c {
+            'x' => unicode_escape_char(state, 2, esc_start)?,
+            'u' => unicode_escape_char(state, 4, esc_start)?,
+            _ => match c {
+                '0' => '\0',
+                'b' => '\u{8}',
+                't' => '\t',
+                'n' => '\n',
+                'r' => '\r',
+                '"' => '"',
+                '\\' => '\\',
+                '\n' => todo!("eat all whitespace"),
+                _ => {
+                    return Err(EscError {
+                        error: crate::Error::InvalidEscapeChar(c, Range::pos(state.pos())),
+                        end_str: false,
+                        fail: false,
+                    })
+                }
+            },
+        };
+
+        Ok(escaped)
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+struct EscError {
+    error: crate::Error,
+    end_str: bool,
+    fail: bool,
+}
+
+fn unicode_escape_char(
+    state: &mut Tokenizer<'_>,
+    expected: usize,
+    esc_start: usize,
+) -> Result<char, EscError> {
+    if let Some('{') = state.peek() {
+        state.next();
+        return braced_unicode_escape_char(state, esc_start);
+    }
+
+    let mut cp = 0;
+    let mut i = 0;
+    while let Some(c) = state.next() {
+        if c == ' ' || c == '"' {
+            let range = Range::pos(state.pos());
+            let end_str = c == '"';
+            return Err(EscError {
+                error: crate::Error::MissingUnicodeEscapeChar {
+                    expected,
+                    found: i,
+                    range,
+                },
+                end_str,
+                fail: false,
+            });
+        }
+        
+        let digit = unicode_escape_hex(state, c)?;
+
+        cp <<= 4;
+        cp += digit;
+
+        i += 1;
+
+        if i == expected {
+            break;
+        }
+    }
+
+    parse_unicode_cp(state, cp, esc_start)
+}
+
+fn braced_unicode_escape_char(
+    state: &mut Tokenizer<'_>,
+    esc_start: usize,
+) -> Result<char, EscError> {
+    let mut cp = 0;
+    let mut i = 0;
+    while let Some(c) = state.next() {
+        if c == '}' {
+            break;
+        }
+
+        if c == ' ' || c == '"' {
+            let e_r = Range::pos(state.pos());
+            let s_r = e_r.offset(-(i + 1));
+            let end_str = c == '"';
+            return Err(EscError {
+                error: crate::Error::MissingClosingUnicodeEscapePar(s_r, e_r),
+                end_str,
+                fail: false,
+            });
+        }
+
+        let digit = unicode_escape_hex(state, c)?;
+
+        cp <<= 4;
+        cp += digit;
+
+        i += 1;
+    }
+
+    if i > 6 {
+        let r = Range::of(esc_start, state.pos() + 1);
+        return Err(EscError {
+            error: crate::Error::OverlongUnicodeEscape(r),
+            end_str: false,
+            fail: true,
+        });
+    }
+
+    parse_unicode_cp(state, cp, esc_start)
+}
+
+fn unicode_escape_hex(state: &Tokenizer<'_>, c: char) -> Result<u32, EscError> {
+    match c {
+        '0'..='9' => Ok(c as u32 - '0' as u32),
+        'a'..='f' => Ok(c as u32 - 'a' as u32 + 10),
+        'A'..='F' => Ok(c as u32 - 'A' as u32 + 10),
+        _ => {
+            let r = Range::pos(state.pos());
+            return Err(EscError {
+                error: crate::Error::InvalidUnicodeEscapeChar(c, r),
+                end_str: false,
+                fail: false,
+            });
+        }
+    }
+}
+
+fn parse_unicode_cp(
+    state: &mut Tokenizer<'_>,
+    cp: u32,
+    esc_start: usize,
+) -> Result<char, EscError> {
+    match char::from_u32(cp) {
+        Some(char) => Ok(char),
+        None => {
+            let r = Range::of(esc_start, state.pos() + 1);
+            Err(EscError {
+                error: crate::Error::InvalidUnicodeScalar(cp, r),
+                end_str: false,
+                fail: true,
+            })
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Expr(Expr),
     Fun(Fun),
@@ -259,7 +454,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn val(val: ExprT, range: Range) -> Self {
+    pub fn expr(val: ExprT, range: Range) -> Self {
         Self::Expr(Expr::new(val, range))
     }
 
@@ -299,13 +494,6 @@ impl Token {
         matches!(self, Self::Sep(_))
     }
 
-    pub fn as_val(&self) -> Option<Expr> {
-        match self {
-            Self::Expr(n) => Some(*n),
-            _ => None,
-        }
-    }
-
     pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
@@ -331,7 +519,7 @@ impl Token {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Expr {
     pub typ: ExprT,
     pub range: Range,
@@ -343,7 +531,7 @@ impl Expr {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ExprT {
     Val(Val),
     Var(VarId),
@@ -367,11 +555,12 @@ impl ExprT {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Val {
     Int(i128),
     Float(f64),
     Bool(bool),
+    Str(String),
 }
 
 impl Display for Val {
@@ -380,6 +569,7 @@ impl Display for Val {
             Self::Int(v) => write!(f, "{v}"),
             Self::Float(v) => write!(f, "{v}"),
             Self::Bool(v) => write!(f, "{v}"),
+            Self::Str(v) => write!(f, "{v}"),
         }
     }
 }
@@ -390,6 +580,7 @@ impl Val {
             Self::Int(_) => "int",
             Self::Float(_) => "float",
             Self::Bool(_) => "bool",
+            Self::Str(_) => "str",
         }
     }
 }

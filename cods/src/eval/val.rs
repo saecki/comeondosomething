@@ -1,19 +1,19 @@
 use crate::{Context, Expr, ExprT, Val, Var, VarId};
 
 impl Val {
-    pub fn to_int(self) -> Option<i128> {
+    pub fn to_int(&self) -> Option<i128> {
         match self {
-            Self::Int(i) => Some(i),
+            Self::Int(i) => Some(*i),
             Self::Float(f) => {
-                let i = f as i128;
+                let i = *f as i128;
                 #[allow(clippy::float_cmp)]
-                if i as f64 == f {
+                if i as f64 == *f {
                     Some(i)
                 } else {
                     None
                 }
             }
-            Self::Bool(_) => None,
+            Self::Bool(_) | Self::Str(_) => None,
         }
     }
 
@@ -21,25 +21,25 @@ impl Val {
         match self {
             Self::Int(i) => Some(*i as f64),
             Self::Float(f) => Some(*f),
-            Self::Bool(_) => None,
+            Self::Bool(_) | Self::Str(_) => None,
         }
     }
 }
 
 impl Context {
-    pub fn to_val(&self, expr: &Expr) -> crate::Result<Val> {
-        match self.resolve_val(expr.typ) {
+    pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
+        match self.resolve_val(&expr.typ) {
             Ok(d) => Ok(d),
             Err(name) => Err(crate::Error::UndefinedVar(name, expr.range)),
         }
     }
 
-    fn resolve_val(&self, expr: ExprT) -> Result<Val, String> {
+    fn resolve_val<'a>(&'a self, expr: &'a ExprT) -> Result<&'a Val, String> {
         match expr {
             ExprT::Val(p) => Ok(p),
             ExprT::Var(id) => {
-                let var = self.var(id);
-                match var.value {
+                let var = self.var(*id);
+                match &var.value {
                     Some(d) => Ok(d),
                     None => Err(var.name.clone()),
                 }
@@ -54,5 +54,17 @@ impl Context {
     pub fn set_var(&mut self, id: VarId, val: Option<Val>) {
         // TODO const vars
         self.vars[id.0].value = val;
+    }
+
+    pub fn push_var(&mut self, name: &str) -> VarId {
+        for (id, v) in self.vars.iter().enumerate() {
+            if v.name == name {
+                return VarId(id);
+            }
+        }
+
+        let id = self.vars.len();
+        self.vars.push(Var::new(name.to_owned(), None));
+        VarId(id)
     }
 }

@@ -217,7 +217,10 @@ impl Context {
                 val.range = g.range;
                 val
             }
-            Some(Item::Expr(e)) => Ast::new(AstT::Expr(e), e.range),
+            Some(Item::Expr(e)) => {
+                let r = e.range;
+                Ast::new(AstT::Expr(e), r)
+            }
             Some(Item::Fun(f)) => self.parse_fun(parser, f)?,
             Some(Item::Op(o)) => match o.prefix_bp() {
                 Some((prefix, r_bp)) => {

@@ -35,8 +35,20 @@ pub enum Error {
     UnexpectedSeparator(Sep),
     UnexpectedPar(Par),
     InvalidChar(Range),
-    UndefinedVar(String, Range),
     InvalidNumberFormat(Range),
+    InvalidEscapeChar(char, Range),
+    MissingEscapeChar(Range),
+    InvalidUnicodeEscapeChar(char, Range),
+    MissingUnicodeEscapeChar {
+        range: Range,
+        expected: usize,
+        found: usize,
+    },
+    MissingClosingUnicodeEscapePar(Range, Range),
+    OverlongUnicodeEscape(Range),
+    InvalidUnicodeScalar(u32, Range),
+    MissingClosingQuote(Range),
+    UndefinedVar(String, Range),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
     MulOverflow(ValRange, ValRange),
@@ -100,8 +112,37 @@ impl Display for Error {
             Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
             Self::UnexpectedPar(_) => write!(f, "Unexpected parenthesis"),
             Self::InvalidChar(_) => write!(f, "Unknown value"),
-            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
+            Self::InvalidEscapeChar(c, _) => {
+                write!(f, "Invalid escape character: '{}'", c.escape_default())
+            }
+            Self::MissingEscapeChar(_) => write!(f, "Missing escape character"),
+            Self::InvalidUnicodeEscapeChar(c, _) => {
+                write!(
+                    f,
+                    "Invalid unicode escape character: '{}'",
+                    c.escape_default()
+                )
+            }
+            Self::MissingUnicodeEscapeChar {
+                expected, found, ..
+            } => {
+                let missing = expected - found;
+                let char_s = if missing == 1 { "" } else { "s" };
+                write!(f, "Missing {missing} unicode escape character{char_s}, expected {expected}, but found {found}")
+            }
+            Self::MissingClosingUnicodeEscapePar(_, _) => write!(
+                f,
+                "Missing a closing parenthesis for the unicode escape sequence"
+            ),
+            Self::OverlongUnicodeEscape(_) => {
+                write!(f, "Overlong unicode escape sequence, must be at most 6 digits")
+            }
+            Self::InvalidUnicodeScalar(cp, _) => {
+                write!(f, "Invalid unicode scalar value: '{cp:x}'")
+            } // TODO
+            Self::MissingClosingQuote(_) => write!(f, "Missing closing quote"),
+            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
             Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
@@ -207,8 +248,16 @@ impl UserFacing for Error {
             Self::UnexpectedSeparator(s) => vec![s.range],
             Self::UnexpectedPar(p) => vec![p.range],
             Self::InvalidChar(r) => vec![*r],
-            Self::UndefinedVar(_, r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
+            Self::InvalidEscapeChar(_, r) => vec![*r],
+            Self::MissingEscapeChar(r) => vec![*r],
+            Self::MissingUnicodeEscapeChar { range, .. } => vec![*range],
+            Self::MissingClosingUnicodeEscapePar(s, e) => vec![*s, *e],
+            Self::InvalidUnicodeEscapeChar(_, r) => vec![*r],
+            Self::OverlongUnicodeEscape(r) => vec![*r],
+            Self::InvalidUnicodeScalar(_, r) => vec![*r],
+            Self::MissingClosingQuote(r) => vec![*r],
+            Self::UndefinedVar(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],
