@@ -1,14 +1,18 @@
 pub use error::*;
 pub use eval::*;
 pub use group::*;
-pub use parse::*;
 pub use lex::*;
+pub use parse::*;
+pub use types::*;
+pub use util::*;
 
 mod error;
 mod eval;
 mod group;
-mod parse;
 mod lex;
+mod parse;
+mod types;
+mod util;
 
 #[derive(Debug, Default)]
 pub struct Context {

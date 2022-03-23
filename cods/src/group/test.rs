@@ -1,4 +1,4 @@
-use crate::{ExprT, Op, OpT, Range};
+use crate::{Expr, ExprT, Op, OpT, Range};
 
 use super::*;
 
