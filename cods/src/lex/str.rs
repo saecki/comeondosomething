@@ -140,11 +140,11 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
         'A'..='F' => Ok(c as u32 - 'A' as u32 + 10),
         _ => {
             let r = Range::pos(lexer.pos());
-            return Err(EscError {
+            Err(EscError {
                 error: crate::Error::InvalidUnicodeEscapeChar(c, r),
                 end_str: false,
                 fail: false,
-            });
+            })
         }
     }
 }

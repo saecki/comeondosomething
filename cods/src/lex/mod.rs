@@ -270,7 +270,7 @@ impl Context {
         }
 
         let r = Range::pos(start);
-        return Err(crate::Error::MissingClosingQuote(r));
+        Err(crate::Error::MissingClosingQuote(r))
     }
 
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
