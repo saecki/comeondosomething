@@ -2,7 +2,7 @@ use std::f64::consts;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{Range, Ident};
+use crate::{Ident, Range};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -11,6 +11,7 @@ pub enum Token {
     Op(Op),
     Par(Par),
     Sep(Sep),
+    Kw(Kw),
 }
 
 impl Token {
@@ -34,6 +35,10 @@ impl Token {
         Self::Sep(Sep::new(typ, range))
     }
 
+    pub fn kw(typ: KwT, range: Range) -> Self {
+        Self::Kw(Kw::new(typ, range))
+    }
+
     pub fn is_val(&self) -> bool {
         matches!(self, Self::Expr(_))
     }
@@ -52,6 +57,10 @@ impl Token {
 
     pub fn is_sep(&self) -> bool {
         matches!(self, Self::Sep(_))
+    }
+
+    pub fn is_kw(&self) -> bool {
+        matches!(self, Self::Kw(_))
     }
 
     pub fn as_op(&self) -> Option<Op> {
@@ -75,6 +84,7 @@ impl Token {
             Self::Fun(c) => c.range,
             Self::Par(p) => p.range,
             Self::Sep(s) => s.range,
+            Self::Kw(k) => k.range,
         }
     }
 }
@@ -364,4 +374,22 @@ impl SepT {
     pub fn is_newln(&self) -> bool {
         matches!(self, Self::Newln)
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Kw {
+    pub typ: KwT,
+    pub range: Range,
+}
+
+impl Kw {
+    pub const fn new(typ: KwT, range: Range) -> Self {
+        Self { typ, range }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KwT {
+    If,
+    Else,
 }

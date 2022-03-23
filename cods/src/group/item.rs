@@ -1,4 +1,4 @@
-use crate::{Expr, Fun, Op, Sep, Token, Range, ParKind};
+use crate::{Expr, Fun, Kw, Op, ParKind, Range, Sep, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -8,6 +8,7 @@ pub enum Item {
 
     Op(Op),
     Sep(Sep),
+    Kw(Kw),
 }
 
 impl Item {
@@ -18,6 +19,7 @@ impl Item {
             Token::Fun(c) => Some(Self::Fun(c)),
             Token::Par(_) => None,
             Token::Sep(s) => Some(Self::Sep(s)),
+            Token::Kw(k) => Some(Self::Kw(k)),
         }
     }
 
@@ -71,6 +73,7 @@ impl Item {
             Self::Op(o) => o.range,
             Self::Fun(c) => c.range,
             Self::Sep(s) => s.range,
+            Self::Kw(k) => k.range,
         }
     }
 }

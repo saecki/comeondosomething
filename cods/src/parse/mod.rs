@@ -141,6 +141,7 @@ impl Context {
                     return Ok(Ast::new(AstT::Empty, r));
                 }
             },
+            Some(Item::Kw(_k)) => todo!(),
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
@@ -205,6 +206,7 @@ impl Context {
                         SepT::Semi | SepT::Newln => break,
                     }
                 }
+                Item::Kw(_k) => todo!(),
             };
 
             let (l_bp, infix, r_bp) = match op.infix_bp() {

@@ -183,6 +183,8 @@ impl Context {
                     "mod" => Token::op(OpT::Rem, range),
                     "deg" => Token::op(OpT::Degree, range),
                     "rad" => Token::op(OpT::Radian, range),
+                    "if" => Token::kw(KwT::If, range),
+                    "else" => Token::kw(KwT::Else, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let mut mood = None;
