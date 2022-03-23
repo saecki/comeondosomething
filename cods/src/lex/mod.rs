@@ -6,6 +6,7 @@ use std::str::Chars;
 
 use crate::Context;
 
+mod str;
 #[cfg(test)]
 mod test;
 
@@ -18,7 +19,7 @@ const LITERAL_SUFFIXES: [(&str, OpT); 4] = [
 
 macro_rules! match_warn_case {
     (
-        $state:ident,
+        $lexer:ident,
         $range:ident,
         match $v:ident {
             $( $($lit:literal)|+ => $res:expr, )*
@@ -29,7 +30,7 @@ macro_rules! match_warn_case {
                 if $lit == $v {
                     $res
                 } else if $lit.eq_ignore_ascii_case(&$v) {
-                    $state.warnings.push(crate::Warning::ConfusingCase($range, $lit));
+                    $lexer.warnings.push(crate::Warning::ConfusingCase($range, $lit));
                     $res
                 } else
         )+ )*
@@ -37,14 +38,14 @@ macro_rules! match_warn_case {
     }};
 }
 
-struct Tokenizer<'a> {
+struct Lexer<'a> {
     tokens: Vec<Token>,
     literal: String,
     chars: Peekable<Chars<'a>>,
     cursor: usize,
 }
 
-impl<'a> Tokenizer<'a> {
+impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         Self {
             tokens: Vec::new(),
@@ -79,76 +80,76 @@ impl<'a> Tokenizer<'a> {
 }
 
 impl Context {
-    pub fn tokenize(&mut self, string: &str) -> crate::Result<Vec<Token>> {
-        let mut state = Tokenizer::new(string);
+    pub fn lex(&mut self, string: &str) -> crate::Result<Vec<Token>> {
+        let mut lexer = Lexer::new(string);
 
-        while let Some(c) = state.next() {
-            let range = Range::pos(state.pos());
+        while let Some(c) = lexer.next() {
+            let range = Range::pos(lexer.pos());
             match c {
-                '"' => self.string_literal(&mut state)?,
-                ' ' | '\r' => self.end_literal(&mut state)?,
-                '\n' => self.new_atom(&mut state, Token::sep(SepT::Newln, range))?,
-                '+' => self.new_atom(&mut state, Token::op(OpT::Add, range))?,
-                '-' | '−' => self.new_atom(&mut state, Token::op(OpT::Sub, range))?,
-                '*' | '×' => self.new_atom(&mut state, Token::op(OpT::Mul, range))?,
-                '/' | '÷' => self.new_atom(&mut state, Token::op(OpT::Div, range))?,
-                '%' => self.new_atom(&mut state, Token::op(OpT::Rem, range))?,
-                '^' => self.new_atom(&mut state, Token::op(OpT::Pow, range))?,
-                '=' => self.two_char_op(&mut state, OpT::Assign, OpT::Eq, '=')?,
-                '<' => self.two_char_op(&mut state, OpT::Lt, OpT::Le, '=')?,
-                '>' => self.two_char_op(&mut state, OpT::Gt, OpT::Ge, '=')?,
-                '|' => self.two_char_op(&mut state, OpT::BwOr, OpT::Or, '|')?,
-                '&' => self.two_char_op(&mut state, OpT::BwAnd, OpT::And, '&')?,
-                '!' => self.two_char_op(&mut state, OpT::Bang, OpT::Ne, '=')?,
-                '°' => self.new_atom(&mut state, Token::op(OpT::Degree, range))?,
-                '(' => self.new_atom(&mut state, Token::par(ParT::RoundOpen, range))?,
-                '[' => self.new_atom(&mut state, Token::par(ParT::SquareOpen, range))?,
-                '{' => self.new_atom(&mut state, Token::par(ParT::CurlyOpen, range))?,
-                ')' => self.new_atom(&mut state, Token::par(ParT::RoundClose, range))?,
-                ']' => self.new_atom(&mut state, Token::par(ParT::SquareClose, range))?,
-                '}' => self.new_atom(&mut state, Token::par(ParT::CurlyClose, range))?,
-                ',' => self.new_atom(&mut state, Token::sep(SepT::Comma, range))?,
-                ';' => self.new_atom(&mut state, Token::sep(SepT::Semi, range))?,
-                c => state.literal.push(c),
+                '"' => self.string_literal(&mut lexer)?,
+                ' ' | '\r' => self.end_literal(&mut lexer)?,
+                '\n' => self.new_atom(&mut lexer, Token::sep(SepT::Newln, range))?,
+                '+' => self.new_atom(&mut lexer, Token::op(OpT::Add, range))?,
+                '-' | '−' => self.new_atom(&mut lexer, Token::op(OpT::Sub, range))?,
+                '*' | '×' => self.new_atom(&mut lexer, Token::op(OpT::Mul, range))?,
+                '/' | '÷' => self.new_atom(&mut lexer, Token::op(OpT::Div, range))?,
+                '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, range))?,
+                '^' => self.new_atom(&mut lexer, Token::op(OpT::Pow, range))?,
+                '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
+                '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,
+                '>' => self.two_char_op(&mut lexer, OpT::Gt, OpT::Ge, '=')?,
+                '|' => self.two_char_op(&mut lexer, OpT::BwOr, OpT::Or, '|')?,
+                '&' => self.two_char_op(&mut lexer, OpT::BwAnd, OpT::And, '&')?,
+                '!' => self.two_char_op(&mut lexer, OpT::Bang, OpT::Ne, '=')?,
+                '°' => self.new_atom(&mut lexer, Token::op(OpT::Degree, range))?,
+                '(' => self.new_atom(&mut lexer, Token::par(ParT::RoundOpen, range))?,
+                '[' => self.new_atom(&mut lexer, Token::par(ParT::SquareOpen, range))?,
+                '{' => self.new_atom(&mut lexer, Token::par(ParT::CurlyOpen, range))?,
+                ')' => self.new_atom(&mut lexer, Token::par(ParT::RoundClose, range))?,
+                ']' => self.new_atom(&mut lexer, Token::par(ParT::SquareClose, range))?,
+                '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, range))?,
+                ',' => self.new_atom(&mut lexer, Token::sep(SepT::Comma, range))?,
+                ';' => self.new_atom(&mut lexer, Token::sep(SepT::Semi, range))?,
+                c => lexer.literal.push(c),
             }
         }
 
-        self.end_literal(&mut state)?;
+        self.end_literal(&mut lexer)?;
 
-        Ok(state.tokens)
+        Ok(lexer.tokens)
     }
 
-    fn new_atom(&mut self, state: &mut Tokenizer<'_>, token: Token) -> crate::Result<()> {
-        self.end_literal(state)?;
-        state.tokens.push(token);
+    fn new_atom(&mut self, lexer: &mut Lexer<'_>, token: Token) -> crate::Result<()> {
+        self.end_literal(lexer)?;
+        lexer.tokens.push(token);
         Ok(())
     }
 
     fn two_char_op(
         &mut self,
-        state: &mut Tokenizer<'_>,
+        lexer: &mut Lexer<'_>,
         one: OpT,
         two: OpT,
         expected: char,
     ) -> crate::Result<()> {
-        match state.next_if(expected) {
+        match lexer.next_if(expected) {
             Some(_) => {
-                let r = Range::of(state.pos() - 1, state.pos() + 1);
-                self.new_atom(state, Token::op(two, r))
+                let r = Range::of(lexer.pos() - 1, lexer.pos() + 1);
+                self.new_atom(lexer, Token::op(two, r))
             }
             None => {
-                let r = Range::pos(state.pos());
-                self.new_atom(state, Token::op(one, r))
+                let r = Range::pos(lexer.pos());
+                self.new_atom(lexer, Token::op(one, r))
             }
         }
     }
 
-    fn end_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
-        if !state.literal.is_empty() {
-            let start = state.pos() - state.literal.chars().count();
-            let range = Range::of(start, state.pos());
+    fn end_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+        if !lexer.literal.is_empty() {
+            let start = lexer.pos() - lexer.literal.chars().count();
+            let range = Range::of(start, lexer.pos());
 
-            let literal = &state.literal;
+            let literal = &lexer.literal;
             let token = match_warn_case! {
                 self,
                 range,
@@ -204,11 +205,11 @@ impl Context {
                             } else {
                                 return Err(crate::Error::InvalidNumberFormat(num_range));
                             };
-                            state.literal.clear();
-                            state.tokens.push(Token::expr(num, num_range));
+                            lexer.literal.clear();
+                            lexer.tokens.push(Token::expr(num, num_range));
 
                             if let Some(m) = mood {
-                                state.tokens.push(m);
+                                lexer.tokens.push(m);
                             }
 
                             return Ok(());
@@ -230,41 +231,41 @@ impl Context {
                 }
             };
 
-            state.literal.clear();
-            state.tokens.push(token);
+            lexer.literal.clear();
+            lexer.tokens.push(token);
         }
 
         Ok(())
     }
 
-    fn string_literal(&mut self, state: &mut Tokenizer<'_>) -> crate::Result<()> {
-        self.end_literal(state)?;
+    fn string_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+        self.end_literal(lexer)?;
 
-        let start = state.pos();
-        while let Some(c) = state.next() {
+        let start = lexer.pos();
+        while let Some(c) = lexer.next() {
             match c {
                 '"' => {
-                    self.end_string_literal(state, start)?;
+                    self.end_string_literal(lexer, start)?;
                     return Ok(());
                 }
-                '\\' => match self.escape_char(state) {
-                    Ok(c) => state.literal.push(c),
+                '\\' => match self.escape_char(lexer) {
+                    Ok(c) => lexer.literal.push(c),
                     Err(e) => {
                         if e.fail {
                             if e.end_str {
-                                self.end_string_literal(state, start)?;
+                                self.end_string_literal(lexer, start)?;
                             }
                             return Err(e.error);
                         } else {
                             self.errors.push(e.error);
                             if e.end_str {
-                                self.end_string_literal(state, start)?;
+                                self.end_string_literal(lexer, start)?;
                                 return Ok(());
                             }
                         }
                     }
                 },
-                _ => state.literal.push(c),
+                _ => lexer.literal.push(c),
             }
         }
 
@@ -272,175 +273,12 @@ impl Context {
         return Err(crate::Error::MissingClosingQuote(r));
     }
 
-    fn end_string_literal(&mut self, state: &mut Tokenizer<'_>, start: usize) -> crate::Result<()> {
-        let str = Val::Str(state.literal.clone());
-        let range = Range::of(start, state.pos() + 1);
-        state.tokens.push(Token::expr(ExprT::Val(str), range));
-        state.literal.clear();
+    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
+        let str = Val::Str(lexer.literal.clone());
+        let range = Range::of(start, lexer.pos() + 1);
+        lexer.tokens.push(Token::expr(ExprT::Val(str), range));
+        lexer.literal.clear();
         Ok(())
-    }
-
-    fn escape_char(&mut self, state: &mut Tokenizer<'_>) -> Result<char, EscError> {
-        let esc_start = state.pos();
-        let c = match state.next() {
-            Some(c) => c,
-            None => {
-                let r = Range::pos(state.pos());
-                return Err(EscError {
-                    error: crate::Error::MissingEscapeChar(r),
-                    end_str: false,
-                    fail: true,
-                });
-            }
-        };
-
-        let escaped = match c {
-            'x' => unicode_escape_char(state, 2, esc_start)?,
-            'u' => unicode_escape_char(state, 4, esc_start)?,
-            _ => match c {
-                '0' => '\0',
-                'b' => '\u{8}',
-                't' => '\t',
-                'n' => '\n',
-                'r' => '\r',
-                '"' => '"',
-                '\\' => '\\',
-                '\n' => todo!("eat all whitespace"),
-                _ => {
-                    return Err(EscError {
-                        error: crate::Error::InvalidEscapeChar(c, Range::pos(state.pos())),
-                        end_str: false,
-                        fail: false,
-                    })
-                }
-            },
-        };
-
-        Ok(escaped)
-    }
-}
-
-struct EscError {
-    error: crate::Error,
-    end_str: bool,
-    fail: bool,
-}
-
-fn unicode_escape_char(
-    state: &mut Tokenizer<'_>,
-    expected: usize,
-    esc_start: usize,
-) -> Result<char, EscError> {
-    if let Some('{') = state.peek() {
-        state.next();
-        return braced_unicode_escape_char(state, esc_start);
-    }
-
-    let mut cp = 0;
-    let mut i = 0;
-    while let Some(c) = state.next() {
-        if c == ' ' || c == '"' {
-            let range = Range::pos(state.pos());
-            let end_str = c == '"';
-            return Err(EscError {
-                error: crate::Error::MissingUnicodeEscapeChar {
-                    expected,
-                    found: i,
-                    range,
-                },
-                end_str,
-                fail: false,
-            });
-        }
-        
-        let digit = unicode_escape_hex(state, c)?;
-
-        cp <<= 4;
-        cp += digit;
-
-        i += 1;
-
-        if i == expected {
-            break;
-        }
-    }
-
-    parse_unicode_cp(state, cp, esc_start)
-}
-
-fn braced_unicode_escape_char(
-    state: &mut Tokenizer<'_>,
-    esc_start: usize,
-) -> Result<char, EscError> {
-    let mut cp = 0;
-    let mut i = 0;
-    while let Some(c) = state.next() {
-        if c == '}' {
-            break;
-        }
-
-        if c == ' ' || c == '"' {
-            let e_r = Range::pos(state.pos());
-            let s_r = e_r.offset(-(i + 1));
-            let end_str = c == '"';
-            return Err(EscError {
-                error: crate::Error::MissingClosingUnicodeEscapePar(s_r, e_r),
-                end_str,
-                fail: false,
-            });
-        }
-
-        let digit = unicode_escape_hex(state, c)?;
-
-        cp <<= 4;
-        cp += digit;
-
-        i += 1;
-    }
-
-    if i > 6 {
-        let r = Range::of(esc_start, state.pos() + 1);
-        return Err(EscError {
-            error: crate::Error::OverlongUnicodeEscape(r),
-            end_str: false,
-            fail: true,
-        });
-    }
-
-    parse_unicode_cp(state, cp, esc_start)
-}
-
-fn unicode_escape_hex(state: &Tokenizer<'_>, c: char) -> Result<u32, EscError> {
-    match c {
-        '0'..='9' => Ok(c as u32 - '0' as u32),
-        'a'..='f' => Ok(c as u32 - 'a' as u32 + 10),
-        'A'..='F' => Ok(c as u32 - 'A' as u32 + 10),
-        _ => {
-            let r = Range::pos(state.pos());
-            return Err(EscError {
-                error: crate::Error::InvalidUnicodeEscapeChar(c, r),
-                end_str: false,
-                fail: false,
-            });
-        }
-    }
-}
-
-fn parse_unicode_cp(
-    state: &mut Tokenizer<'_>,
-    cp: u32,
-    esc_start: usize,
-) -> Result<char, EscError> {
-    match char::from_u32(cp) {
-        Some(char) => Ok(char),
-        None => {
-            let r = Range::of(esc_start, state.pos() + 1);
-            Err(EscError {
-                error: crate::Error::InvalidUnicodeScalar(cp, r),
-                end_str: false,
-                fail: true,
-            })
-        }
     }
 }
 

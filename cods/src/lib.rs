@@ -2,13 +2,13 @@ pub use error::*;
 pub use eval::*;
 pub use group::*;
 pub use parse::*;
-pub use token::*;
+pub use lex::*;
 
 mod error;
 mod eval;
 mod group;
 mod parse;
-mod token;
+mod lex;
 
 #[derive(Debug, Default)]
 pub struct Context {
@@ -43,7 +43,7 @@ impl Context {
     }
 
     pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<Ast>> {
-        let tokens = self.tokenize(input.as_ref())?;
+        let tokens = self.lex(input.as_ref())?;
         let items = self.group(tokens)?;
         let asts = self.parse(items)?;
         Ok(asts)

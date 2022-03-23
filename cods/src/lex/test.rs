@@ -1,13 +1,13 @@
 use super::*;
 
 fn assert(input: &str, expected: Vec<Token>) {
-    let tokens = Context::default().tokenize(input).unwrap();
+    let tokens = Context::default().lex(input).unwrap();
     assert_eq!(tokens, expected);
 }
 
 fn assert_err(input: &str, expected: crate::Error) {
     let mut ctx = Context::default();
-    match ctx.tokenize(input) {
+    match ctx.lex(input) {
         Ok(_) if !ctx.errors.is_empty() => {
             assert_eq!(ctx.errors[0], expected)
         }
@@ -126,7 +126,7 @@ fn eq_range() {
 #[test]
 fn vars() {
     let mut ctx = Context::default();
-    let tokens = ctx.tokenize("x64 = 2; arm = 3").unwrap();
+    let tokens = ctx.lex("x64 = 2; arm = 3").unwrap();
 
     assert_eq!(
         ctx.vars,
