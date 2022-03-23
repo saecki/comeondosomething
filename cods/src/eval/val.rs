@@ -1,4 +1,6 @@
-use crate::{Context, Expr, ExprT, Val, Var, VarId};
+use std::collections::HashMap;
+
+use crate::{Context, Expr, ExprT, Ident, Val};
 
 impl Val {
     pub fn to_int(&self) -> Option<i128> {
@@ -28,35 +30,62 @@ impl Val {
 
 impl Context {
     pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
-        match self.resolve_val(&expr.typ) {
-            Ok(d) => Ok(d),
-            Err(name) => Err(crate::Error::UndefinedVar(name, expr.range)),
-        }
-    }
-
-    fn resolve_val<'a>(&'a self, expr: &'a ExprT) -> Result<&'a Val, String> {
-        match expr {
+        match &expr.typ {
             ExprT::Val(p) => Ok(p),
             ExprT::Var(id) => {
                 let var = self.var(*id);
                 match &var.value {
                     Some(d) => Ok(d),
-                    None => Err(var.name.clone()),
+                    None => {
+                        let name = self.ident_name(*id);
+                        Err(crate::Error::UndefinedVar(name.to_owned(), expr.range))
+                    }
                 }
             }
         }
     }
 
-    pub fn var(&self, id: VarId) -> &Var {
+    pub fn var(&self, id: Ident) -> &Var {
         self.scope.var(id)
     }
 
-    pub fn set_var(&mut self, id: VarId, val: Option<Val>) {
+    pub fn set_var(&mut self, id: Ident, val: Option<Val>) {
         // TODO const vars
         self.scope.set_var(id, val);
     }
+}
 
-    pub fn push_var(&mut self, name: &str) -> VarId {
-        self.scope.declare_var(name)
+#[derive(Debug, Default)]
+pub struct Scope {
+    pub vars: HashMap<Ident, Var>,
+}
+
+impl Scope {
+    pub fn clear(&mut self) {
+        self.vars.clear();
+    }
+
+    pub fn var(&self, id: Ident) -> &Var {
+        &self.vars[&id]
+    }
+
+    pub fn set_var(&mut self, id: Ident, val: Option<Val>) {
+        match self.vars.get_mut(&id) {
+            Some(v) => v.value = val,
+            None => {
+                self.vars.insert(id, Var::new(val));
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Var {
+    pub value: Option<Val>,
+}
+
+impl Var {
+    pub fn new(value: Option<Val>) -> Self {
+        Self { value }
     }
 }

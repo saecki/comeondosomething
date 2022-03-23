@@ -45,3 +45,6 @@ impl Range {
         self.start <= pos && self.end > pos
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Ident(pub usize);

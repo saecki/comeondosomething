@@ -2,7 +2,7 @@ use std::f64::consts;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::Range;
+use crate::{Range, Ident};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -94,7 +94,7 @@ impl Expr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprT {
     Val(Val),
-    Var(VarId),
+    Var(Ident),
 }
 
 impl ExprT {
@@ -142,21 +142,6 @@ impl Val {
             Self::Bool(_) => "bool",
             Self::Str(_) => "str",
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct VarId(pub usize);
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Var {
-    pub name: String,
-    pub value: Option<Val>,
-}
-
-impl Var {
-    pub fn new(name: String, value: Option<Val>) -> Self {
-        Self { name, value }
     }
 }
 

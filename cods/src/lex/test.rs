@@ -1,3 +1,5 @@
+use crate::Ident;
+
 use super::*;
 
 fn assert(input: &str, expected: Vec<Token>) {
@@ -128,19 +130,16 @@ fn vars() {
     let mut ctx = Context::default();
     let tokens = ctx.lex("x64 = 2; arm = 3").unwrap();
 
-    assert_eq!(
-        ctx.scope.vars,
-        [Var::new("x64".into(), None), Var::new("arm".into(), None)]
-    );
+    assert_eq!(ctx.idents, ["x64", "arm"]);
 
     assert_eq!(
         tokens,
         [
-            Token::expr(ExprT::Var(VarId(0)), Range::of(0, 3)),
+            Token::expr(ExprT::Var(Ident(0)), Range::of(0, 3)),
             Token::op(OpT::Assign, Range::pos(4)),
             Token::expr(ExprT::int(2), Range::pos(6)),
             Token::sep(SepT::Semi, Range::pos(7)),
-            Token::expr(ExprT::Var(VarId(1)), Range::of(9, 12)),
+            Token::expr(ExprT::Var(Ident(1)), Range::of(9, 12)),
             Token::op(OpT::Assign, Range::pos(13)),
             Token::expr(ExprT::int(3), Range::pos(15)),
         ],

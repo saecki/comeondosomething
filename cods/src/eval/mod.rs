@@ -2,7 +2,9 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, Expr, Range, Val, VarId};
+use crate::{Context, Expr, Range, Val, Ident};
+
+pub use val::*;
 
 #[cfg(test)]
 mod test;
@@ -44,7 +46,7 @@ pub enum AstT {
     Empty,
     Error,
     Expr(Expr),
-    Assign(VarId, Box<Ast>),
+    Assign(Ident, Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -289,7 +291,7 @@ impl Context {
         })
     }
 
-    fn assign(&mut self, id: VarId, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn assign(&mut self, id: Ident, n: &Ast, range: Range) -> crate::Result<Return> {
         let v = self.eval_to_val(n)?;
         self.set_var(id, Some(v.val));
         Ok(Return::Unit(range))
@@ -725,9 +727,10 @@ impl Context {
     }
 
     fn spill(&mut self, range: Range) -> crate::Result<Return> {
-        for var in self.scope.vars.iter() {
+        for (id, var) in self.scope.vars.iter() {
             if let Some(val) = &var.value {
-                println!("{} = {}", var.name, val);
+                let name = self.ident_name(*id);
+                println!("{name} = {val}");
             }
         }
         Ok(Return::Unit(range))
