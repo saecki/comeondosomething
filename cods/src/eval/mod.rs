@@ -725,7 +725,7 @@ impl Context {
     }
 
     fn spill(&mut self, range: Range) -> crate::Result<Return> {
-        for var in self.vars.iter() {
+        for var in self.scope.vars.iter() {
             if let Some(val) = &var.value {
                 println!("{} = {}", var.name, val);
             }

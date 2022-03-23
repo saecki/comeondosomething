@@ -48,23 +48,15 @@ impl Context {
     }
 
     pub fn var(&self, id: VarId) -> &Var {
-        &self.vars[id.0]
+        self.scope.var(id)
     }
 
     pub fn set_var(&mut self, id: VarId, val: Option<Val>) {
         // TODO const vars
-        self.vars[id.0].value = val;
+        self.scope.set_var(id, val);
     }
 
     pub fn push_var(&mut self, name: &str) -> VarId {
-        for (id, v) in self.vars.iter().enumerate() {
-            if v.name == name {
-                return VarId(id);
-            }
-        }
-
-        let id = self.vars.len();
-        self.vars.push(Var::new(name.to_owned(), None));
-        VarId(id)
+        self.scope.declare_var(name)
     }
 }

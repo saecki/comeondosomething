@@ -129,7 +129,7 @@ fn vars() {
     let tokens = ctx.lex("x64 = 2; arm = 3").unwrap();
 
     assert_eq!(
-        ctx.vars,
+        ctx.scope.vars,
         [Var::new("x64".into(), None), Var::new("arm".into(), None)]
     );
 

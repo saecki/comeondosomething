@@ -1,12 +1,14 @@
-use crate::{Ast, Context, Expr, ExprT, Range, Val, Var, VarId};
+use crate::{Ast, Context, Expr, ExprT, Range, Scope, Val, Var, VarId};
 
 #[test]
 fn resolve_var() {
     let mut ctx = Context {
-        vars: vec![Var {
-            name: "x".into(),
-            value: Some(Val::Int(4)),
-        }],
+        scope: Scope {
+            vars: vec![Var {
+                name: "x".into(),
+                value: Some(Val::Int(4)),
+            }],
+        },
         ..Default::default()
     };
     let expr = Ast::expr(Expr::new(ExprT::Var(VarId(0)), Range::pos(0)));
@@ -18,10 +20,12 @@ fn resolve_var() {
 #[test]
 fn undefined_var() {
     let mut ctx = Context {
-        vars: vec![Var {
-            name: "x".into(),
-            value: None,
-        }],
+        scope: Scope {
+            vars: vec![Var {
+                name: "x".into(),
+                value: None,
+            }],
+        },
         ..Default::default()
     };
     let expr = Ast::expr(Expr::new(ExprT::Var(VarId(0)), Range::pos(0)));
