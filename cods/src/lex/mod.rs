@@ -250,6 +250,17 @@ impl Context {
                     self.end_string_literal(lexer, start)?;
                     return Ok(());
                 }
+                '\\' if lexer.peek() == Some('\n') => {
+                    lexer.next();
+
+                    while let Some(c) = lexer.peek() {
+                        if c.is_ascii_whitespace() {
+                            lexer.next();
+                        } else {
+                            break;
+                        }
+                    }
+                }
                 '\\' => match self.escape_char(lexer) {
                     Ok(c) => lexer.literal.push(c),
                     Err(e) => {

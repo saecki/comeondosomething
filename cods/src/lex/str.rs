@@ -28,7 +28,6 @@ impl Context {
                 'r' => '\r',
                 '"' => '"',
                 '\\' => '\\',
-                '\n' => todo!("eat all whitespace"),
                 _ => {
                     return Err(EscError {
                         error: crate::Error::InvalidEscapeChar(c, Range::pos(lexer.pos())),

@@ -63,6 +63,16 @@ fn string_escape() {
 }
 
 #[test]
+fn string_multi_line() {
+    assert(
+        r#""hello \
+        there""#,
+        Val::Str("hello there".into()),
+    );
+    assert("\"hello\nthere\n\"", Val::Str("hello\nthere\n".into()))
+}
+
+#[test]
 fn unicode_ops() {
     assert(
         "(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234",
