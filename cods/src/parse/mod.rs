@@ -111,8 +111,10 @@ impl Context {
         range: Range,
     ) -> crate::Result<Ast> {
         let ast = self.parse_bp(parser, min_bp, range)?;
-        if let Some(i) = parser.next() {
-            return Err(crate::Error::UnexpectedItem(i));
+        while let Some(i) = parser.next() {
+            if !i.is_newln() {
+                return Err(crate::Error::UnexpectedItem(i));
+            }
         }
         Ok(ast)
     }
