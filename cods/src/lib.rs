@@ -14,12 +14,23 @@ mod parse;
 mod types;
 mod util;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Context {
     pub idents: Vec<String>,
-    pub scope: Scope,
+    pub scopes: Vec<Scope>,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self {
+            scopes: vec![Scope::default()],
+            idents: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
 }
 
 impl Context {

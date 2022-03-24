@@ -6,9 +6,9 @@ use crate::{Ast, Context, Expr, ExprT, Ident, Range, Scope, Val, Var};
 fn resolve_var() {
     let mut ctx = Context {
         idents: vec!["x".into()],
-        scope: Scope {
+        scopes: vec![Scope {
             vars: HashMap::from_iter([(Ident(0), Var::new(Some(Val::Int(4))))]),
-        },
+        }],
         ..Default::default()
     };
     let expr = Ast::expr(Expr::new(ExprT::Var(Ident(0)), Range::pos(0)));
@@ -21,13 +21,32 @@ fn resolve_var() {
 fn undefined_var() {
     let mut ctx = Context {
         idents: vec!["x".into()],
-        scope: Scope {
+        scopes: vec![Scope {
             vars: HashMap::from_iter([(Ident(0), Var::new(None))]),
-        },
+        }],
         ..Default::default()
     };
     let expr = Ast::expr(Expr::new(ExprT::Var(Ident(0)), Range::pos(0)));
 
     let val = ctx.eval(&expr).unwrap_err();
     assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);
+}
+
+#[test]
+fn undefined_outside_scope() {
+    let input = "{ x = 7 }; println(x);";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::UndefinedVar("x".into(), Range::pos(19))
+    );
+}
+
+#[test]
+fn defined_inside_scope() {
+    let input = "{ x = 7; println(x); x }";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap().unwrap();
+    assert_eq!(val, Val::Int(7));
 }

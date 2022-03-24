@@ -4,10 +4,12 @@ use std::ops::{Deref, DerefMut};
 use crate::{Context, Expr, Ident, Range, Val};
 
 pub use val::*;
+pub use var::*;
 
 #[cfg(test)]
 mod test;
 mod val;
+mod var;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
@@ -198,8 +200,8 @@ impl Context {
     }
 
     fn block(&mut self, asts: &[Ast], range: Range) -> crate::Result<Return> {
-        // TODO: new scope
-        match asts.split_last() {
+        self.scopes.push(Scope::default());
+        let r = match asts.split_last() {
             Some((last, others)) => {
                 for c in others {
                     self.eval(c)?;
@@ -207,7 +209,9 @@ impl Context {
                 self.eval_ast(last)
             }
             None => Ok(Return::Unit(range)),
-        }
+        };
+        self.scopes.pop();
+        r
     }
 
     fn assign(&mut self, id: Ident, n: &Ast, range: Range) -> crate::Result<Return> {
@@ -646,10 +650,12 @@ impl Context {
     }
 
     fn spill(&mut self, range: Range) -> crate::Result<Return> {
-        for (id, var) in self.scope.vars.iter() {
-            if let Some(val) = &var.value {
-                let name = self.ident_name(*id);
-                println!("{name} = {val}");
+        for s in self.scopes.iter() {
+            for (id, var) in s.vars.iter() {
+                if let Some(val) = &var.value {
+                    let name = self.ident_name(*id);
+                    println!("{name} = {val}");
+                }
             }
         }
         Ok(Return::Unit(range))

@@ -347,7 +347,7 @@ fn assertion() {
 fn assertion_failed() {
     assert_err(
         "assert(4 == 5)",
-        crate::Error::AssertFailed(Range::of(7, 13)),
+        Error::AssertFailed(Range::of(7, 13)),
     );
 }
 
@@ -360,7 +360,7 @@ fn assertion_eq() {
 fn assertion_eq_failed() {
     assert_err(
         "assert_eq(false, 5 == 5)",
-        crate::Error::AssertEqFailed(
+        Error::AssertEqFailed(
             ValRange::new(Val::Bool(false), Range::of(10, 15)),
             ValRange::new(Val::Bool(true), Range::of(17, 23)),
         ),
