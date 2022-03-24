@@ -79,7 +79,11 @@ impl Parser {
 
 impl Context {
     pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Ast>> {
-        let mut range = items_range(&items).unwrap_or(Range::of(0, 0));
+        let range = items_range(&items).unwrap_or(Range::of(0, 0));
+        self.parse_items(items, range)
+    }
+
+    fn parse_items(&mut self, items: Vec<Item>, mut range: Range) -> crate::Result<Vec<Ast>> {
         let sep_count = items.iter().filter(|i| i.is_semi()).count();
         let mut asts: Vec<Ast> = Vec::with_capacity(sep_count + 1);
 
@@ -119,10 +123,20 @@ impl Context {
         let mut lhs = match parser.peek() {
             Some(Item::Group(_)) => {
                 let g = parser.next().unwrap().into_group().unwrap();
-                let mut group_parser = Parser::new(g.items);
-                let mut val = self.parse_bp(&mut group_parser, 0, g.range)?;
-                val.range = g.range;
-                val
+                match g.par_kind {
+                    ParKind::Round => {
+                        let mut group_parser = Parser::new(g.items);
+                        let mut ast = self.parse_one_bp(&mut group_parser, 0, g.range)?;
+                        ast.range = g.range;
+                        ast
+                    }
+                    ParKind::Curly => {
+                        let asts = self.parse_items(g.items, g.range)?;
+                        Ast::new(AstT::Block(asts), g.range)
+                    }
+                    ParKind::Square => todo!("error"),
+                    ParKind::Mixed => todo!("remove"),
+                }
             }
             Some(Item::Expr(_)) => {
                 let e = parser.next().unwrap().into_expr().unwrap();
