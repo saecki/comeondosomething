@@ -148,7 +148,7 @@ impl Display for Error {
             }
             Self::InvalidUnicodeScalar(cp, _) => {
                 write!(f, "Invalid unicode scalar value: '{cp:x}'")
-            } // TODO
+            }
             Self::MissingClosingQuote(_) => write!(f, "Missing closing quote"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
