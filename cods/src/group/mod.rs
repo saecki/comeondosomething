@@ -51,8 +51,8 @@ impl Context {
                     match current_par {
                         Some(l_par) => {
                             if !l_par.matches(r_par.typ) {
-                                self.warnings
-                                    .push(crate::Warning::MismatchedParentheses(l_par, *r_par));
+                                self.errors
+                                    .push(crate::Error::MismatchedParentheses(l_par, *r_par));
                             }
                             break;
                         }

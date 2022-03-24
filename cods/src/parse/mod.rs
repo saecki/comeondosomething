@@ -2,7 +2,7 @@ use std::cmp;
 use std::collections::VecDeque;
 
 use crate::util::array_of;
-use crate::{Ast, AstT, Context, ExprT, Fun, FunT, Item, Range, SepT};
+use crate::{Ast, AstT, Context, ExprT, Fun, FunT, Item, ParKind, Range, SepT};
 
 pub use op::*;
 
@@ -33,9 +33,9 @@ impl Parser {
         self.items.get(1)
     }
 
-    fn eat_semi(&mut self) -> bool {
+    fn eat_semi_or_newln(&mut self) -> bool {
         if let Some(i) = self.peek() {
-            if i.is_semi() {
+            if i.is_semi() || i.is_newln() {
                 self.next();
                 return true;
             }
@@ -90,7 +90,8 @@ impl Context {
             };
 
             let ast = self.parse_bp(&mut parser, 0, range)?;
-            parser.eat_semi();
+            parser.eat_semi_or_newln();
+
             if !ast.is_empty() {
                 asts.push(ast);
             }
@@ -99,43 +100,64 @@ impl Context {
         Ok(asts)
     }
 
+    fn parse_one_bp(&mut self, parser: &mut Parser, min_bp: u8, range: Range) -> crate::Result<Ast> {
+        let ast = self.parse_bp(parser, min_bp, range)?;
+        if let Some(i) = parser.next() {
+            return Err(crate::Error::UnexpectedItem(i));
+        }
+        Ok(ast)
+    }
+
     fn parse_bp(&mut self, parser: &mut Parser, min_bp: u8, range: Range) -> crate::Result<Ast> {
         parser.eat_newlns();
 
-        let mut lhs = match parser.next() {
-            Some(Item::Group(g)) => {
+        let mut lhs = match parser.peek() {
+            Some(Item::Group(_)) => {
+                let g = parser.next().unwrap().into_group().unwrap();
                 let mut group_parser = Parser::new(g.items);
                 let mut val = self.parse_bp(&mut group_parser, 0, g.range)?;
                 val.range = g.range;
                 val
             }
-            Some(Item::Expr(e)) => {
+            Some(Item::Expr(_)) => {
+                let e = parser.next().unwrap().into_expr().unwrap();
                 let r = e.range;
                 Ast::new(AstT::Expr(e), r)
             }
-            Some(Item::Fun(f)) => self.parse_fun(parser, f)?,
-            Some(Item::Op(o)) => match o.prefix_bp() {
-                Some((prefix, r_bp)) => {
-                    if parser.peek().is_none() {
-                        let r = Range::pos(o.range.end);
-                        return Err(crate::Error::MissingOperand(r));
-                    }
+            Some(&Item::Fun(f)) => {
+                parser.next();
+                self.parse_fun(parser, f)?
+            }
+            Some(&Item::Op(o)) => {
+                parser.next();
 
-                    let val_r = Range::of(o.range.end, range.end);
-                    let val = self.parse_bp(parser, r_bp, val_r)?;
-                    let ast_r = Range::span(o.range, val.range);
-                    let ast = match prefix {
-                        Prefix::UnaryPlus => val.typ,
-                        Prefix::UnaryMinus => AstT::Neg(Box::new(val)),
-                        Prefix::Not => AstT::Not(Box::new(val)),
-                    };
+                let (prefix, r_bp) = match o.prefix_bp() {
+                    Some(p) => p,
+                    None => return Err(crate::Error::UnexpectedOperator(o)),
+                };
 
-                    Ast::new(ast, ast_r)
+                if parser.peek().is_none() {
+                    let r = Range::pos(o.range.end);
+                    return Err(crate::Error::MissingOperand(r));
                 }
-                None => return Err(crate::Error::UnexpectedOperator(o)),
-            },
-            Some(Item::Sep(s)) => match s.typ {
-                SepT::Comma => return Err(crate::Error::UnexpectedSeparator(s)),
+
+                let val_r = Range::of(o.range.end, range.end);
+                let val = self.parse_bp(parser, r_bp, val_r)?;
+                let ast_r = Range::span(o.range, val.range);
+                let ast = match prefix {
+                    Prefix::UnaryPlus => val.typ,
+                    Prefix::UnaryMinus => AstT::Neg(Box::new(val)),
+                    Prefix::Not => AstT::Not(Box::new(val)),
+                };
+
+                Ast::new(ast, ast_r)
+            }
+            Some(&Item::Sep(s)) => match s.typ {
+                SepT::Comma => {
+                    parser.next();
+                    self.errors.push(crate::Error::UnexpectedSeparator(s));
+                    return Ok(Ast::new(AstT::Error, range));
+                }
                 SepT::Semi | SepT::Newln => {
                     let r = Range::of(range.start, s.range.end);
                     return Ok(Ast::new(AstT::Empty, r));
@@ -264,109 +286,106 @@ impl Context {
     }
 
     fn parse_fun(&mut self, parser: &mut Parser, fun: Fun) -> crate::Result<Ast> {
-        match parser.next() {
-            Some(Item::Group(g)) => {
-                match g.par_kind {
-                    crate::ParKind::Round => (),
-                    _ => self
-                        .warnings
-                        .push(crate::Warning::ConfusingFunctionParentheses {
-                            fun,
-                            open_par: Range::pos(g.range.start),
-                            close_par: Range::pos(g.range.end - 1),
-                        }),
+        let g = match parser.next() {
+            Some(Item::Group(g)) => match g.par_kind {
+                ParKind::Round => g,
+                _ => {
+                    let s_r = Range::pos(g.range.start);
+                    let e_r = Range::pos(g.range.end - 1);
+                    self.errors.push(crate::Error::NotFunPars(s_r, e_r));
+                    return Ok(Ast::new(AstT::Error, fun.range));
                 }
-
-                let f = match fun.typ {
-                    FunT::Pow => {
-                        let [base, exp] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Pow(Box::new(base), Box::new(exp))
-                    }
-                    FunT::Ln => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Ln(Box::new(n))
-                    }
-                    FunT::Log => {
-                        let [base, n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Log(Box::new(base), Box::new(n))
-                    }
-                    FunT::Sqrt => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Sqrt(Box::new(n))
-                    }
-                    FunT::Ncr => {
-                        let [n, r] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Ncr(Box::new(n), Box::new(r))
-                    }
-                    FunT::Sin => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Sin(Box::new(n))
-                    }
-                    FunT::Cos => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Cos(Box::new(n))
-                    }
-                    FunT::Tan => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Tan(Box::new(n))
-                    }
-                    FunT::Asin => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Asin(Box::new(n))
-                    }
-                    FunT::Acos => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Acos(Box::new(n))
-                    }
-                    FunT::Atan => {
-                        let [n] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Atan(Box::new(n))
-                    }
-                    FunT::Gcd => {
-                        let [a, b] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Gcd(Box::new(a), Box::new(b))
-                    }
-                    FunT::Min => {
-                        let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
-                        AstT::Min(args)
-                    }
-                    FunT::Max => {
-                        let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
-                        AstT::Max(args)
-                    }
-                    FunT::Clamp => {
-                        let [n, min, max] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Clamp(Box::new(n), Box::new(min), Box::new(max))
-                    }
-                    FunT::Print => {
-                        let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
-                        AstT::Print(args)
-                    }
-                    FunT::Println => {
-                        let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
-                        AstT::Println(args)
-                    }
-                    FunT::Spill => {
-                        self.parse_fun_args::<0>(g.items, g.range)?;
-                        AstT::Spill
-                    }
-                    FunT::Assert => {
-                        let [a] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::Assert(Box::new(a))
-                    }
-                    FunT::AssertEq => {
-                        let [a, b] = self.parse_fun_args(g.items, g.range)?;
-                        AstT::AssertEq(Box::new(a), Box::new(b))
-                    }
-                };
-                let r = Range::span(fun.range, g.range);
-                Ok(Ast::new(f, r))
-            }
+            },
             _ => {
                 let r = Range::pos(fun.range.end);
-                Err(crate::Error::MissingFunPars(r))
+                return Err(crate::Error::MissingFunPars(r));
             }
-        }
+        };
+
+        let f = match fun.typ {
+            FunT::Pow => {
+                let [base, exp] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Pow(Box::new(base), Box::new(exp))
+            }
+            FunT::Ln => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Ln(Box::new(n))
+            }
+            FunT::Log => {
+                let [base, n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Log(Box::new(base), Box::new(n))
+            }
+            FunT::Sqrt => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Sqrt(Box::new(n))
+            }
+            FunT::Ncr => {
+                let [n, r] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Ncr(Box::new(n), Box::new(r))
+            }
+            FunT::Sin => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Sin(Box::new(n))
+            }
+            FunT::Cos => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Cos(Box::new(n))
+            }
+            FunT::Tan => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Tan(Box::new(n))
+            }
+            FunT::Asin => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Asin(Box::new(n))
+            }
+            FunT::Acos => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Acos(Box::new(n))
+            }
+            FunT::Atan => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Atan(Box::new(n))
+            }
+            FunT::Gcd => {
+                let [a, b] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Gcd(Box::new(a), Box::new(b))
+            }
+            FunT::Min => {
+                let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
+                AstT::Min(args)
+            }
+            FunT::Max => {
+                let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
+                AstT::Max(args)
+            }
+            FunT::Clamp => {
+                let [n, min, max] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Clamp(Box::new(n), Box::new(min), Box::new(max))
+            }
+            FunT::Print => {
+                let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
+                AstT::Print(args)
+            }
+            FunT::Println => {
+                let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
+                AstT::Println(args)
+            }
+            FunT::Spill => {
+                self.parse_fun_args::<0>(g.items, g.range)?;
+                AstT::Spill
+            }
+            FunT::Assert => {
+                let [a] = self.parse_fun_args(g.items, g.range)?;
+                AstT::Assert(Box::new(a))
+            }
+            FunT::AssertEq => {
+                let [a, b] = self.parse_fun_args(g.items, g.range)?;
+                AstT::AssertEq(Box::new(a), Box::new(b))
+            }
+        };
+        let r = Range::span(fun.range, g.range);
+        Ok(Ast::new(f, r))
     }
 
     fn parse_dyn_fun_args(
@@ -385,25 +404,16 @@ impl Context {
         let mut arg_items = Vec::new();
 
         for i in items {
-            if let Item::Sep(s) = i {
-                match s.typ {
-                    SepT::Comma => (),
-                    SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
-                        sep: s,
-                        expected: SepT::Comma,
-                    }),
-                    SepT::Newln => continue,
-                }
-
-                let r = Range::of(start.1, s.range.start);
+            if i.is_comma() {
+                let r = Range::of(start.1, i.range().start);
                 if parsed_args < max {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
-                    args.push(self.parse_bp(&mut parser, 0, r)?);
+                    args.push(self.parse_one_bp(&mut parser, 0, r)?);
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, s.range.end);
+                start = (ti + 1, i.range().end);
                 parsed_args += 1;
             } else {
                 arg_items.push(i);
@@ -415,7 +425,7 @@ impl Context {
             let r = Range::of(start.1, range.end);
             if parsed_args < max {
                 let mut parser = Parser::new(arg_items);
-                args.push(self.parse_bp(&mut parser, 0, r)?);
+                args.push(self.parse_one_bp(&mut parser, 0, r)?);
             } else {
                 unexpected_args.push(r);
             }
@@ -456,25 +466,16 @@ impl Context {
         let mut arg_items = Vec::new();
 
         for i in items {
-            if let Item::Sep(s) = i {
-                match s.typ {
-                    SepT::Comma => (),
-                    SepT::Semi => self.warnings.push(crate::Warning::ConfusingSeparator {
-                        sep: s,
-                        expected: SepT::Comma,
-                    }),
-                    SepT::Newln => continue,
-                }
-
-                let r = Range::of(start.1, s.range.start);
+            if i.is_comma() {
+                let r = Range::of(start.1, i.range().start);
                 if parsed_args < COUNT {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
-                    args[parsed_args] = self.parse_bp(&mut parser, 0, r)?;
+                    args[parsed_args] = self.parse_one_bp(&mut parser, 0, r)?;
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, s.range.end);
+                start = (ti + 1, i.range().end);
                 parsed_args += 1;
             } else {
                 arg_items.push(i);
@@ -486,7 +487,7 @@ impl Context {
             let r = Range::of(start.1, range.end);
             if parsed_args < COUNT {
                 let mut parser = Parser::new(arg_items);
-                args[parsed_args] = self.parse_bp(&mut parser, 0, r)?;
+                args[parsed_args] = self.parse_one_bp(&mut parser, 0, r)?;
             } else {
                 unexpected_args.push(r);
             }

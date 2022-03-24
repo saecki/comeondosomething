@@ -367,6 +367,10 @@ impl Display for SepT {
 }
 
 impl SepT {
+    pub fn is_comma(&self) -> bool {
+        matches!(self, Self::Comma)
+    }
+
     pub fn is_semi(&self) -> bool {
         matches!(self, Self::Semi)
     }

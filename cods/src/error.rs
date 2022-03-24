@@ -1,8 +1,8 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Fun, Sep, SepT, ValRange};
-use crate::{Op, Par, Range};
+use crate::{Op, Par, Range, Item};
+use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -20,7 +20,9 @@ pub enum Error {
     MissingOperand(Range),
     MissingOperator(Range),
     MissingClosingPar(Par),
+    MismatchedParentheses(Par, Par),
     MissingFunPars(Range),
+    NotFunPars(Range, Range),
     MissingFunArgs {
         range: Range,
         expected: usize,
@@ -31,6 +33,7 @@ pub enum Error {
         expected: usize,
         found: usize,
     },
+    UnexpectedItem(Item),
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
     UnexpectedPar(Par),
@@ -89,7 +92,9 @@ impl Display for Error {
             Self::MissingOperand(_) => write!(f, "Missing operand"),
             Self::MissingOperator(_) => write!(f, "Missing operator"),
             Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
+            Self::NotFunPars(_, _) => write!(f, "Function call parentheses, are round"),
             Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
+            Self::MismatchedParentheses(_, _) => write!(f, "Parentheses do not match"),
             Self::MissingFunArgs {
                 expected, found, ..
             } => {
@@ -99,6 +104,7 @@ impl Display for Error {
                 let were_was = if *found == 1 { "was" } else { "were" };
                 write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
+            Self::UnexpectedItem(_) => write!(f, "Unexpected item"),
             Self::UnexpectedFunArgs {
                 expected, found, ..
             } => {
@@ -136,7 +142,10 @@ impl Display for Error {
                 "Missing a closing parenthesis for the unicode escape sequence"
             ),
             Self::OverlongUnicodeEscape(_) => {
-                write!(f, "Overlong unicode escape sequence, must be at most 6 digits")
+                write!(
+                    f,
+                    "Overlong unicode escape sequence, must be at most 6 digits"
+                )
             }
             Self::InvalidUnicodeScalar(cp, _) => {
                 write!(f, "Invalid unicode scalar value: '{cp:x}'")
@@ -241,8 +250,11 @@ impl UserFacing for Error {
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
             Self::MissingFunPars(r) => vec![*r],
+            Self::NotFunPars(a, b) => vec![*a, *b],
             Self::MissingClosingPar(p) => vec![p.range],
+            Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
             Self::MissingFunArgs { range: pos, .. } => vec![*pos],
+            Self::UnexpectedItem(i) => vec![i.range()],
             Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
@@ -290,16 +302,6 @@ pub enum Warning {
     // SignFollowingAddition(Range, Range, Sign, usize),
     // SignFollowingSubtraction(Range, Range, Sign, usize),
     // MultipleSigns(Range, Sign),
-    MismatchedParentheses(Par, Par),
-    ConfusingFunctionParentheses {
-        fun: Fun,
-        open_par: Range,
-        close_par: Range,
-    },
-    ConfusingSeparator {
-        sep: Sep,
-        expected: SepT,
-    },
 }
 
 impl Display for Warning {
@@ -334,17 +336,6 @@ impl Display for Warning {
             //         )
             //     }
             // }
-            Self::MismatchedParentheses(_, _) => write!(f, "Parentheses do not match"),
-            Self::ConfusingFunctionParentheses { .. } => {
-                write!(f, "Functions should use round parentheses")
-            }
-            Self::ConfusingSeparator { sep, expected } => {
-                write!(
-                    f,
-                    "Confusing separator, expected {expected} found {}",
-                    sep.typ
-                )
-            }
         }
     }
 }
@@ -368,13 +359,6 @@ impl UserFacing for Warning {
             //     }
             // }
             // Self::MultipleSigns(r, _) => vec![*r],
-            Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
-            Self::ConfusingFunctionParentheses {
-                fun,
-                open_par,
-                close_par,
-            } => vec![fun.range, *open_par, *close_par],
-            Self::ConfusingSeparator { sep, .. } => vec![sep.range],
         }
     }
 }

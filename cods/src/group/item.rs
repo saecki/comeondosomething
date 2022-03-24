@@ -23,9 +23,16 @@ impl Item {
         }
     }
 
-    pub fn as_op(&self) -> Option<Op> {
+    pub fn into_group(self) -> Option<Group> {
         match self {
-            Self::Op(o) => Some(*o),
+            Self::Group(g) => Some(g),
+            _ => None,
+        }
+    }
+
+    pub fn into_expr(self) -> Option<Expr> {
+        match self {
+            Self::Expr(e) => Some(e),
             _ => None,
         }
     }
@@ -37,11 +44,22 @@ impl Item {
         }
     }
 
+    pub fn as_op(&self) -> Option<Op> {
+        match self {
+            Self::Op(o) => Some(*o),
+            _ => None,
+        }
+    }
+
     pub fn as_sep(&self) -> Option<Sep> {
         match self {
             Self::Sep(c) => Some(*c),
             _ => None,
         }
+    }
+
+    pub fn is_group(&self) -> bool {
+        matches!(self, Self::Group(_))
     }
 
     pub fn is_op(&self) -> bool {
@@ -50,6 +68,13 @@ impl Item {
 
     pub fn is_sep(&self) -> bool {
         matches!(self, Self::Sep(_))
+    }
+
+    pub fn is_comma(&self) -> bool {
+        match self {
+            Self::Sep(s) => s.is_comma(),
+            _ => false,
+        }
     }
 
     pub fn is_semi(&self) -> bool {
