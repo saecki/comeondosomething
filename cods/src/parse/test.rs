@@ -1,4 +1,4 @@
-use crate::{Ast, AstT, Context, Expr, ExprT, Range, Val, Ident};
+use crate::{Ast, AstT, Context, Expr, ExprT, Ident, Range, Val};
 
 #[test]
 fn semi() {

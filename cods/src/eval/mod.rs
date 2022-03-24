@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, Expr, Range, Val, Ident};
+use crate::{Context, Expr, Ident, Range, Val};
 
 pub use val::*;
 

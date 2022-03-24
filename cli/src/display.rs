@@ -49,9 +49,9 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
             }
         }
 
-        let nr_width = hl_lines.last().map_or(2, |(nr, _, _)| {
-            (*nr as f32).log10() as usize + 1
-        });
+        let nr_width = hl_lines
+            .last()
+            .map_or(2, |(nr, _, _)| (*nr as f32).log10() as usize + 1);
 
         for (nr, l, ranges) in hl_lines {
             mark_ranges::<C>(f, nr, nr_width, l, &ranges)?;

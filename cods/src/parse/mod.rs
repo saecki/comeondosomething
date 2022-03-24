@@ -100,7 +100,12 @@ impl Context {
         Ok(asts)
     }
 
-    fn parse_one_bp(&mut self, parser: &mut Parser, min_bp: u8, range: Range) -> crate::Result<Ast> {
+    fn parse_one_bp(
+        &mut self,
+        parser: &mut Parser,
+        min_bp: u8,
+        range: Range,
+    ) -> crate::Result<Ast> {
         let ast = self.parse_bp(parser, min_bp, range)?;
         if let Some(i) = parser.next() {
             return Err(crate::Error::UnexpectedItem(i));

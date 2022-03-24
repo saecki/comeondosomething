@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Op, Par, Range, Item};
+use crate::{Item, Op, Par, Range};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
