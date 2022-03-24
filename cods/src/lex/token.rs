@@ -316,17 +316,6 @@ pub enum ParKind {
     Round,
     Square,
     Curly,
-    Mixed,
-}
-
-impl ParKind {
-    pub const fn of(l: ParT, r: ParT) -> ParKind {
-        if l.matches(r) {
-            l.kind()
-        } else {
-            ParKind::Mixed
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

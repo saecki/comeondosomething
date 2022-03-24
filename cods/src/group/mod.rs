@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-use crate::{Context, Par, ParKind, Range, Token};
+use crate::{Context, Par, Range, Token};
 
 pub use item::*;
 
@@ -9,12 +9,12 @@ mod item;
 #[cfg(test)]
 mod test;
 
-struct Lexer {
+struct State {
     tokens: Peekable<IntoIter<Token>>,
     pos: usize,
 }
 
-impl Lexer {
+impl State {
     fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: tokens.into_iter().peekable(),
@@ -34,61 +34,52 @@ impl Lexer {
 
 impl Context {
     pub fn group(&mut self, tokens: Vec<Token>) -> crate::Result<Vec<Item>> {
-        let mut lexer = Lexer::new(tokens);
-        self.group_tokens(&mut lexer, None)
+        let mut state = State::new(tokens);
+        let mut stack = Vec::new();
+        self.group_tokens(&mut state, &mut stack)
     }
 
     fn group_tokens(
         &mut self,
-        lexer: &mut Lexer,
-        current_par: Option<Par>,
+        state: &mut State,
+        stack: &mut Vec<Par>,
     ) -> crate::Result<Vec<Item>> {
         let mut items = Vec::new();
 
-        while lexer.peek().is_some() {
-            if let Some(Token::Par(r_par)) = lexer.peek() {
+        while state.peek().is_some() {
+            if let Some(Token::Par(r_par)) = state.peek() {
                 if r_par.is_closing() {
-                    match current_par {
-                        Some(l_par) => {
-                            if !l_par.matches(r_par.typ) {
-                                self.errors
-                                    .push(crate::Error::MismatchedParentheses(l_par, *r_par));
-                            }
-                            break;
-                        }
+                    // Only check for a match in the first 3 parenthesis on the stack
+                    let matching_par = stack.iter().rev().take(3).find(|p| r_par.matches(p.typ));
+
+                    match matching_par {
+                        Some(_) => break,
                         None => {
                             self.errors.push(crate::Error::UnexpectedPar(*r_par));
-                            lexer.next();
+                            state.next();
                             continue;
                         }
                     }
                 }
             }
 
-            let i = match lexer.next() {
+            let i = match state.next() {
                 Some(Token::Par(l_par)) => {
-                    let inner = self.group_tokens(lexer, Some(l_par))?;
-                    match lexer.peek() {
-                        Some(Token::Par(r_par)) => {
-                            let kind = ParKind::of(l_par.typ, r_par.typ);
+                    stack.push(l_par);
+                    let inner = self.group_tokens(state, stack)?;
+
+                    match state.peek() {
+                        Some(Token::Par(r_par)) if l_par.matches(r_par.typ) => {
+                            let kind = l_par.kind();
                             let r = Range::span(l_par.range, r_par.range);
                             let g = Group::new(inner, r, kind);
-
-                            lexer.next();
-
+                            state.next();
                             Item::Group(g)
                         }
                         _ => {
                             self.errors.push(crate::Error::MissingClosingPar(l_par));
-
-                            if let Some(i) = inner.last() {
-                                let kind = ParKind::Mixed;
-                                let r = Range::span(l_par.range, i.range());
-                                let g = Group::new(inner, r, kind);
-                                Item::Group(g)
-                            } else {
-                                continue;
-                            }
+                            items.extend(inner);
+                            break;
                         }
                     }
                 }

@@ -1,4 +1,4 @@
-use crate::{Expr, ExprT, Op, OpT, Range};
+use crate::{Expr, ExprT, Op, OpT, ParKind, ParT, Range};
 
 use super::*;
 
@@ -40,4 +40,74 @@ fn add_parenthesis() {
             Item::Expr(Expr::new(ExprT::int(34), Range::of(19, 21))),
         ]
     );
+}
+
+#[test]
+fn ignore_inner_par() {
+    let mut ctx = Context::default();
+    let tokens = ctx.lex("{ (3 + 5 }").unwrap();
+    let items = ctx.group(tokens).unwrap();
+
+    assert_eq!(
+        items,
+        vec![Item::Group(Group::new(
+            vec![
+                Item::Expr(Expr::new(ExprT::int(3), Range::pos(3))),
+                Item::Op(Op::new(OpT::Add, Range::pos(5))),
+                Item::Expr(Expr::new(ExprT::int(5), Range::pos(7))),
+            ],
+            Range::of(0, 10),
+            ParKind::Curly
+        ))]
+    );
+
+    assert_eq!(
+        ctx.errors,
+        vec![crate::Error::MissingClosingPar(Par::new(
+            ParT::RoundOpen,
+            Range::pos(2),
+        ))]
+    )
+}
+
+#[test]
+fn inner_par_limit() {
+    let mut ctx = Context::default();
+    let tokens = ctx.lex("{ (((3 + 5 })))").unwrap();
+    let items = ctx.group(tokens).unwrap();
+
+    assert_eq!(
+        items,
+        vec![Item::Group(Group::new(
+            vec![Item::Group(Group::new(
+                vec![Item::Group(Group::new(
+                    vec![
+                        Item::Expr(Expr::new(ExprT::int(3), Range::pos(5))),
+                        Item::Op(Op::new(OpT::Add, Range::pos(7))),
+                        Item::Expr(Expr::new(ExprT::int(5), Range::pos(9))),
+                    ],
+                    Range::of(4, 13),
+                    ParKind::Round,
+                ))],
+                Range::of(3, 14),
+                ParKind::Round,
+            ))],
+            Range::of(2, 15),
+            ParKind::Round,
+        ))],
+    );
+
+    assert_eq!(
+        ctx.errors,
+        vec![
+            crate::Error::UnexpectedPar(Par::new(
+                ParT::CurlyClose,
+                Range::pos(11),
+            )),
+            crate::Error::MissingClosingPar(Par::new(
+                ParT::CurlyOpen,
+                Range::pos(0),
+            )),
+        ]
+    )
 }

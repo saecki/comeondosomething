@@ -20,7 +20,6 @@ pub enum Error {
     MissingOperand(Range),
     MissingOperator(Range),
     MissingClosingPar(Par),
-    MismatchedParentheses(Par, Par),
     MissingFunPars(Range),
     NotFunPars(Range, Range),
     MissingFunArgs {
@@ -94,7 +93,6 @@ impl Display for Error {
             Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
             Self::NotFunPars(_, _) => write!(f, "Function call parentheses, are round"),
             Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
-            Self::MismatchedParentheses(_, _) => write!(f, "Parentheses do not match"),
             Self::MissingFunArgs {
                 expected, found, ..
             } => {
@@ -252,7 +250,6 @@ impl UserFacing for Error {
             Self::MissingFunPars(r) => vec![*r],
             Self::NotFunPars(a, b) => vec![*a, *b],
             Self::MissingClosingPar(p) => vec![p.range],
-            Self::MismatchedParentheses(a, b) => vec![a.range, b.range],
             Self::MissingFunArgs { range: pos, .. } => vec![*pos],
             Self::UnexpectedItem(i) => vec![i.range()],
             Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),

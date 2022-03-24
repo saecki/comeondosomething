@@ -135,7 +135,6 @@ impl Context {
                         Ast::new(AstT::Block(asts), g.range)
                     }
                     ParKind::Square => todo!("error"),
-                    ParKind::Mixed => todo!("remove"),
                 }
             }
             Some(Item::Expr(_)) => {
