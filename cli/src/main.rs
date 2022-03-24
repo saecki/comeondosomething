@@ -110,7 +110,8 @@ fn print_calc(ctx: &mut Context, input: &str) {
 
 fn help() {
     println!(
-        "{green}comeondosomething{esc} {vers}
+        "\
+{green}comeondosomething{esc} {vers}
 {authors}
 {desc}
 
@@ -118,13 +119,13 @@ fn help() {
     cods [FLAGS] [OPTIONS] [EXPRESSION]
 
 {yellow}EXPRESSION:{esc}
-    A mathmatical expression that will be evaluated
+    An expression that will be evaluated
 
 {yellow}OPTIONS:{esc}
     {green}-i{esc}, {green}--interactive{esc}   Start an interactive repl (read evaluate print loop)
     {green}-h{esc}, {green}--help{esc}          Show this help message
     {green}-v{esc}, {green}--version{esc}       Print the version
-    {green}-p{esc}, {green}--path <file>{esc}   A file that contains an expression
+    {green}-p{esc}, {green}--path <file>{esc}   Evaluate a file
 ",
         vers = env!("CARGO_PKG_VERSION"),
         authors = env!("CARGO_PKG_AUTHORS"),
