@@ -134,7 +134,13 @@ impl Context {
                         let asts = self.parse_items(g.items, g.range)?;
                         Ast::new(AstT::Block(asts), g.range)
                     }
-                    ParKind::Square => todo!("error"),
+                    ParKind::Square => {
+                        self.errors.push(crate::Error::NotImplemented(
+                            "Arrays are not yet implemented",
+                            g.range,
+                        ));
+                        return Ok(Ast::new(AstT::Error, range));
+                    }
                 }
             }
             Some(Item::Expr(_)) => {

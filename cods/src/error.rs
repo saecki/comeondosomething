@@ -72,6 +72,7 @@ pub enum Error {
     InvalidAssignment(Range, Range),
     AssertFailed(Range),
     AssertEqFailed(ValRange, ValRange),
+    NotImplemented(&'static str, Range),
 }
 
 impl error::Error for Error {}
@@ -233,6 +234,7 @@ impl Display for Error {
             Self::AssertEqFailed(a, b) => {
                 write!(f, "Assertion failed: '{a}' == '{b}'")
             }
+            Self::NotImplemented(m, _) => write!(f, "{m}"),
         }
     }
 }
@@ -288,6 +290,7 @@ impl UserFacing for Error {
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::AssertFailed(r) => vec![*r],
             Self::AssertEqFailed(a, b) => vec![a.range, b.range],
+            Self::NotImplemented(_, r) => vec![*r],
         }
     }
 }
