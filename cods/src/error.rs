@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Item, Op, Par, Range};
+use crate::{Item, Kw, Op, Par, Range};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -12,14 +12,31 @@ pub trait UserFacing: Sized + Debug + Display {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    MissingExpr,
-    ExpectedValue(Range),
-    ExpectedNumber(ValRange),
-    ExpectedBool(ValRange),
-    Parsing(Range),
+    NotImplemented(&'static str, Range),
+
+    // Lex
+    InvalidChar(Range),
+    InvalidNumberFormat(Range),
+    InvalidEscapeChar(char, Range),
+    MissingEscapeChar(Range),
+    InvalidUnicodeEscapeChar(char, Range),
+    MissingUnicodeEscapeChar {
+        range: Range,
+        expected: usize,
+        found: usize,
+    },
+    MissingClosingUnicodeEscapePar(Range, Range),
+    OverlongUnicodeEscape(Range),
+    InvalidUnicodeScalar(u32, Range),
+    MissingClosingQuote(Range),
+
+    // Group
+    MissingClosingPar(Par),
+    UnexpectedPar(Par),
+
+    // Parse
     MissingOperand(Range),
     MissingOperator(Range),
-    MissingClosingPar(Par),
     MissingFunPars(Range),
     NotFunPars(Range, Range),
     MissingFunArgs {
@@ -35,21 +52,16 @@ pub enum Error {
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
-    UnexpectedPar(Par),
-    InvalidChar(Range),
-    InvalidNumberFormat(Range),
-    InvalidEscapeChar(char, Range),
-    MissingEscapeChar(Range),
-    InvalidUnicodeEscapeChar(char, Range),
-    MissingUnicodeEscapeChar {
-        range: Range,
-        expected: usize,
-        found: usize,
-    },
-    MissingClosingUnicodeEscapePar(Range, Range),
-    OverlongUnicodeEscape(Range),
-    InvalidUnicodeScalar(u32, Range),
-    MissingClosingQuote(Range),
+    ExpectedBlock(Range),
+    WrongContext(Kw),
+
+    // Eval
+    MissingExpr,
+    ExpectedValue(Range),
+    ExpectedNumber(ValRange),
+    ExpectedBool(ValRange),
+    Parsing(Range),
+
     UndefinedVar(String, Range),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
@@ -72,7 +84,6 @@ pub enum Error {
     InvalidAssignment(Range, Range),
     AssertFailed(Range),
     AssertEqFailed(ValRange, ValRange),
-    NotImplemented(&'static str, Range),
 }
 
 impl error::Error for Error {}
@@ -80,43 +91,10 @@ impl error::Error for Error {}
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingExpr => write!(f, "Missing expression"),
-            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
-            Self::ExpectedNumber(v) => {
-                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
-            }
-            Self::ExpectedBool(v) => {
-                write!(f, "Expected a bool found '{v}' of type {}", v.type_name())
-            }
-            Self::Parsing(_) => write!(f, "A parsing error occured"),
-            Self::MissingOperand(_) => write!(f, "Missing operand"),
-            Self::MissingOperator(_) => write!(f, "Missing operator"),
-            Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
-            Self::NotFunPars(_, _) => write!(f, "Function call parentheses, are round"),
-            Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
-            Self::MissingFunArgs {
-                expected, found, ..
-            } => {
-                let missing = expected - found;
-                let arg_s = if missing == 1 { "" } else { "s" };
-                let are_is = if *expected == 1 { "is" } else { "are" };
-                let were_was = if *found == 1 { "was" } else { "were" };
-                write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
-            }
-            Self::UnexpectedItem(_) => write!(f, "Unexpected item"),
-            Self::UnexpectedFunArgs {
-                expected, found, ..
-            } => {
-                let over = found - expected;
-                let arg_s = if over == 1 { "" } else { "s" };
-                let are_is = if *expected == 1 { "is" } else { "are" };
-                let were_was = if *found == 1 { "was" } else { "were" };
-                write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
-            }
-            Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
-            Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
-            Self::UnexpectedPar(_) => write!(f, "Unexpected parenthesis"),
-            Self::InvalidChar(_) => write!(f, "Unknown value"),
+            Self::NotImplemented(m, _) => write!(f, "{m}"),
+
+            // Lex
+            Self::InvalidChar(_) => write!(f, "Invalid character"),
             Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
             Self::InvalidEscapeChar(c, _) => {
                 write!(f, "Invalid escape character: '{}'", c.escape_default())
@@ -150,6 +128,51 @@ impl Display for Error {
                 write!(f, "Invalid unicode scalar value: '{cp:x}'")
             }
             Self::MissingClosingQuote(_) => write!(f, "Missing closing quote"),
+
+            // Group
+            Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
+            Self::UnexpectedPar(_) => write!(f, "Unexpected parenthesis"),
+
+            // Parse
+            Self::MissingOperand(_) => write!(f, "Missing operand"),
+            Self::MissingOperator(_) => write!(f, "Missing operator"),
+            Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
+            Self::NotFunPars(_, _) => write!(f, "Function call parentheses, are round"),
+            Self::MissingFunArgs {
+                expected, found, ..
+            } => {
+                let missing = expected - found;
+                let arg_s = if missing == 1 { "" } else { "s" };
+                let are_is = if *expected == 1 { "is" } else { "are" };
+                let were_was = if *found == 1 { "was" } else { "were" };
+                write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
+            }
+            Self::UnexpectedItem(_) => write!(f, "Unexpected item"),
+            Self::UnexpectedFunArgs {
+                expected, found, ..
+            } => {
+                let over = found - expected;
+                let arg_s = if over == 1 { "" } else { "s" };
+                let are_is = if *expected == 1 { "is" } else { "are" };
+                let were_was = if *found == 1 { "was" } else { "were" };
+                write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
+            }
+            Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
+            Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
+            Self::ExpectedBlock(_) => write!(f, "Expected a block"),
+            Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
+
+            // Eval
+            Self::MissingExpr => write!(f, "Missing expression"),
+            Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
+            Self::ExpectedNumber(v) => {
+                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
+            }
+            Self::ExpectedBool(v) => {
+                write!(f, "Expected a bool found '{v}' of type {}", v.type_name())
+            }
+            Self::Parsing(_) => write!(f, "A parsing error occured"),
+
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
@@ -234,7 +257,6 @@ impl Display for Error {
             Self::AssertEqFailed(a, b) => {
                 write!(f, "Assertion failed: '{a}' == '{b}'")
             }
-            Self::NotImplemented(m, _) => write!(f, "{m}"),
         }
     }
 }
@@ -242,22 +264,7 @@ impl Display for Error {
 impl UserFacing for Error {
     fn ranges(&self) -> Vec<Range> {
         match self {
-            Self::MissingExpr => vec![],
-            Self::ExpectedValue(r) => vec![*r],
-            Self::ExpectedNumber(v) => vec![v.range],
-            Self::ExpectedBool(v) => vec![v.range],
-            Self::Parsing(r) => vec![*r],
-            Self::MissingOperand(r) => vec![*r],
-            Self::MissingOperator(r) => vec![*r],
-            Self::MissingFunPars(r) => vec![*r],
-            Self::NotFunPars(a, b) => vec![*a, *b],
-            Self::MissingClosingPar(p) => vec![p.range],
-            Self::MissingFunArgs { range: pos, .. } => vec![*pos],
-            Self::UnexpectedItem(i) => vec![i.range()],
-            Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
-            Self::UnexpectedOperator(o) => vec![o.range],
-            Self::UnexpectedSeparator(s) => vec![s.range],
-            Self::UnexpectedPar(p) => vec![p.range],
+            // Lex
             Self::InvalidChar(r) => vec![*r],
             Self::InvalidNumberFormat(r) => vec![*r],
             Self::InvalidEscapeChar(_, r) => vec![*r],
@@ -268,6 +275,30 @@ impl UserFacing for Error {
             Self::OverlongUnicodeEscape(r) => vec![*r],
             Self::InvalidUnicodeScalar(_, r) => vec![*r],
             Self::MissingClosingQuote(r) => vec![*r],
+
+            // Group
+            Self::MissingClosingPar(p) => vec![p.range],
+            Self::UnexpectedPar(p) => vec![p.range],
+
+            // Parse
+            Self::MissingOperand(r) => vec![*r],
+            Self::MissingOperator(r) => vec![*r],
+            Self::MissingFunPars(r) => vec![*r],
+            Self::NotFunPars(a, b) => vec![*a, *b],
+            Self::MissingFunArgs { range: pos, .. } => vec![*pos],
+            Self::UnexpectedItem(i) => vec![i.range()],
+            Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
+            Self::UnexpectedOperator(o) => vec![o.range],
+            Self::UnexpectedSeparator(s) => vec![s.range],
+            Self::ExpectedBlock(r) => vec![*r],
+            Self::WrongContext(k) => vec![k.range],
+
+            // Eval
+            Self::MissingExpr => vec![],
+            Self::ExpectedValue(r) => vec![*r],
+            Self::ExpectedNumber(v) => vec![v.range],
+            Self::ExpectedBool(v) => vec![v.range],
+            Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],

@@ -1,81 +1,17 @@
 use std::cmp;
-use std::collections::VecDeque;
 
 use crate::util::array_of;
-use crate::{Ast, AstT, Context, ExprT, Fun, FunT, Item, ParKind, Range, SepT};
+use crate::{
+    Ast, AstT, Case, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
+};
 
 pub use op::*;
+use parser::*;
 
 mod op;
+mod parser;
 #[cfg(test)]
 mod test;
-
-struct Parser {
-    items: VecDeque<Item>,
-}
-
-impl Parser {
-    fn new(items: Vec<Item>) -> Self {
-        Self {
-            items: VecDeque::from(items),
-        }
-    }
-
-    fn next(&mut self) -> Option<Item> {
-        self.items.pop_front()
-    }
-
-    fn peek(&mut self) -> Option<&Item> {
-        self.items.get(0)
-    }
-
-    fn peek2(&mut self) -> Option<&Item> {
-        self.items.get(1)
-    }
-
-    fn eat_semi_or_newln(&mut self) -> bool {
-        if let Some(i) = self.peek() {
-            if i.is_semi() || i.is_newln() {
-                self.next();
-                return true;
-            }
-        }
-        false
-    }
-
-    fn eat_newlns(&mut self) -> bool {
-        let mut newln = false;
-        while let Some(i) = self.peek() {
-            if i.is_newln() {
-                self.next();
-                newln = true;
-            } else {
-                break;
-            }
-        }
-        newln
-    }
-
-    fn eat_newlns_leaving_one(&mut self) -> bool {
-        let mut newln = false;
-        if let Some(i) = self.peek() {
-            if i.is_newln() {
-                newln = true;
-            } else {
-                return false;
-            }
-        }
-        while let Some(i) = self.peek2() {
-            if i.is_newln() {
-                self.next();
-                newln = true;
-            } else {
-                break;
-            }
-        }
-        newln
-    }
-}
 
 impl Context {
     pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Ast>> {
@@ -93,8 +29,8 @@ impl Context {
                 range.start = a.range.end;
             };
 
-            let ast = self.parse_bp(&mut parser, 0, range)?;
-            parser.eat_semi_or_newln();
+            let ast = self.parse_bp(&mut parser, 0, range, false)?;
+            parser.eat_semi();
 
             if !ast.is_empty() {
                 asts.push(ast);
@@ -110,7 +46,7 @@ impl Context {
         min_bp: u8,
         range: Range,
     ) -> crate::Result<Ast> {
-        let ast = self.parse_bp(parser, min_bp, range)?;
+        let ast = self.parse_bp(parser, min_bp, range, false)?;
         while let Some(i) = parser.next() {
             if !i.is_newln() {
                 return Err(crate::Error::UnexpectedItem(i));
@@ -119,9 +55,13 @@ impl Context {
         Ok(ast)
     }
 
-    fn parse_bp(&mut self, parser: &mut Parser, min_bp: u8, range: Range) -> crate::Result<Ast> {
-        parser.eat_newlns();
-
+    fn parse_bp(
+        &mut self,
+        parser: &mut Parser,
+        min_bp: u8,
+        range: Range,
+        cond: bool,
+    ) -> crate::Result<Ast> {
         let mut lhs = match parser.peek() {
             Some(Item::Group(_)) => {
                 let g = parser.next().unwrap().into_group().unwrap();
@@ -132,10 +72,7 @@ impl Context {
                         ast.range = g.range;
                         ast
                     }
-                    ParKind::Curly => {
-                        let asts = self.parse_items(g.items, g.range)?;
-                        Ast::new(AstT::Block(asts), g.range)
-                    }
+                    ParKind::Curly => self.parse_block(g)?,
                     ParKind::Square => {
                         self.errors.push(crate::Error::NotImplemented(
                             "Arrays are not yet implemented",
@@ -168,7 +105,7 @@ impl Context {
                 }
 
                 let val_r = Range::of(o.range.end, range.end);
-                let val = self.parse_bp(parser, r_bp, val_r)?;
+                let val = self.parse_bp(parser, r_bp, val_r, cond)?;
                 let ast_r = Range::span(o.range, val.range);
                 let ast = match prefix {
                     Prefix::UnaryPlus => val.typ,
@@ -189,14 +126,18 @@ impl Context {
                     return Ok(Ast::new(AstT::Empty, r));
                 }
             },
-            Some(Item::Kw(_k)) => todo!(),
+            Some(&Item::Kw(k)) => {
+                parser.next();
+                let r = Range::span(k.range, range);
+                self.parse_lang_construct(parser, k, r)?
+            }
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
         loop {
-            let newln = parser.eat_newlns_leaving_one();
-            let i = if newln { parser.peek2() } else { parser.peek() };
-            let i = match i {
+            parser.eat_newlns();
+            let newln = parser.current_newln;
+            let i = match parser.peek() {
                 Some(i) => i,
                 None => break,
             };
@@ -204,6 +145,11 @@ impl Context {
             let op = match i {
                 Item::Group(g) => {
                     if newln {
+                        break;
+                    }
+                    // stop if parsing and if condition
+                    // TODO: cleanup
+                    if cond && g.par_kind.is_curly() {
                         break;
                     }
 
@@ -226,22 +172,22 @@ impl Context {
                     let r = Range::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
-                &Item::Op(o) => {
-                    if newln {
+                &Item::Op(o) => o,
+                &Item::Sep(s) => match s.typ {
+                    SepT::Comma => {
                         parser.next();
+                        return Err(crate::Error::UnexpectedSeparator(s));
                     }
-                    o
-                }
-                &Item::Sep(s) => {
+                    SepT::Semi | SepT::Newln => break,
+                },
+                Item::Kw(k) => {
                     if newln {
-                        parser.next();
+                        break;
                     }
-                    match s.typ {
-                        SepT::Comma => return Err(crate::Error::UnexpectedSeparator(s)),
-                        SepT::Semi | SepT::Newln => break,
-                    }
+
+                    let r = Range::between(lhs.range, k.range);
+                    return Err(crate::Error::MissingOperator(r));
                 }
-                Item::Kw(_k) => todo!(),
             };
 
             if let Some((l_bp, suffix)) = op.suffix_bp() {
@@ -276,7 +222,7 @@ impl Context {
             }
 
             let rhs_r = Range::of(op.range.end, range.end);
-            let rhs = self.parse_bp(parser, r_bp, rhs_r)?;
+            let rhs = self.parse_bp(parser, r_bp, rhs_r, cond)?;
 
             if let AstT::Empty = rhs.typ {
                 let r = Range::pos(op.range.end);
@@ -314,6 +260,16 @@ impl Context {
         }
 
         Ok(lhs)
+    }
+
+    fn parse_block(&mut self, g: Group) -> crate::Result<Ast> {
+        match self.parse_items(g.items, g.range) {
+            Ok(asts) => Ok(Ast::new(AstT::Block(asts), g.range)),
+            Err(e) => {
+                self.errors.push(e);
+                Ok(Ast::new(AstT::Error, g.range))
+            }
+        }
     }
 
     fn parse_fun(&mut self, parser: &mut Parser, fun: Fun) -> crate::Result<Ast> {
@@ -431,12 +387,11 @@ impl Context {
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
         let mut start = (0, range.start);
-        let mut ti = 0;
         let mut arg_items = Vec::new();
 
-        for i in items {
-            if i.is_comma() {
-                let r = Range::of(start.1, i.range().start);
+        for (i, it) in items.into_iter().enumerate() {
+            if it.is_comma() {
+                let r = Range::of(start.1, it.range().start);
                 if parsed_args < max {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
@@ -444,12 +399,11 @@ impl Context {
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, i.range().end);
+                start = (i + 1, it.range().end);
                 parsed_args += 1;
             } else {
-                arg_items.push(i);
+                arg_items.push(it);
             }
-            ti += 1;
         }
 
         if !arg_items.is_empty() {
@@ -493,12 +447,11 @@ impl Context {
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
         let mut start = (0, range.start);
-        let mut ti = 0;
         let mut arg_items = Vec::new();
 
-        for i in items {
-            if i.is_comma() {
-                let r = Range::of(start.1, i.range().start);
+        for (i, it) in items.into_iter().enumerate() {
+            if it.is_comma() {
+                let r = Range::of(start.1, it.range().start);
                 if parsed_args < COUNT {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
@@ -506,12 +459,11 @@ impl Context {
                 } else {
                     unexpected_args.push(r);
                 }
-                start = (ti + 1, i.range().end);
+                start = (i + 1, it.range().end);
                 parsed_args += 1;
             } else {
-                arg_items.push(i);
+                arg_items.push(it);
             }
-            ti += 1;
         }
 
         if !arg_items.is_empty() {
@@ -544,6 +496,72 @@ impl Context {
         }
 
         Ok(args)
+    }
+
+    fn parse_lang_construct(
+        &mut self,
+        parser: &mut Parser,
+        kw: Kw,
+        range: Range,
+    ) -> crate::Result<Ast> {
+        match kw.typ {
+            KwT::If => {
+                let mut cases = Vec::new();
+                let mut else_block = None;
+                let first_case = self.parse_if_case(parser, kw, range)?;
+                let mut last_range = first_case.range;
+                cases.push(first_case);
+
+                loop {
+                    match parser.peek() {
+                        Some(Item::Kw(k)) if k.typ == KwT::Else => {
+                            parser.next();
+                        }
+                        _ => break,
+                    }
+
+                    match parser.next() {
+                        Some(Item::Kw(k)) if k.typ == KwT::If => {
+                            let case = self.parse_if_case(parser, k, range)?;
+                            last_range = case.range;
+                            cases.push(case);
+                        }
+                        Some(Item::Group(g)) if g.par_kind.is_curly() => {
+                            else_block = Some(Box::new(self.parse_block(g)?));
+                            break;
+                        }
+                        Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
+                        None => {
+                            let r = Range::pos(kw.range.end);
+                            return Err(crate::Error::ExpectedBlock(r));
+                        }
+                    }
+                }
+
+                let if_r = Range::span(kw.range, last_range);
+                let if_expr = IfExpr { cases, else_block };
+                Ok(Ast::new(AstT::IfExpr(if_expr), if_r))
+            }
+            KwT::Else => Err(crate::Error::WrongContext(kw)),
+        }
+    }
+
+    fn parse_if_case(&mut self, parser: &mut Parser, kw: Kw, range: Range) -> crate::Result<Case> {
+        let cond_r = Range::of(kw.range.end, range.end);
+        let cond = self.parse_bp(parser, 0, cond_r, true)?;
+
+        let group = match parser.next() {
+            Some(Item::Group(g)) if g.par_kind.is_curly() => g,
+            Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
+            None => {
+                let r = Range::pos(kw.range.end);
+                return Err(crate::Error::ExpectedBlock(r));
+            }
+        };
+        let range = Range::span(kw.range, group.range);
+        let block = self.parse_block(group)?;
+
+        Ok(Case::new(cond, block, range))
     }
 }
 

@@ -318,6 +318,20 @@ pub enum ParKind {
     Curly,
 }
 
+impl ParKind {
+    pub fn is_round(&self) -> bool {
+        matches!(self, Self::Round)
+    }
+
+    pub fn is_square(&self) -> bool {
+        matches!(self, Self::Square)
+    }
+
+    pub fn is_curly(&self) -> bool {
+        matches!(self, Self::Curly)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Sep {
     pub typ: SepT,
@@ -375,6 +389,20 @@ pub struct Kw {
     pub range: Range,
 }
 
+impl Deref for Kw {
+    type Target = KwT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl DerefMut for Kw {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.typ
+    }
+}
+
 impl Kw {
     pub const fn new(typ: KwT, range: Range) -> Self {
         Self { typ, range }
@@ -385,4 +413,13 @@ impl Kw {
 pub enum KwT {
     If,
     Else,
+}
+
+impl KwT {
+    pub fn name(&self) -> &str {
+        match self {
+            KwT::If => "if",
+            KwT::Else => "else",
+        }
+    }
 }

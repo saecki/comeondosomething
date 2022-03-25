@@ -100,14 +100,8 @@ fn inner_par_limit() {
     assert_eq!(
         ctx.errors,
         vec![
-            crate::Error::UnexpectedPar(Par::new(
-                ParT::CurlyClose,
-                Range::pos(11),
-            )),
-            crate::Error::MissingClosingPar(Par::new(
-                ParT::CurlyOpen,
-                Range::pos(0),
-            )),
+            crate::Error::UnexpectedPar(Par::new(ParT::CurlyClose, Range::pos(11),)),
+            crate::Error::MissingClosingPar(Par::new(ParT::CurlyOpen, Range::pos(0),)),
         ]
     )
 }

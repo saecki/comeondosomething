@@ -345,10 +345,7 @@ fn assertion() {
 
 #[test]
 fn assertion_failed() {
-    assert_err(
-        "assert(4 == 5)",
-        Error::AssertFailed(Range::of(7, 13)),
-    );
+    assert_err("assert(4 == 5)", Error::AssertFailed(Range::of(7, 13)));
 }
 
 #[test]
@@ -364,5 +361,33 @@ fn assertion_eq_failed() {
             ValRange::new(Val::Bool(false), Range::of(10, 15)),
             ValRange::new(Val::Bool(true), Range::of(17, 23)),
         ),
+    );
+}
+
+#[test]
+fn if_statement() {
+    assert("x = 2; if 4 == 3 + 1 { x = x + 3 }; x", Val::Int(5));
+    assert(
+        r#"
+        x = 2
+        if false {
+            x = x + 3
+        } else if true {
+            x = x - 4
+        } else {
+            x = 9
+        }
+        x
+        "#,
+        Val::Int(-2),
+    );
+}
+
+#[test]
+fn if_expr() {
+    assert("x = if false { 3 } else { 9 }; x", Val::Int(9));
+    assert(
+        r#"x = if true { "hi" } else { "there" }; x"#,
+        Val::Str("hi".into()),
     );
 }
