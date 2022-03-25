@@ -22,3 +22,11 @@ fn semi() {
     ];
     assert_eq!(expected, asts);
 }
+
+#[test]
+fn newline_suffix_op() {
+    let mut ctx = Context::default();
+    let error = ctx.parse_str("y = 3\n! true").unwrap_err();
+
+    assert_eq!(error, crate::Error::MissingOperator(Range::pos(7)));
+}

@@ -193,8 +193,14 @@ impl Context {
             None => return Ok(Ast::new(AstT::Empty, range)),
         };
 
-        let newln = parser.eat_newlns_leaving_one();
-        while let Some(i) = if newln { parser.peek2() } else { parser.peek() } {
+        loop {
+            let newln = parser.eat_newlns_leaving_one();
+            let i = if newln { parser.peek2() } else { parser.peek() };
+            let i = match i {
+                Some(i) => i,
+                None => break,
+            };
+
             let op = match i {
                 Item::Group(g) => {
                     if newln {
@@ -224,26 +230,7 @@ impl Context {
                     if newln {
                         parser.next();
                     }
-                    match o.suffix_bp() {
-                        Some((l_bp, suffix)) => {
-                            if l_bp < min_bp {
-                                break;
-                            } else {
-                                parser.next();
-                            }
-
-                            let val_r = Range::span(lhs.range, o.range);
-                            let val = match suffix {
-                                Suffix::Degree => AstT::Degree(Box::new(lhs)),
-                                Suffix::Radian => AstT::Radian(Box::new(lhs)),
-                                Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
-                            };
-
-                            lhs = Ast::new(val, val_r);
-                            continue;
-                        }
-                        None => o,
-                    }
+                    o
                 }
                 &Item::Sep(s) => {
                     if newln {
@@ -256,6 +243,24 @@ impl Context {
                 }
                 Item::Kw(_k) => todo!(),
             };
+
+            if let Some((l_bp, suffix)) = op.suffix_bp() {
+                if l_bp < min_bp {
+                    break;
+                } else {
+                    parser.next();
+                }
+
+                let val_r = Range::span(lhs.range, op.range);
+                let val = match suffix {
+                    Suffix::Degree => AstT::Degree(Box::new(lhs)),
+                    Suffix::Radian => AstT::Radian(Box::new(lhs)),
+                    Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
+                };
+
+                lhs = Ast::new(val, val_r);
+                continue;
+            }
 
             let (l_bp, infix, r_bp) = match op.infix_bp() {
                 Some(bp) => bp,
