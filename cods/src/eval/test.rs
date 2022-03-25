@@ -50,3 +50,11 @@ fn defined_inside_scope() {
     let val = ctx.parse_and_eval(input).unwrap().unwrap();
     assert_eq!(val, Val::Int(7));
 }
+
+#[test]
+fn can_assign_to_var_in_outer_scope() {
+    let input = "x = 2; { x = 7 }; x";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap().unwrap();
+    assert_eq!(val, Val::Int(7));
+}

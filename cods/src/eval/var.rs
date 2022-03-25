@@ -40,11 +40,16 @@ impl Context {
     }
 
     pub fn set_var(&mut self, id: Ident, val: Option<Val>) {
-        let s = self
-            .scopes
-            .last_mut()
-            .expect("Expected at least the global scope");
-        s.set_var(id, val);
+        match self.var_mut(id) {
+            Some(v) => v.value = val,
+            None => {
+                let s = self
+                    .scopes
+                    .last_mut()
+                    .expect("Expected at least the global scope");
+                s.set_var(id, val);
+            }
+        }
     }
 }
 
