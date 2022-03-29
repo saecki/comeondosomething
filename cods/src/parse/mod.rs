@@ -2,8 +2,7 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, CondBlock, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range,
-    SepT,
+    Ast, AstT, CondBlock, Context, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
 };
 
 pub use op::*;
@@ -234,6 +233,22 @@ impl Context {
             let val = match infix {
                 Infix::Assign => match lhs.as_ident() {
                     Some(id) => AstT::Assign(id, Box::new(rhs)),
+                    None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                },
+                Infix::AddAssign => match lhs.as_ident() {
+                    Some(id) => AstT::AddAssign(id, Box::new(rhs)),
+                    None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                },
+                Infix::SubAssign => match lhs.as_ident() {
+                    Some(id) => AstT::SubAssign(id, Box::new(rhs)),
+                    None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                },
+                Infix::MulAssign => match lhs.as_ident() {
+                    Some(id) => AstT::MulAssign(id, Box::new(rhs)),
+                    None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                },
+                Infix::DivAssign => match lhs.as_ident() {
+                    Some(id) => AstT::DivAssign(id, Box::new(rhs)),
                     None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                 },
                 Infix::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),

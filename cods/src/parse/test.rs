@@ -1,4 +1,4 @@
-use crate::{Ast, AstT, Context, Expr, ExprT, Ident, Range, Val};
+use crate::{Ast, AstT, Context, Expr, ExprT, Ident, IdentRange, Range, Val};
 
 #[test]
 fn semi() {
@@ -7,7 +7,7 @@ fn semi() {
     let expected = vec![
         Ast::new(
             AstT::Assign(
-                Ident(0),
+                IdentRange::new(Ident(0), Range::pos(0)),
                 Box::new(Ast::new(
                     AstT::Expr(Expr::new(ExprT::Val(Val::Int(34)), Range::of(4, 6))),
                     Range::of(4, 6),

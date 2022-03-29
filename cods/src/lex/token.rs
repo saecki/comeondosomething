@@ -200,9 +200,13 @@ impl DerefMut for Op {
 pub enum OpT {
     Assign,
     Add,
+    AddAssign,
     Sub,
+    SubAssign,
     Mul,
+    MulAssign,
     Div,
+    DivAssign,
     IntDiv,
     Rem,
     Pow,

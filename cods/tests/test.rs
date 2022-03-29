@@ -50,6 +50,26 @@ fn int() {
 }
 
 #[test]
+fn add_assign() {
+    assert("a = 4; a += 8; a", Val::Int(12));
+}
+
+#[test]
+fn sub_assign() {
+    assert("a = 4; a -= 8; a", Val::Int(-4));
+}
+
+#[test]
+fn mul_assign() {
+    assert("a = 4; a *= 8; a", Val::Int(32));
+}
+
+#[test]
+fn div_assign() {
+    assert("a = 8; a /= 4; a", Val::Int(2));
+}
+
+#[test]
 fn string_escape() {
     assert(r#""\b""#, Val::Str("\x08".into()));
     assert(r#""\t""#, Val::Str("\t".into()));

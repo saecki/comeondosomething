@@ -1,8 +1,18 @@
 use std::collections::HashMap;
 
-use crate::{Context, Ident, Val};
+use crate::{Context, Ident, Range, Val, ValRange};
 
 impl Context {
+    pub fn resolve_var<'a>(&'a self, id: &IdentRange) -> crate::Result<ValRange> {
+        match self.var_val(id.ident) {
+            Some(v) => Ok(ValRange::new(v.clone(), id.range)),
+            None => {
+                let name = self.ident_name(id.ident);
+                Err(crate::Error::UndefinedVar(name.to_owned(), id.range))
+            }
+        }
+    }
+
     pub fn var(&self, id: Ident) -> Option<&Var> {
         for s in self.scopes.iter().rev() {
             if let Some(v) = s.var(id) {
@@ -97,5 +107,17 @@ pub struct Var {
 impl Var {
     pub fn new(value: Option<Val>) -> Self {
         Self { value }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IdentRange {
+    pub ident: Ident,
+    pub range: Range,
+}
+
+impl IdentRange {
+    pub const fn new(ident: Ident, range: Range) -> Self {
+        Self { ident, range }
     }
 }

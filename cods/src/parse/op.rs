@@ -2,6 +2,10 @@ use crate::OpT;
 
 pub enum Infix {
     Assign,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
     Add,
     Sub,
     Mul,
@@ -54,6 +58,10 @@ impl OpT {
             Self::And => Some((5, Infix::And, 6)),
             Self::Or => Some((3, Infix::Or, 4)),
             Self::Assign => Some((1, Infix::Assign, 2)),
+            Self::AddAssign => Some((1, Infix::AddAssign, 2)),
+            Self::SubAssign => Some((1, Infix::SubAssign, 2)),
+            Self::MulAssign => Some((1, Infix::MulAssign, 2)),
+            Self::DivAssign => Some((1, Infix::DivAssign, 2)),
             Self::Bang | Self::Degree | Self::Radian => None,
         }
     }
@@ -64,6 +72,10 @@ impl OpT {
             Self::Radian => Some((19, Suffix::Radian)),
             Self::Bang => Some((19, Suffix::Factorial)),
             Self::Assign
+            | Self::AddAssign
+            | Self::SubAssign
+            | Self::MulAssign
+            | Self::DivAssign
             | Self::Add
             | Self::Sub
             | Self::Mul
@@ -90,6 +102,10 @@ impl OpT {
             Self::Add => Some((Prefix::UnaryPlus, 20)),
             Self::Sub => Some((Prefix::UnaryMinus, 20)),
             OpT::Assign
+            | Self::AddAssign
+            | Self::SubAssign
+            | Self::MulAssign
+            | Self::DivAssign
             | OpT::Mul
             | OpT::Div
             | OpT::IntDiv

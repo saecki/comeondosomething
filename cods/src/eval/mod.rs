@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, Expr, Ident, Range, Val};
+use crate::{Context, Expr, Range, Val};
 
 pub use val::*;
 pub use var::*;
@@ -50,7 +50,11 @@ pub enum AstT {
     Block(Vec<Ast>),
     IfExpr(IfExpr),
     WhileLoop(Box<CondBlock>),
-    Assign(Ident, Box<Ast>),
+    Assign(IdentRange, Box<Ast>),
+    AddAssign(IdentRange, Box<Ast>),
+    SubAssign(IdentRange, Box<Ast>),
+    MulAssign(IdentRange, Box<Ast>),
+    DivAssign(IdentRange, Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -95,9 +99,9 @@ pub enum AstT {
 }
 
 impl AstT {
-    pub fn as_ident(&self) -> Option<Ident> {
+    pub fn as_ident(&self) -> Option<IdentRange> {
         match self {
-            Self::Expr(e) => e.as_ident(),
+            Self::Expr(e) => Some(IdentRange::new(e.as_ident()?, e.range)),
             _ => None,
         }
     }
@@ -178,11 +182,15 @@ impl Context {
         match &ast.typ {
             AstT::Empty => Ok(Return::Unit(r)),
             AstT::Error => Err(crate::Error::Parsing(r)),
-            AstT::Expr(e) => ok(self.to_val(e)?.clone(), r),
+            AstT::Expr(e) => return_val(self.to_val(e)?.clone(), r),
             AstT::Block(a) => self.block(a, r),
             AstT::IfExpr(a) => self.if_expr(a, r),
             AstT::WhileLoop(a) => self.while_loop(a, r),
-            AstT::Assign(a, b) => self.assign(*a, b, r),
+            AstT::Assign(a, b) => self.assign(a, b, r),
+            AstT::AddAssign(a, b) => self.add_assign(a, b, r),
+            AstT::SubAssign(a, b) => self.sub_assign(a, b, r),
+            AstT::MulAssign(a, b) => self.mul_assign(a, b, r),
+            AstT::DivAssign(a, b) => self.div_assign(a, b, r),
             AstT::Neg(a) => self.neg(a, r),
             AstT::Add(a, b) => self.add(a, b, r),
             AstT::Sub(a, b) => self.sub(a, b, r),
@@ -269,9 +277,41 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn assign(&mut self, id: Ident, n: &Ast, range: Range) -> crate::Result<Return> {
-        let v = self.eval_to_val(n)?;
-        self.set_var(id, Some(v.val));
+    fn assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+        let v = self.eval_to_val(b)?;
+        self.set_var(id.ident, Some(v.val));
+        Ok(Return::Unit(range))
+    }
+
+    fn add_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.resolve_var(id)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_add(va, vb)?;
+        self.set_var(id.ident, Some(val));
+        Ok(Return::Unit(range))
+    }
+
+    fn sub_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.resolve_var(id)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_sub(va, vb)?;
+        self.set_var(id.ident, Some(val));
+        Ok(Return::Unit(range))
+    }
+
+    fn mul_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.resolve_var(id)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_mul(va, vb)?;
+        self.set_var(id.ident, Some(val));
+        Ok(Return::Unit(range))
+    }
+
+    fn div_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.resolve_var(id)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_div(va, vb)?;
+        self.set_var(id.ident, Some(val));
         Ok(Return::Unit(range))
     }
 
@@ -281,75 +321,35 @@ impl Context {
             Val::Int(i) => Val::Int(-i),
             _ => Val::Float(-v.to_f64()?),
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
-    fn add(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (Val::Int(a), Val::Int(b)) => match a.checked_add(*b) {
-                Some(v) => Val::Int(v),
-                None => return Err(crate::Error::AddOverflow(va, vb)),
-            },
-            _ => Val::Float(va.to_f64()? + vb.to_f64()?),
-        };
-        ok(val, range)
+    fn add(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_val(a)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_add(va, vb)?;
+        return_val(val, range)
     }
 
-    fn sub(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(a), &Val::Int(b)) => match a.checked_sub(b) {
-                Some(v) => Val::Int(v),
-                None => return Err(crate::Error::SubOverflow(va.clone(), vb.clone())),
-            },
-            _ => Val::Float(va.to_f64()? - vb.to_f64()?),
-        };
-        ok(val, range)
+    fn sub(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+        let va = self.eval_to_val(a)?;
+        let vb = self.eval_to_val(b)?;
+        let val = checked_sub(va, vb)?;
+        return_val(val, range)
     }
 
     fn mul(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(a), &Val::Int(b)) => match a.checked_mul(b) {
-                Some(v) => Val::Int(v),
-                None => return Err(crate::Error::MulOverflow(va.clone(), vb.clone())),
-            },
-            _ => Val::Float(va.to_f64()? * vb.to_f64()?),
-        };
-        ok(val, range)
+        let val = checked_mul(va, vb)?;
+        return_val(val, range)
     }
 
     fn div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(a), &Val::Int(b)) => {
-                if b == 0 {
-                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
-                } else if a % b == 0 {
-                    Val::Int(a / b)
-                } else {
-                    Val::Float(a as f64 / b as f64)
-                }
-            }
-            _ => {
-                let divisor = vb.to_f64()?;
-                if divisor == 0.0 {
-                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
-                } else {
-                    Val::Float(va.to_f64()? / divisor)
-                }
-            }
-        };
-        ok(val, range)
+        let val = checked_div(va, vb)?;
+        return_val(val, range)
     }
 
     fn int_div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
@@ -366,7 +366,7 @@ impl Context {
             }
             _ => return Err(crate::Error::FractionEuclidDiv(va.clone(), vb.clone())),
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn rem(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
@@ -388,7 +388,7 @@ impl Context {
             }
             _ => return Err(crate::Error::FractionRemainder(va.clone(), vb.clone())),
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn pow(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
@@ -407,63 +407,63 @@ impl Context {
             }
             _ => Val::Float(va.to_f64()?.powf(vb.to_f64()?)),
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_val(a)?;
         let b = self.eval_to_val(b)?;
 
-        ok(Val::Bool(a.val == b.val), range)
+        return_val(Val::Bool(a.val == b.val), range)
     }
 
     fn ne(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_val(a)?;
         let b = self.eval_to_val(b)?;
 
-        ok(Val::Bool(a.val != b.val), range)
+        return_val(Val::Bool(a.val != b.val), range)
     }
 
     fn lt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
-        ok(Val::Bool(va < vb), range)
+        return_val(Val::Bool(va < vb), range)
     }
 
     fn le(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
-        ok(Val::Bool(va <= vb), range)
+        return_val(Val::Bool(va <= vb), range)
     }
 
     fn gt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
-        ok(Val::Bool(va > vb), range)
+        return_val(Val::Bool(va > vb), range)
     }
 
     fn ge(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
-        ok(Val::Bool(va >= vb), range)
+        return_val(Val::Bool(va >= vb), range)
     }
 
     fn or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_bool(a)?;
         let b = self.eval_to_bool(b)?;
 
-        ok(Val::Bool(a || b), range)
+        return_val(Val::Bool(a || b), range)
     }
 
     fn and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_bool(a)?;
         let b = self.eval_to_bool(b)?;
 
-        ok(Val::Bool(a && b), range)
+        return_val(Val::Bool(a && b), range)
     }
 
     fn bw_or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
@@ -476,7 +476,7 @@ impl Context {
             _ => return Err(crate::Error::InvalidBwOr(va, vb)),
         };
 
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn bw_and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
@@ -489,23 +489,23 @@ impl Context {
             _ => return Err(crate::Error::InvalidBwAnd(va, vb)),
         };
 
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn not(&mut self, a: &Ast, range: Range) -> crate::Result<Return> {
         let va = self.eval_to_bool(a)?;
-        ok(Val::Bool(!va), range)
+        return_val(Val::Bool(!va), range)
     }
 
     // TODO add a angle value type as input for trigeometrical functions
     fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?.to_radians();
-        ok(Val::Float(rad), range)
+        return_val(Val::Float(rad), range)
     }
 
     fn radian(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?;
-        ok(Val::Float(rad), range)
+        return_val(Val::Float(rad), range)
     }
 
     fn factorial(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
@@ -523,7 +523,7 @@ impl Context {
                         }
                     }
 
-                    ok(Val::Int(f), range)
+                    return_val(Val::Int(f), range)
                 }
             }
             _ => Err(crate::Error::FractionFactorial(v)),
@@ -532,19 +532,19 @@ impl Context {
 
     fn ln(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let val = self.eval_to_f64(n)?.ln();
-        ok(Val::Float(val), range)
+        return_val(Val::Float(val), range)
     }
 
     fn log(&mut self, base: &Ast, num: &Ast, range: Range) -> crate::Result<Return> {
         let b = self.eval_to_f64(base)?;
         let n = self.eval_to_f64(num)?;
         let val = Val::Float(n.log(b));
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn sqrt(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let val = self.eval_to_f64(n)?.sqrt();
-        ok(Val::Float(val), range)
+        return_val(Val::Float(val), range)
     }
 
     fn ncr(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
@@ -574,37 +574,37 @@ impl Context {
             }
             _ => return Err(crate::Error::FractionNcr(va, vb)),
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn sin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.sin();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn cos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.cos();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn tan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.tan();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn asin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.asin();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn acos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.acos();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn atan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.atan();
-        ok(Val::Float(a), range)
+        return_val(Val::Float(a), range)
     }
 
     fn gcd(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
@@ -618,7 +618,7 @@ impl Context {
                     b = a % b;
                     a = _t;
                 }
-                ok(Val::Int(a), range)
+                return_val(Val::Int(a), range)
             }
             _ => Err(crate::Error::FractionGcd(va, vb)),
         }
@@ -639,7 +639,7 @@ impl Context {
         }
 
         let max = min.expect("Iterator should at least contain 1 element");
-        ok(Val::Float(max), range)
+        return_val(Val::Float(max), range)
     }
 
     fn max(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
@@ -657,7 +657,7 @@ impl Context {
         }
 
         let max = max.expect("Iterator should at least contain 1 element");
-        ok(Val::Float(max), range)
+        return_val(Val::Float(max), range)
     }
 
     fn clamp(&mut self, num: &Ast, min: &Ast, max: &Ast, range: Range) -> crate::Result<Return> {
@@ -684,7 +684,7 @@ impl Context {
                 Val::Float(num.clamp(min, max))
             }
         };
-        ok(val, range)
+        return_val(val, range)
     }
 
     fn print(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
@@ -738,6 +738,59 @@ impl Context {
     }
 }
 
-fn ok(val: Val, range: Range) -> crate::Result<Return> {
+fn checked_add(va: ValRange, vb: ValRange) -> crate::Result<Val> {
+    let val = match (&va.val, &vb.val) {
+        (Val::Int(a), &Val::Int(b)) => match a.checked_add(b) {
+            Some(v) => Val::Int(v),
+            None => return Err(crate::Error::AddOverflow(va, vb)),
+        },
+        _ => Val::Float(va.to_f64()? + vb.to_f64()?),
+    };
+    Ok(val)
+}
+
+fn checked_sub(va: ValRange, vb: ValRange) -> crate::Result<Val> {
+    match (&va.val, &vb.val) {
+        (Val::Int(a), &Val::Int(b)) => match a.checked_sub(b) {
+            Some(v) => Ok(Val::Int(v)),
+            None => Err(crate::Error::SubOverflow(va.clone(), vb.clone())),
+        },
+        _ => Ok(Val::Float(va.to_f64()? - vb.to_f64()?)),
+    }
+}
+
+fn checked_mul(va: ValRange, vb: ValRange) -> crate::Result<Val> {
+    match (&va.val, &vb.val) {
+        (Val::Int(a), &Val::Int(b)) => match a.checked_mul(b) {
+            Some(v) => Ok(Val::Int(v)),
+            None => Err(crate::Error::MulOverflow(va.clone(), vb.clone())),
+        },
+        _ => Ok(Val::Float(va.to_f64()? * vb.to_f64()?)),
+    }
+}
+
+fn checked_div(va: ValRange, vb: ValRange) -> crate::Result<Val> {
+    match (&va.val, &vb.val) {
+        (&Val::Int(a), &Val::Int(b)) => {
+            if b == 0 {
+                Err(crate::Error::DivideByZero(va.clone(), vb.clone()))
+            } else if a % b == 0 {
+                Ok(Val::Int(a / b))
+            } else {
+                Ok(Val::Float(a as f64 / b as f64))
+            }
+        }
+        _ => {
+            let divisor = vb.to_f64()?;
+            if divisor == 0.0 {
+                Err(crate::Error::DivideByZero(va.clone(), vb.clone()))
+            } else {
+                Ok(Val::Float(va.to_f64()? / divisor))
+            }
+        }
+    }
+}
+
+fn return_val(val: Val, range: Range) -> crate::Result<Return> {
     Ok(Return::Val(ValRange::new(val, range)))
 }
