@@ -190,7 +190,7 @@ impl Context {
                 }
             };
 
-            if let Some((l_bp, suffix)) = op.suffix_bp() {
+            if let Some((l_bp, postfix)) = op.postfix_bp() {
                 if l_bp < min_bp {
                     break;
                 } else {
@@ -198,10 +198,10 @@ impl Context {
                 }
 
                 let val_r = Range::span(lhs.range, op.range);
-                let val = match suffix {
-                    Suffix::Degree => AstT::Degree(Box::new(lhs)),
-                    Suffix::Radian => AstT::Radian(Box::new(lhs)),
-                    Suffix::Factorial => AstT::Factorial(Box::new(lhs)),
+                let val = match postfix {
+                    Postfix::Degree => AstT::Degree(Box::new(lhs)),
+                    Postfix::Radian => AstT::Radian(Box::new(lhs)),
+                    Postfix::Factorial => AstT::Factorial(Box::new(lhs)),
                 };
 
                 lhs = Ast::new(val, val_r);
