@@ -93,7 +93,7 @@ fn string_multi_line() {
 }
 
 #[test]
-fn unicode_ops() {
+fn unicode_operators() {
     assert(
         "(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234",
         Val::Float(41968480425.587155963),
@@ -101,7 +101,7 @@ fn unicode_ops() {
 }
 
 #[test]
-fn signs() {
+fn sign() {
     assert("1 - 2 * -2", Val::Int(5));
 }
 
@@ -386,14 +386,14 @@ fn assertion_eq_failed() {
 
 #[test]
 fn if_statement() {
-    assert("x = 2; if 4 == 3 + 1 { x = x + 3 }; x", Val::Int(5));
+    assert("x = 2; if 4 == 3 + 1 { x += 3 }; x", Val::Int(5));
     assert(
         r#"
         x = 2
         if false {
-            x = x + 3
+            x += 3
         } else if true {
-            x = x - 4
+            x -= 4
         } else {
             x = 9
         }
@@ -418,7 +418,7 @@ fn while_loop() {
         r#"
         i = 0
         while i < 10 {
-            i = i + 1
+            i += 1
         }
         i
         "#,
@@ -430,7 +430,7 @@ fn while_loop() {
         c = 0;
         while i > 0 {
             i = i div 2
-            c = c + 1
+            c += 1
         }
         c
         "#,

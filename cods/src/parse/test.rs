@@ -1,7 +1,7 @@
 use crate::{Ast, AstT, Context, Expr, ExprT, Ident, IdentRange, Range, Val};
 
 #[test]
-fn semi() {
+fn semicolon() {
     let mut ctx = Context::default();
     let asts = ctx.parse_str("y = 34; y").unwrap();
     let expected = vec![
@@ -24,7 +24,7 @@ fn semi() {
 }
 
 #[test]
-fn newline_suffix_op() {
+fn suffix_op_on_newline() {
     let mut ctx = Context::default();
     let error = ctx.parse_str("y = 3\n! true").unwrap_err();
 
