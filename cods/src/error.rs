@@ -59,7 +59,9 @@ pub enum Error {
     MissingExpr,
     ExpectedValue(Range),
     ExpectedNumber(ValRange),
+    ExpectedInt(ValRange),
     ExpectedBool(ValRange),
+    ExpectedStr(ValRange),
     Parsing(Range),
 
     UndefinedVar(String, Range),
@@ -168,8 +170,14 @@ impl Display for Error {
             Self::ExpectedNumber(v) => {
                 write!(f, "Expected a number found '{v}' of type {}", v.type_name())
             }
+            Self::ExpectedInt(v) => {
+                write!(f, "Expected an int found '{v}' of type {}", v.type_name())
+            }
             Self::ExpectedBool(v) => {
                 write!(f, "Expected a bool found '{v}' of type {}", v.type_name())
+            }
+            Self::ExpectedStr(v) => {
+                write!(f, "Expected a str found '{v}' of type {}", v.type_name())
             }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
@@ -297,7 +305,9 @@ impl UserFacing for Error {
             Self::MissingExpr => vec![],
             Self::ExpectedValue(r) => vec![*r],
             Self::ExpectedNumber(v) => vec![v.range],
+            Self::ExpectedInt(v) => vec![v.range],
             Self::ExpectedBool(v) => vec![v.range],
+            Self::ExpectedStr(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],

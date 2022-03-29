@@ -18,32 +18,6 @@ impl Context {
     }
 }
 
-impl Val {
-    pub fn to_int(&self) -> Option<i128> {
-        match self {
-            Self::Int(i) => Some(*i),
-            Self::Float(f) => {
-                let i = *f as i128;
-                #[allow(clippy::float_cmp)]
-                if i as f64 == *f {
-                    Some(i)
-                } else {
-                    None
-                }
-            }
-            Self::Bool(_) | Self::Str(_) => None,
-        }
-    }
-
-    pub fn to_f64(&self) -> Option<f64> {
-        match self {
-            Self::Int(i) => Some(*i as f64),
-            Self::Float(f) => Some(*f),
-            Self::Bool(_) | Self::Str(_) => None,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {
     Val(ValRange),
@@ -81,12 +55,24 @@ impl Return {
         }
     }
 
+    pub fn to_int(&self) -> crate::Result<i128> {
+        self.to_val()?.to_int()
+    }
+
     pub fn to_f64(&self) -> crate::Result<f64> {
         self.to_val()?.to_f64()
     }
 
     pub fn to_bool(&self) -> crate::Result<bool> {
         self.to_val()?.to_bool()
+    }
+
+    pub fn to_str(&self) -> crate::Result<&str> {
+        self.to_val()?.to_str()
+    }
+
+    pub fn into_str(self) -> crate::Result<String> {
+        self.into_val()?.into_str()
     }
 }
 
@@ -121,20 +107,88 @@ impl ValRange {
         Self { val, range }
     }
 
+    pub fn to_int(&self) -> crate::Result<i128> {
+        self.val
+            .to_int()
+            .ok_or_else(|| crate::Error::ExpectedInt(self.clone()))
+    }
+
     pub fn to_f64(&self) -> crate::Result<f64> {
-        match self.val {
-            Val::Int(i) => Ok(i as f64),
-            Val::Float(f) => Ok(f),
-            Val::Bool(_) | Val::Str(_) => Err(crate::Error::ExpectedNumber(self.clone())),
-        }
+        self.val
+            .to_f64()
+            .ok_or_else(|| crate::Error::ExpectedNumber(self.clone()))
     }
 
     pub fn to_bool(&self) -> crate::Result<bool> {
+        self.val
+            .to_bool()
+            .ok_or_else(|| crate::Error::ExpectedBool(self.clone()))
+    }
+
+    pub fn to_str(&self) -> crate::Result<&str> {
+        self.val
+            .to_str()
+            .ok_or_else(|| crate::Error::ExpectedStr(self.clone()))
+    }
+
+    pub fn into_str(self) -> crate::Result<String> {
         match self.val {
-            Val::Bool(b) => Ok(b),
-            Val::Int(_) | Val::Float(_) | Val::Str(_) => {
-                Err(crate::Error::ExpectedBool(self.clone()))
+            Val::Str(s) => Ok(s),
+            Val::Int(_) | Val::Float(_) | Val::Bool(_) => Err(crate::Error::ExpectedStr(self)),
+        }
+    }
+}
+
+impl Val {
+    pub fn convert_to_int(&self) -> Option<i128> {
+        match self {
+            Self::Int(i) => Some(*i),
+            Self::Float(f) => {
+                let i = *f as i128;
+                #[allow(clippy::float_cmp)]
+                if i as f64 == *f {
+                    Some(i)
+                } else {
+                    None
+                }
             }
+            Self::Bool(_) | Self::Str(_) => None,
+        }
+    }
+
+    pub fn to_int(&self) -> Option<i128> {
+        match self {
+            Self::Int(i) => Some(*i),
+            Self::Float(_) | Self::Bool(_) | Self::Str(_) => None,
+        }
+    }
+
+    pub fn to_f64(&self) -> Option<f64> {
+        match self {
+            Self::Int(i) => Some(*i as f64),
+            Self::Float(f) => Some(*f),
+            Self::Bool(_) | Self::Str(_) => None,
+        }
+    }
+
+    pub fn to_bool(&self) -> Option<bool> {
+        match self {
+            Self::Bool(b) => Some(*b),
+            Self::Int(_) | Self::Float(_) | Self::Str(_) => None,
+        }
+    }
+
+    pub fn to_str(&self) -> Option<&str> {
+        match self {
+            Self::Str(s) => Some(s),
+            Self::Int(_) | Self::Float(_) | Self::Bool(_) => None,
+        }
+    }
+
+    pub fn into_str(self) -> Option<String> {
+        match self {
+            Self::Str(s) => Some(s),
+            Self::Int(_) | Self::Float(_) | Self::Bool(_) => None,
         }
     }
 }

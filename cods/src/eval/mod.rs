@@ -151,12 +151,16 @@ impl Context {
         self.eval_ast(ast)?.into_val()
     }
 
-    pub fn eval_to_bool(&mut self, ast: &Ast) -> crate::Result<bool> {
-        self.eval_ast(ast)?.to_bool()
+    pub fn eval_to_int(&mut self, ast: &Ast) -> crate::Result<i128> {
+        self.eval_ast(ast)?.to_int()
     }
 
     pub fn eval_to_f64(&mut self, ast: &Ast) -> crate::Result<f64> {
         self.eval_ast(ast)?.to_f64()
+    }
+
+    pub fn eval_to_bool(&mut self, ast: &Ast) -> crate::Result<bool> {
+        self.eval_ast(ast)?.to_bool()
     }
 
     pub fn eval_ast(&mut self, ast: &Ast) -> crate::Result<Return> {
@@ -212,7 +216,7 @@ impl Context {
         }
         .map(|mut r| {
             if let Return::Val(v) = &mut r {
-                if let Some(i) = v.to_int() {
+                if let Some(i) = v.convert_to_int() {
                     v.val = Val::Int(i);
                 }
             }
