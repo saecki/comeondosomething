@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{CRange, Context, Ident, Val, ValRange};
 
 impl Context {
-    pub fn resolve_var<'a>(&'a self, id: &IdentRange) -> crate::Result<ValRange> {
+    pub fn resolve_var(&self, id: &IdentRange) -> crate::Result<ValRange> {
         match self.var_val(id.ident) {
             Some(v) => Ok(ValRange::new(v.clone(), id.range)),
             None => {

@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{CRange, Item, Kw, Op, Par};
+use crate::{CRange, Item, Kw, KwT, Op, Par};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -53,6 +53,8 @@ pub enum Error {
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
     ExpectedBlock(CRange),
+    ExpectedIdent(CRange),
+    ExpectedKw(KwT, CRange),
     WrongContext(Kw),
 
     // Eval
@@ -62,6 +64,7 @@ pub enum Error {
     ExpectedInt(ValRange),
     ExpectedBool(ValRange),
     ExpectedStr(ValRange),
+    ExpectedRange(ValRange),
     Parsing(CRange),
 
     UndefinedVar(String, CRange),
@@ -162,6 +165,8 @@ impl Display for Error {
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
             Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
+            Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
+            Self::ExpectedKw(k, _) => write!(f, "Expected kw '{}'", k.name()),
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
             // Eval
@@ -178,6 +183,9 @@ impl Display for Error {
             }
             Self::ExpectedStr(v) => {
                 write!(f, "Expected a str found '{v}' of type {}", v.type_name())
+            }
+            Self::ExpectedRange(v) => {
+                write!(f, "Expected a range found '{v}' of type {}", v.type_name())
             }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
@@ -299,6 +307,8 @@ impl UserFacing for Error {
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
             Self::ExpectedBlock(r) => vec![*r],
+            Self::ExpectedIdent(r) => vec![*r],
+            Self::ExpectedKw(_, r) => vec![*r],
             Self::WrongContext(k) => vec![k.range],
 
             // Eval
@@ -308,6 +318,7 @@ impl UserFacing for Error {
             Self::ExpectedInt(v) => vec![v.range],
             Self::ExpectedBool(v) => vec![v.range],
             Self::ExpectedStr(v) => vec![v.range],
+            Self::ExpectedRange(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],

@@ -2,7 +2,8 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, CRange, CondBlock, Context, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, SepT,
+    Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Fun, FunT, Group, IfExpr, Item, Kw, KwT,
+    ParKind, SepT,
 };
 
 pub use op::*;
@@ -72,7 +73,10 @@ impl Context {
                         ast.range = g.range;
                         ast
                     }
-                    ParKind::Curly => self.parse_block(g)?,
+                    ParKind::Curly => {
+                        let b = self.parse_block(g)?;
+                        Ast::new(AstT::Block(b.asts), b.range)
+                    }
                     ParKind::Square => {
                         self.errors.push(crate::Error::NotImplemented(
                             "Arrays are not yet implemented",
@@ -283,12 +287,12 @@ impl Context {
         Ok(lhs)
     }
 
-    fn parse_block(&mut self, g: Group) -> crate::Result<Ast> {
+    fn parse_block(&mut self, g: Group) -> crate::Result<Block> {
         match self.parse_items(g.items, g.range) {
-            Ok(asts) => Ok(Ast::new(AstT::Block(asts), g.range)),
+            Ok(asts) => Ok(Block::new(asts, g.range)),
             Err(e) => {
                 self.errors.push(e);
-                Ok(Ast::new(AstT::Error, g.range))
+                Ok(Block::new(vec![Ast::new(AstT::Error, g.range)], g.range))
             }
         }
     }
@@ -548,7 +552,7 @@ impl Context {
                             cases.push(case);
                         }
                         Some(Item::Group(g)) if g.par_kind.is_curly() => {
-                            else_block = Some(Box::new(self.parse_block(g)?));
+                            else_block = Some(self.parse_block(g)?);
                             break;
                         }
                         Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
@@ -560,7 +564,7 @@ impl Context {
                 }
 
                 let if_r = CRange::span(kw.range, last_range);
-                let if_expr = IfExpr { cases, else_block };
+                let if_expr = IfExpr::new(cases, else_block);
                 Ok(Ast::new(AstT::IfExpr(if_expr), if_r))
             }
             KwT::Else => Err(crate::Error::WrongContext(kw)),
@@ -569,6 +573,47 @@ impl Context {
                 let r = case.range;
                 Ok(Ast::new(AstT::WhileLoop(Box::new(case)), r))
             }
+            KwT::For => {
+                let ident = match parser.next() {
+                    Some(i) => {
+                        let r = i.range();
+                        match i.into_expr().and_then(|e| e.as_ident()) {
+                            Some(i) => i,
+                            None => return Err(crate::Error::ExpectedIdent(r)),
+                        }
+                    }
+                    None => {
+                        let r = CRange::pos(kw.range.end);
+                        return Err(crate::Error::ExpectedIdent(r));
+                    }
+                };
+
+                match parser.next() {
+                    Some(Item::Kw(Kw { typ: KwT::In, .. })) => (),
+                    Some(i) => return Err(crate::Error::ExpectedKw(KwT::In, i.range())),
+                    None => {
+                        let r = CRange::pos(ident.range.end);
+                        return Err(crate::Error::ExpectedKw(KwT::In, r));
+                    }
+                }
+
+                let iter = self.parse_bp(parser, 0, range, true)?;
+
+                let group = match parser.next() {
+                    Some(Item::Group(g)) if g.par_kind.is_curly() => g,
+                    Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
+                    None => {
+                        let r = CRange::pos(iter.range.end);
+                        return Err(crate::Error::ExpectedBlock(r));
+                    }
+                };
+                let range = CRange::span(kw.range, group.range);
+                let block = self.parse_block(group)?;
+
+                let for_loop = ForLoop::new(ident, Box::new(iter), block);
+                Ok(Ast::new(AstT::ForLoop(for_loop), range))
+            }
+            KwT::In => Err(crate::Error::WrongContext(kw)),
         }
     }
 
@@ -592,7 +637,7 @@ impl Context {
         let range = CRange::span(kw.range, group.range);
         let block = self.parse_block(group)?;
 
-        Ok(CondBlock::new(cond, block, range))
+        Ok(CondBlock::new(cond, block.asts, range))
     }
 }
 

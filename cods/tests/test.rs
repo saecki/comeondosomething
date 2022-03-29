@@ -437,3 +437,27 @@ fn while_loop() {
         Val::Int(5),
     );
 }
+
+#[test]
+fn for_loop() {
+    assert(
+        r#"
+        sum = 0
+        for i in 0..10 {
+            sum += i
+        }
+        sum
+        "#,
+        Val::Int((0..10).sum()),
+    );
+    assert(
+        r#"
+        sum = 0
+        for i in 1..=10 {
+            sum += i
+        }
+        sum
+        "#,
+        Val::Int((1..=10).sum()),
+    );
+}

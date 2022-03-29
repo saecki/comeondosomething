@@ -50,6 +50,7 @@ pub enum AstT {
     Block(Vec<Ast>),
     IfExpr(IfExpr),
     WhileLoop(Box<CondBlock>),
+    ForLoop(ForLoop),
     Assign(IdentRange, Box<Ast>),
     AddAssign(IdentRange, Box<Ast>),
     SubAssign(IdentRange, Box<Ast>),
@@ -103,34 +104,65 @@ pub enum AstT {
 impl AstT {
     pub fn as_ident(&self) -> Option<IdentRange> {
         match self {
-            Self::Expr(e) => Some(IdentRange::new(e.as_ident()?, e.range)),
+            Self::Expr(e) => e.as_ident(),
             _ => None,
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct IfExpr {
-    pub cases: Vec<CondBlock>,
-    pub else_block: Option<Box<Ast>>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CondBlock {
-    pub cond: Ast,
-    pub block: Ast,
-    pub range: CRange,
-}
-
-impl CondBlock {
-    pub const fn new(cond: Ast, block: Ast, range: CRange) -> Self {
-        Self { cond, block, range }
     }
 }
 
 impl AstT {
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IfExpr {
+    pub cases: Vec<CondBlock>,
+    pub else_block: Option<Block>,
+}
+
+impl IfExpr {
+    pub const fn new(cases: Vec<CondBlock>, else_block: Option<Block>) -> Self {
+        Self { cases, else_block }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CondBlock {
+    pub cond: Ast,
+    pub block: Vec<Ast>,
+    pub range: CRange,
+}
+
+impl CondBlock {
+    pub const fn new(cond: Ast, block: Vec<Ast>, range: CRange) -> Self {
+        Self { cond, block, range }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ForLoop {
+    pub ident: IdentRange,
+    pub iter: Box<Ast>,
+    pub block: Block,
+}
+
+impl ForLoop {
+    pub const fn new(ident: IdentRange, iter: Box<Ast>, block: Block) -> Self {
+        Self { ident, iter, block }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Block {
+    pub asts: Vec<Ast>,
+    pub range: CRange,
+}
+
+impl Block {
+    pub const fn new(asts: Vec<Ast>, range: CRange) -> Self {
+        Self { asts, range }
     }
 }
 
@@ -179,6 +211,10 @@ impl Context {
         self.eval_ast(ast)?.to_bool()
     }
 
+    pub fn eval_to_range(&mut self, ast: &Ast) -> crate::Result<Range> {
+        self.eval_ast(ast)?.to_range()
+    }
+
     pub fn eval_ast(&mut self, ast: &Ast) -> crate::Result<Return> {
         let r = ast.range;
         match &ast.typ {
@@ -188,6 +224,7 @@ impl Context {
             AstT::Block(a) => self.block(a, r),
             AstT::IfExpr(a) => self.if_expr(a, r),
             AstT::WhileLoop(a) => self.while_loop(a, r),
+            AstT::ForLoop(a) => self.for_loop(a, r),
             AstT::Assign(a, b) => self.assign(a, b, r),
             AstT::AddAssign(a, b) => self.add_assign(a, b, r),
             AstT::SubAssign(a, b) => self.sub_assign(a, b, r),
@@ -252,7 +289,7 @@ impl Context {
         let r = match asts.split_last() {
             Some((last, others)) => {
                 for c in others {
-                    self.eval(c)?;
+                    self.eval_ast(c)?;
                 }
                 self.eval_ast(last)
             }
@@ -265,19 +302,35 @@ impl Context {
     fn if_expr(&mut self, if_expr: &IfExpr, range: CRange) -> crate::Result<Return> {
         for c in if_expr.cases.iter() {
             if self.eval_to_bool(&c.cond)? {
-                return self.eval_ast(&c.block);
+                return self.block(&c.block, range);
             }
         }
         if let Some(b) = &if_expr.else_block {
-            return self.eval_ast(b);
+            return self.block(&b.asts, b.range);
         }
         Ok(Return::Unit(range))
     }
 
-    fn while_loop(&mut self, whl: &CondBlock, range: CRange) -> crate::Result<Return> {
-        while self.eval_to_bool(&whl.cond)? {
-            self.eval_ast(&whl.block)?;
+    fn while_loop(&mut self, whl_loop: &CondBlock, range: CRange) -> crate::Result<Return> {
+        while self.eval_to_bool(&whl_loop.cond)? {
+            self.block(&whl_loop.block, range)?;
         }
+        Ok(Return::Unit(range))
+    }
+
+    fn for_loop(&mut self, for_loop: &ForLoop, range: CRange) -> crate::Result<Return> {
+        let iter = self.eval_to_range(&for_loop.iter)?;
+
+        for i in iter.iter() {
+            let mut scope = Scope::default();
+            scope.set_var(for_loop.ident.ident, Some(Val::Int(i)));
+            self.scopes.push(scope);
+            for c in for_loop.block.asts.iter() {
+                self.eval_ast(c)?;
+            }
+            self.scopes.pop();
+        }
+
         Ok(Return::Unit(range))
     }
 

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::{CRange, Context, Expr, ExprT, Val};
+use crate::{CRange, Context, Expr, ExprT, Range, Val};
 
 impl Context {
     pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
@@ -74,6 +74,10 @@ impl Return {
     pub fn into_str(self) -> crate::Result<String> {
         self.into_val()?.into_str()
     }
+
+    pub fn to_range(&self) -> crate::Result<Range> {
+        self.to_val()?.to_range()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -139,6 +143,12 @@ impl ValRange {
             }
         }
     }
+
+    pub fn to_range(&self) -> crate::Result<Range> {
+        self.val
+            .to_range()
+            .ok_or_else(|| crate::Error::ExpectedRange(self.clone()))
+    }
 }
 
 impl Val {
@@ -161,7 +171,7 @@ impl Val {
     pub fn to_int(&self) -> Option<i128> {
         match self {
             Self::Int(i) => Some(*i),
-            Self::Float(_) | Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
+            _ => None,
         }
     }
 
@@ -169,28 +179,35 @@ impl Val {
         match self {
             Self::Int(i) => Some(*i as f64),
             Self::Float(f) => Some(*f),
-            Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
+            _ => None,
         }
     }
 
     pub fn to_bool(&self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(*b),
-            Self::Int(_) | Self::Float(_) | Self::Str(_) | Self::Range(_) => None,
+            _ => None,
         }
     }
 
     pub fn to_str(&self) -> Option<&str> {
         match self {
             Self::Str(s) => Some(s),
-            Self::Int(_) | Self::Float(_) | Self::Bool(_) | Self::Range(_) => None,
+            _ => None,
         }
     }
 
     pub fn into_str(self) -> Option<String> {
         match self {
             Self::Str(s) => Some(s),
-            Self::Int(_) | Self::Float(_) | Self::Bool(_) | Self::Range(_) => None,
+            _ => None,
+        }
+    }
+
+    pub fn to_range(&self) -> Option<Range> {
+        match self {
+            Self::Range(r) => Some(*r),
+            _ => None,
         }
     }
 }

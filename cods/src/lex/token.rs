@@ -2,7 +2,7 @@ use std::f64::consts;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{CRange, Ident};
+use crate::{CRange, Ident, IdentRange};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -107,6 +107,13 @@ impl Expr {
     pub fn new(expr: ExprT, range: CRange) -> Self {
         Self { typ: expr, range }
     }
+
+    pub fn as_ident(&self) -> Option<IdentRange> {
+        match self.typ {
+            ExprT::Ident(i) => Some(IdentRange::new(i, self.range)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -130,13 +137,6 @@ impl ExprT {
 
     pub fn bool(b: bool) -> Self {
         Self::Val(Val::Bool(b))
-    }
-
-    pub fn as_ident(&self) -> Option<Ident> {
-        match self {
-            Self::Ident(i) => Some(*i),
-            _ => None,
-        }
     }
 }
 
@@ -196,7 +196,7 @@ impl Iterator for RangeIter {
         }
         let i = self.i;
         self.i += 1;
-        return Some(i);
+        Some(i)
     }
 }
 
@@ -496,6 +496,8 @@ pub enum KwT {
     If,
     Else,
     While,
+    For,
+    In,
 }
 
 impl KwT {
@@ -504,6 +506,8 @@ impl KwT {
             KwT::If => "if",
             KwT::Else => "else",
             KwT::While => "while",
+            KwT::For => "for",
+            KwT::In => "in",
         }
     }
 }
