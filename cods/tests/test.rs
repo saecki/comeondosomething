@@ -391,3 +391,29 @@ fn if_expr() {
         Val::Str("hi".into()),
     );
 }
+
+#[test]
+fn while_loop() {
+    assert(
+        r#"
+        i = 0
+        while i < 10 {
+            i = i + 1
+        }
+        i
+        "#,
+        Val::Int(10),
+    );
+    assert(
+        r#"
+        i = 20
+        c = 0;
+        while i > 0 {
+            i = i div 2
+            c = c + 1
+        }
+        c
+        "#,
+        Val::Int(5),
+    );
+}

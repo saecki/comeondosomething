@@ -49,6 +49,7 @@ pub enum AstT {
     Expr(Expr),
     Block(Vec<Ast>),
     IfExpr(IfExpr),
+    WhileLoop(Box<CondBlock>),
     Assign(Ident, Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
@@ -95,18 +96,18 @@ pub enum AstT {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IfExpr {
-    pub cases: Vec<Case>,
+    pub cases: Vec<CondBlock>,
     pub else_block: Option<Box<Ast>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Case {
+pub struct CondBlock {
     pub cond: Ast,
     pub block: Ast,
     pub range: Range,
 }
 
-impl Case {
+impl CondBlock {
     pub const fn new(cond: Ast, block: Ast, range: Range) -> Self {
         Self { cond, block, range }
     }
@@ -171,6 +172,7 @@ impl Context {
             AstT::Expr(e) => ok(self.to_val(e)?.clone(), r),
             AstT::Block(a) => self.block(a, r),
             AstT::IfExpr(a) => self.if_expr(a, r),
+            AstT::WhileLoop(a) => self.while_loop(a, r),
             AstT::Assign(a, b) => self.assign(*a, b, r),
             AstT::Neg(a) => self.neg(a, r),
             AstT::Add(a, b) => self.add(a, b, r),
@@ -247,6 +249,13 @@ impl Context {
         }
         if let Some(b) = &if_expr.else_block {
             return self.eval_ast(b);
+        }
+        Ok(Return::Unit(range))
+    }
+
+    fn while_loop(&mut self, whl: &CondBlock, range: Range) -> crate::Result<Return> {
+        while self.eval_to_bool(&whl.cond)? {
+            self.eval_ast(&whl.block)?;
         }
         Ok(Return::Unit(range))
     }

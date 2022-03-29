@@ -2,7 +2,7 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, Case, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
+    Ast, AstT, CondBlock, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
 };
 
 pub use op::*;
@@ -508,7 +508,7 @@ impl Context {
             KwT::If => {
                 let mut cases = Vec::new();
                 let mut else_block = None;
-                let first_case = self.parse_if_case(parser, kw, range)?;
+                let first_case = self.parse_cond_block(parser, kw, range)?;
                 let mut last_range = first_case.range;
                 cases.push(first_case);
 
@@ -522,7 +522,7 @@ impl Context {
 
                     match parser.next() {
                         Some(Item::Kw(k)) if k.typ == KwT::If => {
-                            let case = self.parse_if_case(parser, k, range)?;
+                            let case = self.parse_cond_block(parser, k, range)?;
                             last_range = case.range;
                             cases.push(case);
                         }
@@ -543,10 +543,15 @@ impl Context {
                 Ok(Ast::new(AstT::IfExpr(if_expr), if_r))
             }
             KwT::Else => Err(crate::Error::WrongContext(kw)),
+            KwT::While => {
+                let case = self.parse_cond_block(parser, kw, range)?;
+                let r = case.range;
+                Ok(Ast::new(AstT::WhileLoop(Box::new(case)), r))
+            }
         }
     }
 
-    fn parse_if_case(&mut self, parser: &mut Parser, kw: Kw, range: Range) -> crate::Result<Case> {
+    fn parse_cond_block(&mut self, parser: &mut Parser, kw: Kw, range: Range) -> crate::Result<CondBlock> {
         let cond_r = Range::of(kw.range.end, range.end);
         let cond = self.parse_bp(parser, 0, cond_r, true)?;
 
@@ -561,7 +566,7 @@ impl Context {
         let range = Range::span(kw.range, group.range);
         let block = self.parse_block(group)?;
 
-        Ok(Case::new(cond, block, range))
+        Ok(CondBlock::new(cond, block, range))
     }
 }
 

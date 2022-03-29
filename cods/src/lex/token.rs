@@ -413,6 +413,7 @@ impl Kw {
 pub enum KwT {
     If,
     Else,
+    While,
 }
 
 impl KwT {
@@ -420,6 +421,7 @@ impl KwT {
         match self {
             KwT::If => "if",
             KwT::Else => "else",
+            KwT::While => "while",
         }
     }
 }

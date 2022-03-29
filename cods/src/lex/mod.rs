@@ -185,6 +185,7 @@ impl Context {
                     "rad" => Token::op(OpT::Radian, range),
                     "if" => Token::kw(KwT::If, range),
                     "else" => Token::kw(KwT::Else, range),
+                    "while" => Token::kw(KwT::While, range),
                     _ => {
                         if literal.chars().next().unwrap().is_digit(10) {
                             let mut mood = None;
