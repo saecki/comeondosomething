@@ -1,4 +1,4 @@
-use crate::{Context, Range};
+use crate::{CRange, Context};
 
 use super::Lexer;
 
@@ -8,7 +8,7 @@ impl Context {
         let c = match lexer.next() {
             Some(c) => c,
             None => {
-                let r = Range::pos(lexer.pos());
+                let r = CRange::pos(lexer.pos());
                 return Err(EscError {
                     error: crate::Error::MissingEscapeChar(r),
                     end_str: false,
@@ -30,7 +30,7 @@ impl Context {
                 '\\' => '\\',
                 _ => {
                     return Err(EscError {
-                        error: crate::Error::InvalidEscapeChar(c, Range::pos(lexer.pos())),
+                        error: crate::Error::InvalidEscapeChar(c, CRange::pos(lexer.pos())),
                         end_str: false,
                         fail: false,
                     })
@@ -62,7 +62,7 @@ fn unicode_escape_char(
     let mut i = 0;
     while let Some(c) = lexer.next() {
         if c == ' ' || c == '"' {
-            let range = Range::pos(lexer.pos());
+            let range = CRange::pos(lexer.pos());
             let end_str = c == '"';
             return Err(EscError {
                 error: crate::Error::MissingUnicodeEscapeChar {
@@ -99,7 +99,7 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: usize) -> Result
         }
 
         if c == ' ' || c == '"' {
-            let e_r = Range::pos(lexer.pos());
+            let e_r = CRange::pos(lexer.pos());
             let s_r = e_r.offset(-(i + 1));
             let end_str = c == '"';
             return Err(EscError {
@@ -118,7 +118,7 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: usize) -> Result
     }
 
     if i > 6 {
-        let r = Range::of(esc_start, lexer.pos() + 1);
+        let r = CRange::of(esc_start, lexer.pos() + 1);
         return Err(EscError {
             error: crate::Error::OverlongUnicodeEscape(r),
             end_str: false,
@@ -135,7 +135,7 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
         'a'..='f' => Ok(c as u32 - 'a' as u32 + 10),
         'A'..='F' => Ok(c as u32 - 'A' as u32 + 10),
         _ => {
-            let r = Range::pos(lexer.pos());
+            let r = CRange::pos(lexer.pos());
             Err(EscError {
                 error: crate::Error::InvalidUnicodeEscapeChar(c, r),
                 end_str: false,
@@ -149,7 +149,7 @@ fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: usize) -> Result<
     match char::from_u32(cp) {
         Some(char) => Ok(char),
         None => {
-            let r = Range::of(esc_start, lexer.pos() + 1);
+            let r = CRange::of(esc_start, lexer.pos() + 1);
             Err(EscError {
                 error: crate::Error::InvalidUnicodeScalar(cp, r),
                 end_str: false,

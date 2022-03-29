@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Context, Ident, Range, Val, ValRange};
+use crate::{CRange, Context, Ident, Val, ValRange};
 
 impl Context {
     pub fn resolve_var<'a>(&'a self, id: &IdentRange) -> crate::Result<ValRange> {
@@ -113,11 +113,11 @@ impl Var {
 #[derive(Clone, Debug, PartialEq)]
 pub struct IdentRange {
     pub ident: Ident,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl IdentRange {
-    pub const fn new(ident: Ident, range: Range) -> Self {
+    pub const fn new(ident: Ident, range: CRange) -> Self {
         Self { ident, range }
     }
 }

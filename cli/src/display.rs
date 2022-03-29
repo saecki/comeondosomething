@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::marker::PhantomData;
 
-use cods::{Range, UserFacing};
+use cods::{CRange, UserFacing};
 use unicode_width::UnicodeWidthChar;
 
 use crate::style::{LRed, LYellow};
@@ -40,7 +40,7 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
                 .map(|r| {
                     let ms = r.start.saturating_sub(lr.start);
                     let me = min(r.end.saturating_sub(lr.start), lr.len());
-                    Range::of(ms, me)
+                    CRange::of(ms, me)
                 })
                 .collect();
 
@@ -76,7 +76,7 @@ fn mark_ranges<C: Color>(
     line_nr: usize,
     nr_width: usize,
     line: &str,
-    ranges: &[Range],
+    ranges: &[CRange],
 ) -> fmt::Result {
     write!(
         f,
@@ -140,7 +140,7 @@ fn mark_ranges<C: Color>(
     Ok(())
 }
 
-fn range_lines(string: &str) -> Vec<(Range, &str)> {
+fn range_lines(string: &str) -> Vec<(CRange, &str)> {
     let mut lines = Vec::new();
     let mut line_start = (0, 0);
     let mut pos = (0, 0);
@@ -150,14 +150,14 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     while let Some(c) = chars.next() {
         match c {
             '\r' => {
-                let range = Range::of(line_start.0, pos.0 + 1);
+                let range = CRange::of(line_start.0, pos.0 + 1);
                 let line = &string[line_start.1..pos.1];
                 lines.push((range, line));
                 pushed_line = true;
             }
             '\n' => {
                 if !pushed_line {
-                    let range = Range::of(line_start.0, pos.0 + 1);
+                    let range = CRange::of(line_start.0, pos.0 + 1);
                     let line = &string[line_start.1..pos.1];
                     lines.push((range, line));
                 }
@@ -175,7 +175,7 @@ fn range_lines(string: &str) -> Vec<(Range, &str)> {
     }
 
     if !pushed_line {
-        let range = Range::of(line_start.0, pos.0 + 1);
+        let range = CRange::of(line_start.0, pos.0 + 1);
         let line = &string[line_start.1..pos.1];
         lines.push((range, line));
     }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::{Context, Expr, ExprT, Range, Val};
+use crate::{CRange, Context, Expr, ExprT, Val};
 
 impl Context {
     pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
@@ -21,7 +21,7 @@ impl Context {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {
     Val(ValRange),
-    Unit(Range),
+    Unit(CRange),
 }
 
 impl Display for Return {
@@ -34,7 +34,7 @@ impl Display for Return {
 }
 
 impl Return {
-    pub fn range(&self) -> Range {
+    pub fn range(&self) -> CRange {
         match self {
             Self::Val(v) => v.range,
             Self::Unit(r) => *r,
@@ -79,7 +79,7 @@ impl Return {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValRange {
     pub val: Val,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for ValRange {
@@ -103,7 +103,7 @@ impl Display for ValRange {
 }
 
 impl ValRange {
-    pub const fn new(val: Val, range: Range) -> Self {
+    pub const fn new(val: Val, range: CRange) -> Self {
         Self { val, range }
     }
 

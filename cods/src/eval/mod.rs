@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, Expr, Range, Val};
+use crate::{CRange, Context, Expr, Val};
 
 pub use val::*;
 pub use var::*;
@@ -14,7 +14,7 @@ mod var;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
     pub typ: AstT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for Ast {
@@ -32,7 +32,7 @@ impl DerefMut for Ast {
 }
 
 impl Ast {
-    pub fn new(typ: AstT, range: Range) -> Self {
+    pub fn new(typ: AstT, range: CRange) -> Self {
         Self { typ, range }
     }
 
@@ -117,11 +117,11 @@ pub struct IfExpr {
 pub struct CondBlock {
     pub cond: Ast,
     pub block: Ast,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl CondBlock {
-    pub const fn new(cond: Ast, block: Ast, range: Range) -> Self {
+    pub const fn new(cond: Ast, block: Ast, range: CRange) -> Self {
         Self { cond, block, range }
     }
 }
@@ -243,7 +243,7 @@ impl Context {
         })
     }
 
-    fn block(&mut self, asts: &[Ast], range: Range) -> crate::Result<Return> {
+    fn block(&mut self, asts: &[Ast], range: CRange) -> crate::Result<Return> {
         self.scopes.push(Scope::default());
         let r = match asts.split_last() {
             Some((last, others)) => {
@@ -258,7 +258,7 @@ impl Context {
         r
     }
 
-    fn if_expr(&mut self, if_expr: &IfExpr, range: Range) -> crate::Result<Return> {
+    fn if_expr(&mut self, if_expr: &IfExpr, range: CRange) -> crate::Result<Return> {
         for c in if_expr.cases.iter() {
             if self.eval_to_bool(&c.cond)? {
                 return self.eval_ast(&c.block);
@@ -270,20 +270,20 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn while_loop(&mut self, whl: &CondBlock, range: Range) -> crate::Result<Return> {
+    fn while_loop(&mut self, whl: &CondBlock, range: CRange) -> crate::Result<Return> {
         while self.eval_to_bool(&whl.cond)? {
             self.eval_ast(&whl.block)?;
         }
         Ok(Return::Unit(range))
     }
 
-    fn assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let v = self.eval_to_val(b)?;
         self.set_var(id.ident, Some(v.val));
         Ok(Return::Unit(range))
     }
 
-    fn add_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn add_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_add(va, vb)?;
@@ -291,7 +291,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn sub_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn sub_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_sub(va, vb)?;
@@ -299,7 +299,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn mul_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn mul_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_mul(va, vb)?;
@@ -307,7 +307,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn div_assign(&mut self, id: &IdentRange, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn div_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_div(va, vb)?;
@@ -315,7 +315,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn neg(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn neg(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let v = self.eval_to_val(n)?;
         let val = match v.val {
             Val::Int(i) => Val::Int(-i),
@@ -324,35 +324,35 @@ impl Context {
         return_val(val, range)
     }
 
-    fn add(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn add(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_add(va, vb)?;
         return_val(val, range)
     }
 
-    fn sub(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn sub(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
         let val = checked_sub(va, vb)?;
         return_val(val, range)
     }
 
-    fn mul(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn mul(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
         let val = checked_mul(va, vb)?;
         return_val(val, range)
     }
 
-    fn div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn div(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
         let val = checked_div(va, vb)?;
         return_val(val, range)
     }
 
-    fn int_div(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn int_div(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
@@ -369,7 +369,7 @@ impl Context {
         return_val(val, range)
     }
 
-    fn rem(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn rem(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
@@ -391,7 +391,7 @@ impl Context {
         return_val(val, range)
     }
 
-    fn pow(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn pow(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
 
@@ -410,63 +410,63 @@ impl Context {
         return_val(val, range)
     }
 
-    fn eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn eq(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_val(a)?;
         let b = self.eval_to_val(b)?;
 
         return_val(Val::Bool(a.val == b.val), range)
     }
 
-    fn ne(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn ne(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_val(a)?;
         let b = self.eval_to_val(b)?;
 
         return_val(Val::Bool(a.val != b.val), range)
     }
 
-    fn lt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn lt(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
         return_val(Val::Bool(va < vb), range)
     }
 
-    fn le(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn le(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
         return_val(Val::Bool(va <= vb), range)
     }
 
-    fn gt(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn gt(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
         return_val(Val::Bool(va > vb), range)
     }
 
-    fn ge(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn ge(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_f64(a)?;
         let vb = self.eval_to_f64(b)?;
 
         return_val(Val::Bool(va >= vb), range)
     }
 
-    fn or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn or(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_bool(a)?;
         let b = self.eval_to_bool(b)?;
 
         return_val(Val::Bool(a || b), range)
     }
 
-    fn and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn and(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_bool(a)?;
         let b = self.eval_to_bool(b)?;
 
         return_val(Val::Bool(a && b), range)
     }
 
-    fn bw_or(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn bw_or(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
 
@@ -479,7 +479,7 @@ impl Context {
         return_val(val, range)
     }
 
-    fn bw_and(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn bw_and(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
 
@@ -492,23 +492,23 @@ impl Context {
         return_val(val, range)
     }
 
-    fn not(&mut self, a: &Ast, range: Range) -> crate::Result<Return> {
+    fn not(&mut self, a: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_bool(a)?;
         return_val(Val::Bool(!va), range)
     }
 
     // TODO add a angle value type as input for trigeometrical functions
-    fn degree(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn degree(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?.to_radians();
         return_val(Val::Float(rad), range)
     }
 
-    fn radian(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn radian(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?;
         return_val(Val::Float(rad), range)
     }
 
-    fn factorial(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn factorial(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let v = self.eval_to_val(n)?;
         match v.val {
             Val::Int(i) => {
@@ -530,24 +530,24 @@ impl Context {
         }
     }
 
-    fn ln(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn ln(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let val = self.eval_to_f64(n)?.ln();
         return_val(Val::Float(val), range)
     }
 
-    fn log(&mut self, base: &Ast, num: &Ast, range: Range) -> crate::Result<Return> {
+    fn log(&mut self, base: &Ast, num: &Ast, range: CRange) -> crate::Result<Return> {
         let b = self.eval_to_f64(base)?;
         let n = self.eval_to_f64(num)?;
         let val = Val::Float(n.log(b));
         return_val(val, range)
     }
 
-    fn sqrt(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn sqrt(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let val = self.eval_to_f64(n)?.sqrt();
         return_val(Val::Float(val), range)
     }
 
-    fn ncr(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn ncr(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
         let val = match (&va.val, &vb.val) {
@@ -577,37 +577,37 @@ impl Context {
         return_val(val, range)
     }
 
-    fn sin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn sin(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.sin();
         return_val(Val::Float(a), range)
     }
 
-    fn cos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn cos(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.cos();
         return_val(Val::Float(a), range)
     }
 
-    fn tan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn tan(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.tan();
         return_val(Val::Float(a), range)
     }
 
-    fn asin(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn asin(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.asin();
         return_val(Val::Float(a), range)
     }
 
-    fn acos(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn acos(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.acos();
         return_val(Val::Float(a), range)
     }
 
-    fn atan(&mut self, n: &Ast, range: Range) -> crate::Result<Return> {
+    fn atan(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let a = self.eval_to_f64(n)?.atan();
         return_val(Val::Float(a), range)
     }
 
-    fn gcd(&mut self, n1: &Ast, n2: &Ast, range: Range) -> crate::Result<Return> {
+    fn gcd(&mut self, n1: &Ast, n2: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(n1)?;
         let vb = self.eval_to_val(n2)?;
         match (&va.val, &vb.val) {
@@ -624,7 +624,7 @@ impl Context {
         }
     }
 
-    fn min(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+    fn min(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         let mut min = None;
         for a in args {
             let val = self.eval_to_val(a)?.to_f64()?;
@@ -642,7 +642,7 @@ impl Context {
         return_val(Val::Float(max), range)
     }
 
-    fn max(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+    fn max(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         let mut max = None;
         for a in args {
             let val = self.eval_to_f64(a)?;
@@ -660,7 +660,7 @@ impl Context {
         return_val(Val::Float(max), range)
     }
 
-    fn clamp(&mut self, num: &Ast, min: &Ast, max: &Ast, range: Range) -> crate::Result<Return> {
+    fn clamp(&mut self, num: &Ast, min: &Ast, max: &Ast, range: CRange) -> crate::Result<Return> {
         let vnum = self.eval_to_val(num)?;
         let vmin = self.eval_to_val(min)?;
         let vmax = self.eval_to_val(max)?;
@@ -687,7 +687,7 @@ impl Context {
         return_val(val, range)
     }
 
-    fn print(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+    fn print(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         let vals = self.eval_to_vals(args)?;
         if let Some((first, others)) = vals.split_first() {
             print!("{first}");
@@ -698,13 +698,13 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn println(&mut self, args: &[Ast], range: Range) -> crate::Result<Return> {
+    fn println(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         self.print(args, range)?;
         println!();
         Ok(Return::Unit(range))
     }
 
-    fn spill(&mut self, range: Range) -> crate::Result<Return> {
+    fn spill(&mut self, range: CRange) -> crate::Result<Return> {
         for s in self.scopes.iter() {
             for (id, var) in s.vars.iter() {
                 if let Some(val) = &var.value {
@@ -716,7 +716,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn assert(&mut self, a: &Ast, range: Range) -> crate::Result<Return> {
+    fn assert(&mut self, a: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_bool(a)?;
 
         if !va {
@@ -726,7 +726,7 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn assert_eq(&mut self, a: &Ast, b: &Ast, range: Range) -> crate::Result<Return> {
+    fn assert_eq(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.eval_to_val(a)?;
         let vb = self.eval_to_val(b)?;
 
@@ -791,6 +791,6 @@ fn checked_div(va: ValRange, vb: ValRange) -> crate::Result<Val> {
     }
 }
 
-fn return_val(val: Val, range: Range) -> crate::Result<Return> {
+fn return_val(val: Val, range: CRange) -> crate::Result<Return> {
     Ok(Return::Val(ValRange::new(val, range)))
 }

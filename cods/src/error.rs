@@ -1,70 +1,70 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Item, Kw, Op, Par, Range};
+use crate::{CRange, Item, Kw, Op, Par};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait UserFacing: Sized + Debug + Display {
-    fn ranges(&self) -> Vec<Range>;
+    fn ranges(&self) -> Vec<CRange>;
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    NotImplemented(&'static str, Range),
+    NotImplemented(&'static str, CRange),
 
     // Lex
-    InvalidChar(Range),
-    InvalidNumberFormat(Range),
-    InvalidEscapeChar(char, Range),
-    MissingEscapeChar(Range),
-    InvalidUnicodeEscapeChar(char, Range),
+    InvalidChar(CRange),
+    InvalidNumberFormat(CRange),
+    InvalidEscapeChar(char, CRange),
+    MissingEscapeChar(CRange),
+    InvalidUnicodeEscapeChar(char, CRange),
     MissingUnicodeEscapeChar {
-        range: Range,
+        range: CRange,
         expected: usize,
         found: usize,
     },
-    MissingClosingUnicodeEscapePar(Range, Range),
-    OverlongUnicodeEscape(Range),
-    InvalidUnicodeScalar(u32, Range),
-    MissingClosingQuote(Range),
+    MissingClosingUnicodeEscapePar(CRange, CRange),
+    OverlongUnicodeEscape(CRange),
+    InvalidUnicodeScalar(u32, CRange),
+    MissingClosingQuote(CRange),
 
     // Group
     MissingClosingPar(Par),
     UnexpectedPar(Par),
 
     // Parse
-    MissingOperand(Range),
-    MissingOperator(Range),
-    MissingFunPars(Range),
-    NotFunPars(Range, Range),
+    MissingOperand(CRange),
+    MissingOperator(CRange),
+    MissingFunPars(CRange),
+    NotFunPars(CRange, CRange),
     MissingFunArgs {
-        range: Range,
+        range: CRange,
         expected: usize,
         found: usize,
     },
     UnexpectedFunArgs {
-        ranges: Vec<Range>,
+        ranges: Vec<CRange>,
         expected: usize,
         found: usize,
     },
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
-    ExpectedBlock(Range),
+    ExpectedBlock(CRange),
     WrongContext(Kw),
 
     // Eval
     MissingExpr,
-    ExpectedValue(Range),
+    ExpectedValue(CRange),
     ExpectedNumber(ValRange),
     ExpectedInt(ValRange),
     ExpectedBool(ValRange),
     ExpectedStr(ValRange),
-    Parsing(Range),
+    Parsing(CRange),
 
-    UndefinedVar(String, Range),
+    UndefinedVar(String, CRange),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
     MulOverflow(ValRange, ValRange),
@@ -83,8 +83,8 @@ pub enum Error {
     InvalidClampBounds(ValRange, ValRange),
     InvalidBwOr(ValRange, ValRange),
     InvalidBwAnd(ValRange, ValRange),
-    InvalidAssignment(Range, Range),
-    AssertFailed(Range),
+    InvalidAssignment(CRange, CRange),
+    AssertFailed(CRange),
     AssertEqFailed(ValRange, ValRange),
 }
 
@@ -270,7 +270,7 @@ impl Display for Error {
 }
 
 impl UserFacing for Error {
-    fn ranges(&self) -> Vec<Range> {
+    fn ranges(&self) -> Vec<CRange> {
         match self {
             // Lex
             Self::InvalidChar(r) => vec![*r],
@@ -338,7 +338,7 @@ impl UserFacing for Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
-    ConfusingCase(Range, &'static str),
+    ConfusingCase(CRange, &'static str),
     // TODO
     // SignFollowingAddition(Range, Range, Sign, usize),
     // SignFollowingSubtraction(Range, Range, Sign, usize),
@@ -382,7 +382,7 @@ impl Display for Warning {
 }
 
 impl UserFacing for Warning {
-    fn ranges(&self) -> Vec<Range> {
+    fn ranges(&self) -> Vec<CRange> {
         match self {
             Self::ConfusingCase(r, _) => vec![*r],
             // Self::SignFollowingAddition(or, sr, s, _) => {

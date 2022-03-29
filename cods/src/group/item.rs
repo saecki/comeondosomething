@@ -1,4 +1,4 @@
-use crate::{Expr, Fun, Kw, Op, ParKind, Range, Sep, Token};
+use crate::{CRange, Expr, Fun, Kw, Op, ParKind, Sep, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -91,7 +91,7 @@ impl Item {
         }
     }
 
-    pub fn range(&self) -> Range {
+    pub fn range(&self) -> CRange {
         match self {
             Self::Group(g) => g.range,
             Self::Expr(n) => n.range,
@@ -106,12 +106,12 @@ impl Item {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Group {
     pub items: Vec<Item>,
-    pub range: Range,
+    pub range: CRange,
     pub par_kind: ParKind,
 }
 
 impl Group {
-    pub fn new(items: Vec<Item>, range: Range, par: ParKind) -> Self {
+    pub fn new(items: Vec<Item>, range: CRange, par: ParKind) -> Self {
         Self {
             items,
             range,

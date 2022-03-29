@@ -2,7 +2,7 @@ use std::f64::consts;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{Ident, Range};
+use crate::{CRange, Ident};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -15,27 +15,27 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn expr(val: ExprT, range: Range) -> Self {
+    pub fn expr(val: ExprT, range: CRange) -> Self {
         Self::Expr(Expr::new(val, range))
     }
 
-    pub fn op(typ: OpT, range: Range) -> Self {
+    pub fn op(typ: OpT, range: CRange) -> Self {
         Self::Op(Op::new(typ, range))
     }
 
-    pub fn fun(typ: FunT, range: Range) -> Self {
+    pub fn fun(typ: FunT, range: CRange) -> Self {
         Self::Fun(Fun::new(typ, range))
     }
 
-    pub fn par(typ: ParT, range: Range) -> Self {
+    pub fn par(typ: ParT, range: CRange) -> Self {
         Self::Par(Par::new(typ, range))
     }
 
-    pub fn sep(typ: SepT, range: Range) -> Self {
+    pub fn sep(typ: SepT, range: CRange) -> Self {
         Self::Sep(Sep::new(typ, range))
     }
 
-    pub fn kw(typ: KwT, range: Range) -> Self {
+    pub fn kw(typ: KwT, range: CRange) -> Self {
         Self::Kw(Kw::new(typ, range))
     }
 
@@ -77,7 +77,7 @@ impl Token {
         }
     }
 
-    pub fn range(&self) -> Range {
+    pub fn range(&self) -> CRange {
         match self {
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
@@ -92,7 +92,7 @@ impl Token {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Expr {
     pub typ: ExprT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for Expr {
@@ -104,7 +104,7 @@ impl Deref for Expr {
 }
 
 impl Expr {
-    pub fn new(expr: ExprT, range: Range) -> Self {
+    pub fn new(expr: ExprT, range: CRange) -> Self {
         Self { typ: expr, range }
     }
 }
@@ -173,11 +173,11 @@ impl Val {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Op {
     pub typ: OpT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Op {
-    pub const fn new(typ: OpT, range: Range) -> Self {
+    pub const fn new(typ: OpT, range: CRange) -> Self {
         Op { typ, range }
     }
 }
@@ -229,11 +229,11 @@ pub enum OpT {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Fun {
     pub typ: FunT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Fun {
-    pub const fn new(typ: FunT, range: Range) -> Self {
+    pub const fn new(typ: FunT, range: CRange) -> Self {
         Self { typ, range }
     }
 }
@@ -265,7 +265,7 @@ pub enum FunT {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Par {
     pub typ: ParT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for Par {
@@ -283,7 +283,7 @@ impl DerefMut for Par {
 }
 
 impl Par {
-    pub const fn new(typ: ParT, range: Range) -> Self {
+    pub const fn new(typ: ParT, range: CRange) -> Self {
         Self { typ, range }
     }
 }
@@ -354,7 +354,7 @@ impl ParKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Sep {
     pub typ: SepT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for Sep {
@@ -366,7 +366,7 @@ impl Deref for Sep {
 }
 
 impl Sep {
-    pub const fn new(typ: SepT, range: Range) -> Self {
+    pub const fn new(typ: SepT, range: CRange) -> Self {
         Self { typ, range }
     }
 }
@@ -405,7 +405,7 @@ impl SepT {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Kw {
     pub typ: KwT,
-    pub range: Range,
+    pub range: CRange,
 }
 
 impl Deref for Kw {
@@ -423,7 +423,7 @@ impl DerefMut for Kw {
 }
 
 impl Kw {
-    pub const fn new(typ: KwT, range: Range) -> Self {
+    pub const fn new(typ: KwT, range: CRange) -> Self {
         Self { typ, range }
     }
 }

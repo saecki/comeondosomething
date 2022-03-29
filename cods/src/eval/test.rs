@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Ast, Context, Expr, ExprT, Ident, Range, Scope, Val, Var};
+use crate::{Ast, CRange, Context, Expr, ExprT, Ident, Scope, Val, Var};
 
 #[test]
 fn resolve_var() {
@@ -11,7 +11,7 @@ fn resolve_var() {
         }],
         ..Default::default()
     };
-    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), Range::pos(0)));
+    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), CRange::pos(0)));
 
     let val = ctx.eval(&expr).unwrap().unwrap();
     assert_eq!(Val::Int(4), val);
@@ -26,10 +26,10 @@ fn undefined_var() {
         }],
         ..Default::default()
     };
-    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), Range::pos(0)));
+    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), CRange::pos(0)));
 
     let val = ctx.eval(&expr).unwrap_err();
-    assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);
+    assert_eq!(crate::Error::UndefinedVar("x".into(), CRange::pos(0)), val);
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn undefined_outside_scope() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::UndefinedVar("x".into(), Range::pos(19))
+        crate::Error::UndefinedVar("x".into(), CRange::pos(19))
     );
 }
 

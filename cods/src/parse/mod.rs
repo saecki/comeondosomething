@@ -2,7 +2,7 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, CondBlock, Context, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
+    Ast, AstT, CRange, CondBlock, Context, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, SepT,
 };
 
 pub use op::*;
@@ -15,11 +15,11 @@ mod test;
 
 impl Context {
     pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Ast>> {
-        let range = items_range(&items).unwrap_or(Range::of(0, 0));
+        let range = items_range(&items).unwrap_or(CRange::of(0, 0));
         self.parse_items(items, range)
     }
 
-    fn parse_items(&mut self, items: Vec<Item>, mut range: Range) -> crate::Result<Vec<Ast>> {
+    fn parse_items(&mut self, items: Vec<Item>, mut range: CRange) -> crate::Result<Vec<Ast>> {
         let sep_count = items.iter().filter(|i| i.is_semi()).count();
         let mut asts: Vec<Ast> = Vec::with_capacity(sep_count + 1);
 
@@ -44,7 +44,7 @@ impl Context {
         &mut self,
         parser: &mut Parser,
         min_bp: u8,
-        range: Range,
+        range: CRange,
     ) -> crate::Result<Ast> {
         let ast = self.parse_bp(parser, min_bp, range, false)?;
         while let Some(i) = parser.next() {
@@ -59,7 +59,7 @@ impl Context {
         &mut self,
         parser: &mut Parser,
         min_bp: u8,
-        range: Range,
+        range: CRange,
         cond: bool,
     ) -> crate::Result<Ast> {
         let mut lhs = match parser.peek() {
@@ -100,13 +100,13 @@ impl Context {
                 };
 
                 if parser.peek().is_none() {
-                    let r = Range::pos(o.range.end);
+                    let r = CRange::pos(o.range.end);
                     return Err(crate::Error::MissingOperand(r));
                 }
 
-                let val_r = Range::of(o.range.end, range.end);
+                let val_r = CRange::of(o.range.end, range.end);
                 let val = self.parse_bp(parser, r_bp, val_r, cond)?;
-                let ast_r = Range::span(o.range, val.range);
+                let ast_r = CRange::span(o.range, val.range);
                 let ast = match prefix {
                     Prefix::UnaryPlus => val.typ,
                     Prefix::UnaryMinus => AstT::Neg(Box::new(val)),
@@ -122,13 +122,13 @@ impl Context {
                     return Ok(Ast::new(AstT::Error, range));
                 }
                 SepT::Semi | SepT::Newln => {
-                    let r = Range::of(range.start, s.range.end);
+                    let r = CRange::of(range.start, s.range.end);
                     return Ok(Ast::new(AstT::Empty, r));
                 }
             },
             Some(&Item::Kw(k)) => {
                 parser.next();
-                let r = Range::span(k.range, range);
+                let r = CRange::span(k.range, range);
                 self.parse_lang_construct(parser, k, r)?
             }
             None => return Ok(Ast::new(AstT::Empty, range)),
@@ -153,7 +153,7 @@ impl Context {
                         break;
                     }
 
-                    let r = Range::between(lhs.range, g.range);
+                    let r = CRange::between(lhs.range, g.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 Item::Expr(e) => {
@@ -161,7 +161,7 @@ impl Context {
                         break;
                     }
 
-                    let r = Range::between(lhs.range, e.range);
+                    let r = CRange::between(lhs.range, e.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 Item::Fun(f) => {
@@ -169,7 +169,7 @@ impl Context {
                         break;
                     }
 
-                    let r = Range::between(lhs.range, f.range);
+                    let r = CRange::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 &Item::Op(o) => o,
@@ -185,7 +185,7 @@ impl Context {
                         break;
                     }
 
-                    let r = Range::between(lhs.range, k.range);
+                    let r = CRange::between(lhs.range, k.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
             };
@@ -197,7 +197,7 @@ impl Context {
                     parser.next();
                 }
 
-                let val_r = Range::span(lhs.range, op.range);
+                let val_r = CRange::span(lhs.range, op.range);
                 let val = match postfix {
                     Postfix::Degree => AstT::Degree(Box::new(lhs)),
                     Postfix::Radian => AstT::Radian(Box::new(lhs)),
@@ -211,7 +211,7 @@ impl Context {
             let (l_bp, infix, r_bp) = match op.infix_bp() {
                 Some(bp) => bp,
                 None => {
-                    let r = Range::between(lhs.range, op.range);
+                    let r = CRange::between(lhs.range, op.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
             };
@@ -221,15 +221,15 @@ impl Context {
                 parser.next();
             }
 
-            let rhs_r = Range::of(op.range.end, range.end);
+            let rhs_r = CRange::of(op.range.end, range.end);
             let rhs = self.parse_bp(parser, r_bp, rhs_r, cond)?;
 
             if let AstT::Empty = rhs.typ {
-                let r = Range::pos(op.range.end);
+                let r = CRange::pos(op.range.end);
                 return Err(crate::Error::MissingOperand(r));
             }
 
-            let val_r = Range::span(lhs.range, rhs.range);
+            let val_r = CRange::span(lhs.range, rhs.range);
             let val = match infix {
                 Infix::Assign => match lhs.as_ident() {
                     Some(id) => AstT::Assign(id, Box::new(rhs)),
@@ -290,14 +290,14 @@ impl Context {
             Some(Item::Group(g)) => match g.par_kind {
                 ParKind::Round => g,
                 _ => {
-                    let s_r = Range::pos(g.range.start);
-                    let e_r = Range::pos(g.range.end - 1);
+                    let s_r = CRange::pos(g.range.start);
+                    let e_r = CRange::pos(g.range.end - 1);
                     self.errors.push(crate::Error::NotFunPars(s_r, e_r));
                     return Ok(Ast::new(AstT::Error, fun.range));
                 }
             },
             _ => {
-                let r = Range::pos(fun.range.end);
+                let r = CRange::pos(fun.range.end);
                 return Err(crate::Error::MissingFunPars(r));
             }
         };
@@ -384,7 +384,7 @@ impl Context {
                 AstT::AssertEq(Box::new(a), Box::new(b))
             }
         };
-        let r = Range::span(fun.range, g.range);
+        let r = CRange::span(fun.range, g.range);
         Ok(Ast::new(f, r))
     }
 
@@ -393,7 +393,7 @@ impl Context {
         min: usize,
         max: usize,
         items: Vec<Item>,
-        range: Range,
+        range: CRange,
     ) -> crate::Result<Vec<Ast>> {
         let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
         let mut args = Vec::with_capacity(cmp::min(arg_count, max));
@@ -404,7 +404,7 @@ impl Context {
 
         for (i, it) in items.into_iter().enumerate() {
             if it.is_comma() {
-                let r = Range::of(start.1, it.range().start);
+                let r = CRange::of(start.1, it.range().start);
                 if parsed_args < max {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
@@ -420,7 +420,7 @@ impl Context {
         }
 
         if !arg_items.is_empty() {
-            let r = Range::of(start.1, range.end);
+            let r = CRange::of(start.1, range.end);
             if parsed_args < max {
                 let mut parser = Parser::new(arg_items);
                 args.push(self.parse_one_bp(&mut parser, 0, r)?);
@@ -438,8 +438,8 @@ impl Context {
             });
         } else if parsed_args < min {
             let range = match args.last() {
-                Some(a) => Range::of(a.range.end, range.end),
-                None => Range::pos(range.end),
+                Some(a) => CRange::of(a.range.end, range.end),
+                None => CRange::pos(range.end),
             };
             self.errors.push(crate::Error::MissingFunArgs {
                 range,
@@ -454,7 +454,7 @@ impl Context {
     fn parse_fun_args<const COUNT: usize>(
         &mut self,
         items: Vec<Item>,
-        range: Range,
+        range: CRange,
     ) -> crate::Result<[Ast; COUNT]> {
         let mut args: [Ast; COUNT] = array_of(|_| Ast::new(AstT::Error, range));
         let mut unexpected_args = Vec::new();
@@ -464,7 +464,7 @@ impl Context {
 
         for (i, it) in items.into_iter().enumerate() {
             if it.is_comma() {
-                let r = Range::of(start.1, it.range().start);
+                let r = CRange::of(start.1, it.range().start);
                 if parsed_args < COUNT {
                     let mut parser = Parser::new(arg_items.clone());
                     arg_items.clear();
@@ -480,7 +480,7 @@ impl Context {
         }
 
         if !arg_items.is_empty() {
-            let r = Range::of(start.1, range.end);
+            let r = CRange::of(start.1, range.end);
             if parsed_args < COUNT {
                 let mut parser = Parser::new(arg_items);
                 args[parsed_args] = self.parse_one_bp(&mut parser, 0, r)?;
@@ -498,8 +498,8 @@ impl Context {
             });
         } else if parsed_args < COUNT {
             let range = match args.last() {
-                Some(a) => Range::of(a.range.end, range.end),
-                None => Range::pos(range.end),
+                Some(a) => CRange::of(a.range.end, range.end),
+                None => CRange::pos(range.end),
             };
             self.errors.push(crate::Error::MissingFunArgs {
                 range,
@@ -515,7 +515,7 @@ impl Context {
         &mut self,
         parser: &mut Parser,
         kw: Kw,
-        range: Range,
+        range: CRange,
     ) -> crate::Result<Ast> {
         match kw.typ {
             KwT::If => {
@@ -545,13 +545,13 @@ impl Context {
                         }
                         Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
                         None => {
-                            let r = Range::pos(kw.range.end);
+                            let r = CRange::pos(kw.range.end);
                             return Err(crate::Error::ExpectedBlock(r));
                         }
                     }
                 }
 
-                let if_r = Range::span(kw.range, last_range);
+                let if_r = CRange::span(kw.range, last_range);
                 let if_expr = IfExpr { cases, else_block };
                 Ok(Ast::new(AstT::IfExpr(if_expr), if_r))
             }
@@ -568,32 +568,32 @@ impl Context {
         &mut self,
         parser: &mut Parser,
         kw: Kw,
-        range: Range,
+        range: CRange,
     ) -> crate::Result<CondBlock> {
-        let cond_r = Range::of(kw.range.end, range.end);
+        let cond_r = CRange::of(kw.range.end, range.end);
         let cond = self.parse_bp(parser, 0, cond_r, true)?;
 
         let group = match parser.next() {
             Some(Item::Group(g)) if g.par_kind.is_curly() => g,
             Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
             None => {
-                let r = Range::pos(kw.range.end);
+                let r = CRange::pos(kw.range.end);
                 return Err(crate::Error::ExpectedBlock(r));
             }
         };
-        let range = Range::span(kw.range, group.range);
+        let range = CRange::span(kw.range, group.range);
         let block = self.parse_block(group)?;
 
         Ok(CondBlock::new(cond, block, range))
     }
 }
 
-fn items_range(items: &[Item]) -> Option<Range> {
+fn items_range(items: &[Item]) -> Option<CRange> {
     let first = items.first();
     let last = items.last();
 
     match (first, last) {
-        (Some(f), Some(l)) => Some(Range::span(f.range(), l.range())),
+        (Some(f), Some(l)) => Some(CRange::span(f.range(), l.range())),
         _ => None,
     }
 }

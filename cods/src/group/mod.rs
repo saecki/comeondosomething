@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-use crate::{Context, Par, Range, Token};
+use crate::{CRange, Context, Par, Token};
 
 pub use item::*;
 
@@ -71,7 +71,7 @@ impl Context {
                     match state.peek() {
                         Some(Token::Par(r_par)) if l_par.matches(r_par.typ) => {
                             let kind = l_par.kind();
-                            let r = Range::span(l_par.range, r_par.range);
+                            let r = CRange::span(l_par.range, r_par.range);
                             let g = Group::new(inner, r, kind);
                             state.next();
                             Item::Group(g)

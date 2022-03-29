@@ -1,11 +1,11 @@
 /// Range of character indices
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Range {
+pub struct CRange {
     pub start: usize,
     pub end: usize,
 }
 
-impl Range {
+impl CRange {
     pub const fn of(start: usize, end: usize) -> Self {
         Self { start, end }
     }

@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use crate::{Context, Range};
+use crate::{CRange, Context};
 
 pub use token::*;
 
@@ -84,7 +84,7 @@ impl Context {
         let mut lexer = Lexer::new(string);
 
         while let Some(c) = lexer.next() {
-            let range = Range::pos(lexer.pos());
+            let range = CRange::pos(lexer.pos());
             match c {
                 '"' => self.string_literal(&mut lexer)?,
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
@@ -134,11 +134,11 @@ impl Context {
     ) -> crate::Result<()> {
         match lexer.next_if(expected) {
             Some(_) => {
-                let r = Range::of(lexer.pos() - 1, lexer.pos() + 1);
+                let r = CRange::of(lexer.pos() - 1, lexer.pos() + 1);
                 self.new_atom(lexer, Token::op(two, r))
             }
             None => {
-                let r = Range::pos(lexer.pos());
+                let r = CRange::pos(lexer.pos());
                 self.new_atom(lexer, Token::op(one, r))
             }
         }
@@ -147,7 +147,7 @@ impl Context {
     fn end_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
         if !lexer.literal.is_empty() {
             let start = lexer.pos() - lexer.literal.chars().count();
-            let range = Range::of(start, lexer.pos());
+            let range = CRange::of(start, lexer.pos());
 
             let literal = &lexer.literal;
             let token = match_warn_case! {
@@ -192,7 +192,7 @@ impl Context {
                             let mut num_lit = literal.as_str();
                             for (s, op) in LITERAL_SUFFIXES {
                                 if literal.ends_with(s) {
-                                    let op_r = Range::of(range.end - s.len(), range.end);
+                                    let op_r = CRange::of(range.end - s.len(), range.end);
                                     mood = Some(Token::op(op, op_r));
 
                                     num_lit = &literal[0..(literal.len() - s.len())];
@@ -200,7 +200,7 @@ impl Context {
                                 }
                             }
 
-                            let num_range = Range::of(start, start + num_lit.len());
+                            let num_range = CRange::of(start, start + num_lit.len());
                             let num = if let Ok(i) = num_lit.parse::<i128>() {
                                 ExprT::int(i)
                             } else if let Ok(f) = num_lit.parse::<f64>() {
@@ -223,7 +223,7 @@ impl Context {
                                     'a'..='z' => (),
                                     'A'..='Z' => (),
                                     '_' => (),
-                                    _ => return Err(crate::Error::InvalidChar(Range::pos(range.start + i))),
+                                    _ => return Err(crate::Error::InvalidChar(CRange::pos(range.start + i))),
                                 }
                             }
 
@@ -283,13 +283,13 @@ impl Context {
             }
         }
 
-        let r = Range::pos(start);
+        let r = CRange::pos(start);
         Err(crate::Error::MissingClosingQuote(r))
     }
 
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
-        let range = Range::of(start, lexer.pos() + 1);
+        let range = CRange::of(start, lexer.pos() + 1);
         lexer.tokens.push(Token::expr(ExprT::Val(str), range));
         lexer.literal.clear();
         Ok(())
