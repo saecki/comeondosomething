@@ -2,7 +2,8 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, CondBlock, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range, SepT,
+    Ast, AstT, CondBlock, Context, ExprT, Fun, FunT, Group, IfExpr, Item, Kw, KwT, ParKind, Range,
+    SepT,
 };
 
 pub use op::*;
@@ -231,12 +232,9 @@ impl Context {
 
             let val_r = Range::span(lhs.range, rhs.range);
             let val = match infix {
-                Infix::Assign => match lhs.typ {
-                    AstT::Expr(e) => match e.typ {
-                        ExprT::Var(id) => AstT::Assign(id, Box::new(rhs)),
-                        _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
-                    },
-                    _ => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
+                Infix::Assign => match lhs.as_ident() {
+                    Some(id) => AstT::Assign(id, Box::new(rhs)),
+                    None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                 },
                 Infix::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),
                 Infix::Sub => AstT::Sub(Box::new(lhs), Box::new(rhs)),
@@ -551,7 +549,12 @@ impl Context {
         }
     }
 
-    fn parse_cond_block(&mut self, parser: &mut Parser, kw: Kw, range: Range) -> crate::Result<CondBlock> {
+    fn parse_cond_block(
+        &mut self,
+        parser: &mut Parser,
+        kw: Kw,
+        range: Range,
+    ) -> crate::Result<CondBlock> {
         let cond_r = Range::of(kw.range.end, range.end);
         let cond = self.parse_bp(parser, 0, cond_r, true)?;
 

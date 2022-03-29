@@ -16,7 +16,7 @@ fn semi() {
             Range::of(0, 6),
         ),
         Ast::new(
-            AstT::Expr(Expr::new(ExprT::Var(Ident(0)), Range::of(8, 9))),
+            AstT::Expr(Expr::new(ExprT::Ident(Ident(0)), Range::of(8, 9))),
             Range::of(8, 9),
         ),
     ];

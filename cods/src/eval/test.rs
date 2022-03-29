@@ -11,7 +11,7 @@ fn resolve_var() {
         }],
         ..Default::default()
     };
-    let expr = Ast::expr(Expr::new(ExprT::Var(Ident(0)), Range::pos(0)));
+    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), Range::pos(0)));
 
     let val = ctx.eval(&expr).unwrap().unwrap();
     assert_eq!(Val::Int(4), val);
@@ -26,7 +26,7 @@ fn undefined_var() {
         }],
         ..Default::default()
     };
-    let expr = Ast::expr(Expr::new(ExprT::Var(Ident(0)), Range::pos(0)));
+    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), Range::pos(0)));
 
     let val = ctx.eval(&expr).unwrap_err();
     assert_eq!(crate::Error::UndefinedVar("x".into(), Range::pos(0)), val);

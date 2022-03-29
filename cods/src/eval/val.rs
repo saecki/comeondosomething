@@ -7,7 +7,7 @@ impl Context {
     pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
         match &expr.typ {
             ExprT::Val(p) => Ok(p),
-            ExprT::Var(id) => match self.var_val(*id) {
+            ExprT::Ident(id) => match self.var_val(*id) {
                 Some(d) => Ok(d),
                 None => {
                     let name = self.ident_name(*id);

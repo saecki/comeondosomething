@@ -95,6 +95,14 @@ pub struct Expr {
     pub range: Range,
 }
 
+impl Deref for Expr {
+    type Target = ExprT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
 impl Expr {
     pub fn new(expr: ExprT, range: Range) -> Self {
         Self { typ: expr, range }
@@ -104,7 +112,7 @@ impl Expr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprT {
     Val(Val),
-    Var(Ident),
+    Ident(Ident),
 }
 
 impl ExprT {
@@ -122,6 +130,13 @@ impl ExprT {
 
     pub fn bool(b: bool) -> Self {
         Self::Val(Val::Bool(b))
+    }
+
+    pub fn as_ident(&self) -> Option<Ident> {
+        match self {
+            Self::Ident(i) => Some(*i),
+            _ => None,
+        }
     }
 }
 

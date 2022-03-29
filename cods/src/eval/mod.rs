@@ -94,6 +94,15 @@ pub enum AstT {
     AssertEq(Box<Ast>, Box<Ast>),
 }
 
+impl AstT {
+    pub fn as_ident(&self) -> Option<Ident> {
+        match self {
+            Self::Expr(e) => e.as_ident(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct IfExpr {
     pub cases: Vec<CondBlock>,

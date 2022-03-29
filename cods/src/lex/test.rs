@@ -135,11 +135,11 @@ fn vars() {
     assert_eq!(
         tokens,
         [
-            Token::expr(ExprT::Var(Ident(0)), Range::of(0, 3)),
+            Token::expr(ExprT::Ident(Ident(0)), Range::of(0, 3)),
             Token::op(OpT::Assign, Range::pos(4)),
             Token::expr(ExprT::int(2), Range::pos(6)),
             Token::sep(SepT::Semi, Range::pos(7)),
-            Token::expr(ExprT::Var(Ident(1)), Range::of(9, 12)),
+            Token::expr(ExprT::Ident(Ident(1)), Range::of(9, 12)),
             Token::op(OpT::Assign, Range::pos(13)),
             Token::expr(ExprT::int(3), Range::pos(15)),
         ],

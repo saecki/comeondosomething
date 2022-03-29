@@ -228,7 +228,7 @@ impl Context {
                             }
 
                             let id = self.push_ident(literal);
-                            Token::expr(ExprT::Var(id), range)
+                            Token::expr(ExprT::Ident(id), range)
                         }
                     }
                 }
