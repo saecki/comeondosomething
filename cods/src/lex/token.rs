@@ -146,6 +146,64 @@ pub enum Val {
     Float(f64),
     Bool(bool),
     Str(String),
+    Range(Range),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Range {
+    Exclusive(i128, i128),
+    Inclusive(i128, i128),
+}
+
+impl Display for Range {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exclusive(a, b) => write!(f, "{a}..{b}"),
+            Self::Inclusive(a, b) => write!(f, "{a}..={b}"),
+        }
+    }
+}
+
+impl Range {
+    pub fn iter(&self) -> RangeIter {
+        match self {
+            Self::Exclusive(a, _) => RangeIter::new(*a, *self),
+            Self::Inclusive(a, _) => RangeIter::new(*a, *self),
+        }
+    }
+}
+
+pub struct RangeIter {
+    i: i128,
+    range: Range,
+}
+
+impl Iterator for RangeIter {
+    type Item = i128;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.range {
+            Range::Exclusive(_, b) => {
+                if self.i >= b {
+                    return None;
+                }
+            }
+            Range::Inclusive(_, b) => {
+                if self.i > b {
+                    return None;
+                }
+            }
+        }
+        let i = self.i;
+        self.i += 1;
+        return Some(i);
+    }
+}
+
+impl RangeIter {
+    pub const fn new(i: i128, range: Range) -> Self {
+        RangeIter { i, range }
+    }
 }
 
 impl Display for Val {
@@ -155,6 +213,7 @@ impl Display for Val {
             Self::Float(v) => write!(f, "{v}"),
             Self::Bool(v) => write!(f, "{v}"),
             Self::Str(v) => write!(f, "{v}"),
+            Self::Range(v) => write!(f, "{v}"),
         }
     }
 }
@@ -166,6 +225,7 @@ impl Val {
             Self::Float(_) => "float",
             Self::Bool(_) => "bool",
             Self::Str(_) => "str",
+            Self::Range(_) => "range",
         }
     }
 }
@@ -199,6 +259,8 @@ impl DerefMut for Op {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpT {
     Assign,
+    RangeEx,
+    RangeIn,
     Add,
     AddAssign,
     Sub,
@@ -224,6 +286,7 @@ pub enum OpT {
     Bang,
     Degree,
     Radian,
+    Dot,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

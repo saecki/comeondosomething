@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::{CRange, Context, Expr, Val};
+use crate::{CRange, Context, Expr, Range, Val};
 
 pub use val::*;
 pub use var::*;
@@ -55,6 +55,8 @@ pub enum AstT {
     SubAssign(IdentRange, Box<Ast>),
     MulAssign(IdentRange, Box<Ast>),
     DivAssign(IdentRange, Box<Ast>),
+    RangeEx(Box<Ast>, Box<Ast>),
+    RangeIn(Box<Ast>, Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -191,6 +193,8 @@ impl Context {
             AstT::SubAssign(a, b) => self.sub_assign(a, b, r),
             AstT::MulAssign(a, b) => self.mul_assign(a, b, r),
             AstT::DivAssign(a, b) => self.div_assign(a, b, r),
+            AstT::RangeEx(a, b) => self.range_ex(a, b, r),
+            AstT::RangeIn(a, b) => self.range_in(a, b, r),
             AstT::Neg(a) => self.neg(a, r),
             AstT::Add(a, b) => self.add(a, b, r),
             AstT::Sub(a, b) => self.sub(a, b, r),
@@ -313,6 +317,20 @@ impl Context {
         let val = checked_div(va, vb)?;
         self.set_var(id.ident, Some(val));
         Ok(Return::Unit(range))
+    }
+
+    fn range_ex(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
+        let va = self.eval_to_int(a)?;
+        let vb = self.eval_to_int(b)?;
+        let val = Val::Range(Range::Exclusive(va, vb));
+        return_val(val, range)
+    }
+
+    fn range_in(&mut self, a: &Ast, b: &Ast, range: CRange) -> crate::Result<Return> {
+        let va = self.eval_to_int(a)?;
+        let vb = self.eval_to_int(b)?;
+        let val = Val::Range(Range::Inclusive(va, vb));
+        return_val(val, range)
     }
 
     fn neg(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {

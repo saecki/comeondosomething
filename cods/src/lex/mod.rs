@@ -96,6 +96,19 @@ impl Context {
                 '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, range))?,
                 '^' => self.new_atom(&mut lexer, Token::op(OpT::Pow, range))?,
                 '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
+                '.' => match lexer.peek() {
+                    Some('.') => {
+                        lexer.next();
+                        let op = match lexer.next_if('=') {
+                            Some(_) => OpT::RangeIn,
+                            None => OpT::RangeEx,
+                        };
+                        let r = CRange::of(range.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::op(op, r))?
+                    }
+                    Some(c) if c.is_digit(10) => lexer.literal.push('.'),
+                    _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, range))?,
+                },
                 '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,
                 '>' => self.two_char_op(&mut lexer, OpT::Gt, OpT::Ge, '=')?,
                 '|' => self.two_char_op(&mut lexer, OpT::BwOr, OpT::Or, '|')?,

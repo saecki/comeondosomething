@@ -251,6 +251,8 @@ impl Context {
                     Some(id) => AstT::DivAssign(id, Box::new(rhs)),
                     None => return Err(crate::Error::InvalidAssignment(lhs.range, op.range)),
                 },
+                Infix::RangeEx => AstT::RangeEx(Box::new(lhs), Box::new(rhs)),
+                Infix::RangeIn => AstT::RangeIn(Box::new(lhs), Box::new(rhs)),
                 Infix::Add => AstT::Add(Box::new(lhs), Box::new(rhs)),
                 Infix::Sub => AstT::Sub(Box::new(lhs), Box::new(rhs)),
                 Infix::Mul => AstT::Mul(Box::new(lhs), Box::new(rhs)),
@@ -268,6 +270,12 @@ impl Context {
                 Infix::And => AstT::And(Box::new(lhs), Box::new(rhs)),
                 Infix::BwOr => AstT::BwOr(Box::new(lhs), Box::new(rhs)),
                 Infix::BwAnd => AstT::BwAnd(Box::new(lhs), Box::new(rhs)),
+                Infix::Dot => {
+                    return Err(crate::Error::NotImplemented(
+                        "Field access or method calls are not yet implemented",
+                        op.range,
+                    ))
+                }
             };
             lhs = Ast::new(val, val_r);
         }

@@ -134,7 +134,9 @@ impl ValRange {
     pub fn into_str(self) -> crate::Result<String> {
         match self.val {
             Val::Str(s) => Ok(s),
-            Val::Int(_) | Val::Float(_) | Val::Bool(_) => Err(crate::Error::ExpectedStr(self)),
+            Val::Int(_) | Val::Float(_) | Val::Bool(_) | Val::Range(_) => {
+                Err(crate::Error::ExpectedStr(self))
+            }
         }
     }
 }
@@ -152,14 +154,14 @@ impl Val {
                     None
                 }
             }
-            Self::Bool(_) | Self::Str(_) => None,
+            Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
         }
     }
 
     pub fn to_int(&self) -> Option<i128> {
         match self {
             Self::Int(i) => Some(*i),
-            Self::Float(_) | Self::Bool(_) | Self::Str(_) => None,
+            Self::Float(_) | Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
         }
     }
 
@@ -167,28 +169,28 @@ impl Val {
         match self {
             Self::Int(i) => Some(*i as f64),
             Self::Float(f) => Some(*f),
-            Self::Bool(_) | Self::Str(_) => None,
+            Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
         }
     }
 
     pub fn to_bool(&self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(*b),
-            Self::Int(_) | Self::Float(_) | Self::Str(_) => None,
+            Self::Int(_) | Self::Float(_) | Self::Str(_) | Self::Range(_) => None,
         }
     }
 
     pub fn to_str(&self) -> Option<&str> {
         match self {
             Self::Str(s) => Some(s),
-            Self::Int(_) | Self::Float(_) | Self::Bool(_) => None,
+            Self::Int(_) | Self::Float(_) | Self::Bool(_) | Self::Range(_) => None,
         }
     }
 
     pub fn into_str(self) -> Option<String> {
         match self {
             Self::Str(s) => Some(s),
-            Self::Int(_) | Self::Float(_) | Self::Bool(_) => None,
+            Self::Int(_) | Self::Float(_) | Self::Bool(_) | Self::Range(_) => None,
         }
     }
 }
