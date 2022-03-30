@@ -21,7 +21,7 @@ OPTIONS:
 ```
 
 ## TODO
-- User defined functions
+- Early returns
 - Type checking
 - Warning for unnecessary semicolons (if a newline is following)
 - stdout/stderr in `Context`
