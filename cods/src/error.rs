@@ -68,6 +68,7 @@ pub enum Error {
     Parsing(CRange),
 
     UndefinedVar(String, CRange),
+    UndefinedFun(String, CRange),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
     MulOverflow(ValRange, ValRange),
@@ -190,6 +191,7 @@ impl Display for Error {
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
+            Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
             Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
@@ -321,6 +323,7 @@ impl UserFacing for Error {
             Self::ExpectedRange(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
+            Self::UndefinedFun(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],
@@ -349,68 +352,19 @@ impl UserFacing for Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
-    ConfusingCase(CRange, &'static str),
-    // TODO
     // SignFollowingAddition(Range, Range, Sign, usize),
     // SignFollowingSubtraction(Range, Range, Sign, usize),
     // MultipleSigns(Range, Sign),
 }
 
 impl Display for Warning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ConfusingCase(_, lit) => write!(f, "Confusing casing, consider writing '{lit}'"),
-            // Self::SignFollowingAddition(_, _, s, c) => {
-            //     let sign_s = if *c == 1 { "" } else { "s" };
-            //     let suggestion = if s.is_positive() {
-            //         "consider removing them"
-            //     } else {
-            //         "consider making this a subtraction"
-            //     };
-            //     write!(f, "Sign{sign_s} following an addition, {suggestion}")
-            // }
-            // Self::SignFollowingSubtraction(_, _, s, c) => {
-            //     let sign_s = if *c == 1 { "" } else { "s" };
-            //     let suggestion = if s.is_positive() {
-            //         "consider making this an addition"
-            //     } else {
-            //         "consider removing them"
-            //     };
-            //     write!(f, "Sign{sign_s} following a subtraction, {suggestion}")
-            // }
-            // Self::MultipleSigns(_, s) => {
-            //     if s.is_positive() {
-            //         write!(f, "Multiple consecutive signs canceling each other out, consider removing them")
-            //     } else {
-            //         write!(
-            //             f,
-            //             "Multiple consecutive signs, consider using a single negation"
-            //         )
-            //     }
-            // }
-        }
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
     }
 }
 
 impl UserFacing for Warning {
     fn ranges(&self) -> Vec<CRange> {
-        match self {
-            Self::ConfusingCase(r, _) => vec![*r],
-            // Self::SignFollowingAddition(or, sr, s, _) => {
-            //     if s.is_positive() {
-            //         vec![*sr]
-            //     } else {
-            //         vec![*or, *sr]
-            //     }
-            // }
-            // Self::SignFollowingSubtraction(or, sr, s, _) => {
-            //     if s.is_positive() {
-            //         vec![*or, *sr]
-            //     } else {
-            //         vec![*sr]
-            //     }
-            // }
-            // Self::MultipleSigns(r, _) => vec![*r],
-        }
+        todo!()
     }
 }

@@ -17,27 +17,6 @@ const LITERAL_SUFFIXES: [(&str, OpT); 4] = [
     ("rad", OpT::Radian),
 ];
 
-macro_rules! match_warn_case {
-    (
-        $lexer:ident,
-        $range:ident,
-        match $v:ident {
-            $( $($lit:literal)|+ => $res:expr, )*
-            _ => $catch_all:expr $(,)?
-        }
-    ) => {{
-        $( $(
-                if $lit == $v {
-                    $res
-                } else if $lit.eq_ignore_ascii_case(&$v) {
-                    $lexer.warnings.push(crate::Warning::ConfusingCase($range, $lit));
-                    $res
-                } else
-        )+ )*
-        { $catch_all }
-    }};
-}
-
 struct Lexer<'a> {
     tokens: Vec<Token>,
     literal: String,
@@ -162,89 +141,69 @@ impl Context {
             let start = lexer.pos() - lexer.literal.chars().count();
             let range = CRange::of(start, lexer.pos());
 
-            let literal = &lexer.literal;
-            let token = match_warn_case! {
-                self,
-                range,
-                match literal {
-                    "π" | "pi" => Token::expr(ExprT::PI, range),
-                    "τ" | "tau" => Token::expr(ExprT::TAU, range),
-                    "e" => Token::expr(ExprT::E, range ),
-                    "true" => Token::expr(ExprT::bool(true), range),
-                    "false" => Token::expr(ExprT::bool(false), range),
-                    "pow" => Token::fun(FunT::Pow, range),
-                    "ln" => Token::fun(FunT::Ln, range),
-                    "log" => Token::fun(FunT::Log, range),
-                    "sqrt" => Token::fun(FunT::Sqrt, range),
-                    "nCr" => Token::fun(FunT::Ncr, range),
-                    "sin" => Token::fun(FunT::Sin, range),
-                    "cos" => Token::fun(FunT::Cos, range),
-                    "tan" => Token::fun(FunT::Tan, range),
-                    "asin" => Token::fun(FunT::Asin, range),
-                    "acos" => Token::fun(FunT::Acos, range),
-                    "atan" => Token::fun(FunT::Atan, range),
-                    "gcd" => Token::fun(FunT::Gcd, range),
-                    "min" => Token::fun(FunT::Min, range),
-                    "max" => Token::fun(FunT::Max, range),
-                    "clamp" => Token::fun(FunT::Clamp, range),
-                    "print" => Token::fun(FunT::Print, range),
-                    "println" => Token::fun(FunT::Println, range),
-                    "spill" => Token::fun(FunT::Spill, range),
-                    "assert" => Token::fun(FunT::Assert, range),
-                    "assert_eq" => Token::fun(FunT::AssertEq, range),
-                    "div" => Token::op(OpT::IntDiv, range),
-                    "mod" => Token::op(OpT::Rem, range),
-                    "deg" => Token::op(OpT::Degree, range),
-                    "rad" => Token::op(OpT::Radian, range),
-                    "if" => Token::kw(KwT::If, range),
-                    "else" => Token::kw(KwT::Else, range),
-                    "while" => Token::kw(KwT::While, range),
-                    "for" => Token::kw(KwT::For, range),
-                    "in" => Token::kw(KwT::In, range),
-                    _ => {
-                        if literal.chars().next().unwrap().is_digit(10) {
-                            let mut mood = None;
-                            let mut num_lit = literal.as_str();
-                            for (s, op) in LITERAL_SUFFIXES {
-                                if literal.ends_with(s) {
-                                    let op_r = CRange::of(range.end - s.len(), range.end);
-                                    mood = Some(Token::op(op, op_r));
+            let literal = lexer.literal.as_str();
+            let token = match literal {
+                "π" | "pi" => Token::expr(ExprT::PI, range),
+                "τ" | "tau" => Token::expr(ExprT::TAU, range),
+                "e" => Token::expr(ExprT::E, range),
+                "true" => Token::expr(ExprT::bool(true), range),
+                "false" => Token::expr(ExprT::bool(false), range),
+                "div" => Token::op(OpT::IntDiv, range),
+                "mod" => Token::op(OpT::Rem, range),
+                "deg" => Token::op(OpT::Degree, range),
+                "rad" => Token::op(OpT::Radian, range),
+                "if" => Token::kw(KwT::If, range),
+                "else" => Token::kw(KwT::Else, range),
+                "while" => Token::kw(KwT::While, range),
+                "for" => Token::kw(KwT::For, range),
+                "in" => Token::kw(KwT::In, range),
+                _ => {
+                    if literal.chars().next().unwrap().is_digit(10) {
+                        let mut mood = None;
+                        let mut num_lit = literal;
+                        for (s, op) in LITERAL_SUFFIXES {
+                            if literal.ends_with(s) {
+                                let op_r = CRange::of(range.end - s.len(), range.end);
+                                mood = Some(Token::op(op, op_r));
 
-                                    num_lit = &literal[0..(literal.len() - s.len())];
-                                    break;
-                                }
+                                num_lit = &literal[0..(literal.len() - s.len())];
+                                break;
                             }
-
-                            let num_range = CRange::of(start, start + num_lit.len());
-                            let num = if let Ok(i) = num_lit.parse::<i128>() {
-                                ExprT::int(i)
-                            } else if let Ok(f) = num_lit.parse::<f64>() {
-                                ExprT::float(f)
-                            } else {
-                                return Err(crate::Error::InvalidNumberFormat(num_range));
-                            };
-                            lexer.literal.clear();
-                            lexer.tokens.push(Token::expr(num, num_range));
-
-                            if let Some(m) = mood {
-                                lexer.tokens.push(m);
-                            }
-
-                            return Ok(());
-                        } else {
-                            for (i, c) in literal.char_indices() {
-                                match c {
-                                    '0'..='9' => (),
-                                    'a'..='z' => (),
-                                    'A'..='Z' => (),
-                                    '_' => (),
-                                    _ => return Err(crate::Error::InvalidChar(CRange::pos(range.start + i))),
-                                }
-                            }
-
-                            let id = self.push_ident(literal);
-                            Token::expr(ExprT::Ident(id), range)
                         }
+
+                        let num_range = CRange::of(start, start + num_lit.len());
+                        let num = if let Ok(i) = num_lit.parse::<i128>() {
+                            ExprT::int(i)
+                        } else if let Ok(f) = num_lit.parse::<f64>() {
+                            ExprT::float(f)
+                        } else {
+                            return Err(crate::Error::InvalidNumberFormat(num_range));
+                        };
+                        lexer.literal.clear();
+                        lexer.tokens.push(Token::expr(num, num_range));
+
+                        if let Some(m) = mood {
+                            lexer.tokens.push(m);
+                        }
+
+                        return Ok(());
+                    } else {
+                        for (i, c) in literal.char_indices() {
+                            match c {
+                                '0'..='9' => (),
+                                'a'..='z' => (),
+                                'A'..='Z' => (),
+                                '_' => (),
+                                _ => {
+                                    return Err(crate::Error::InvalidChar(CRange::pos(
+                                        range.start + i,
+                                    )))
+                                }
+                            }
+                        }
+
+                        let id = self.push_ident(literal);
+                        Token::expr(ExprT::Ident(id), range)
                     }
                 }
             };

@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::{CRange, Context, Expr, Range, Val};
+use crate::{CRange, Context, Expr, IdentRange, Range, Val};
 
 pub use val::*;
 pub use var::*;

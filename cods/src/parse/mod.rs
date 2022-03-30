@@ -2,8 +2,8 @@ use std::cmp;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Fun, FunT, Group, IfExpr, Item, Kw, KwT,
-    ParKind, SepT,
+    Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Group, IdentRange, IfExpr, Item, Kw,
+    KwT, ParKind, SepT,
 };
 
 pub use op::*;
@@ -91,10 +91,6 @@ impl Context {
                 let r = e.range;
                 Ast::new(AstT::Expr(e), r)
             }
-            Some(&Item::Fun(f)) => {
-                parser.next();
-                self.parse_fun(parser, f)?
-            }
             Some(&Item::Op(o)) => {
                 parser.next();
 
@@ -157,6 +153,14 @@ impl Context {
                         break;
                     }
 
+                    if g.par_kind.is_round() {
+                        if let Some(id) = lhs.as_ident() {
+                            let g = parser.next().unwrap().into_group().unwrap();
+                            lhs = self.parse_fun(id, g)?;
+                            continue;
+                        }
+                    }
+
                     let r = CRange::between(lhs.range, g.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
@@ -166,14 +170,6 @@ impl Context {
                     }
 
                     let r = CRange::between(lhs.range, e.range);
-                    return Err(crate::Error::MissingOperator(r));
-                }
-                Item::Fun(f) => {
-                    if newln {
-                        break;
-                    }
-
-                    let r = CRange::between(lhs.range, f.range);
                     return Err(crate::Error::MissingOperator(r));
                 }
                 &Item::Op(o) => o,
@@ -297,106 +293,93 @@ impl Context {
         }
     }
 
-    fn parse_fun(&mut self, parser: &mut Parser, fun: Fun) -> crate::Result<Ast> {
-        let g = match parser.next() {
-            Some(Item::Group(g)) => match g.par_kind {
-                ParKind::Round => g,
-                _ => {
-                    let s_r = CRange::pos(g.range.start);
-                    let e_r = CRange::pos(g.range.end - 1);
-                    self.errors.push(crate::Error::NotFunPars(s_r, e_r));
-                    return Ok(Ast::new(AstT::Error, fun.range));
-                }
-            },
-            _ => {
-                let r = CRange::pos(fun.range.end);
-                return Err(crate::Error::MissingFunPars(r));
-            }
-        };
-
-        let f = match fun.typ {
-            FunT::Pow => {
+    fn parse_fun(&mut self, id: IdentRange, g: Group) -> crate::Result<Ast> {
+        // builtins
+        let f = match self.ident_name(id.ident) {
+            "pow" => {
                 let [base, exp] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Pow(Box::new(base), Box::new(exp))
             }
-            FunT::Ln => {
+            "ln" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Ln(Box::new(n))
             }
-            FunT::Log => {
+            "log" => {
                 let [base, n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Log(Box::new(base), Box::new(n))
             }
-            FunT::Sqrt => {
+            "sqrt" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Sqrt(Box::new(n))
             }
-            FunT::Ncr => {
+            "ncr" => {
                 let [n, r] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Ncr(Box::new(n), Box::new(r))
             }
-            FunT::Sin => {
+            "sin" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Sin(Box::new(n))
             }
-            FunT::Cos => {
+            "cos" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Cos(Box::new(n))
             }
-            FunT::Tan => {
+            "tan" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Tan(Box::new(n))
             }
-            FunT::Asin => {
+            "asin" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Asin(Box::new(n))
             }
-            FunT::Acos => {
+            "acos" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Acos(Box::new(n))
             }
-            FunT::Atan => {
+            "atan" => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Atan(Box::new(n))
             }
-            FunT::Gcd => {
+            "gcd" => {
                 let [a, b] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Gcd(Box::new(a), Box::new(b))
             }
-            FunT::Min => {
+            "min" => {
                 let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                 AstT::Min(args)
             }
-            FunT::Max => {
+            "max" => {
                 let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                 AstT::Max(args)
             }
-            FunT::Clamp => {
+            "clamp" => {
                 let [n, min, max] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Clamp(Box::new(n), Box::new(min), Box::new(max))
             }
-            FunT::Print => {
+            "print" => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                 AstT::Print(args)
             }
-            FunT::Println => {
+            "println" => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                 AstT::Println(args)
             }
-            FunT::Spill => {
+            "spill" => {
                 self.parse_fun_args::<0>(g.items, g.range)?;
                 AstT::Spill
             }
-            FunT::Assert => {
+            "assert" => {
                 let [a] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Assert(Box::new(a))
             }
-            FunT::AssertEq => {
+            "assert_eq" => {
                 let [a, b] = self.parse_fun_args(g.items, g.range)?;
                 AstT::AssertEq(Box::new(a), Box::new(b))
             }
+            // TODO: user defined functions
+            name => return Err(crate::Error::UndefinedFun(name.to_owned(), id.range)),
         };
-        let r = CRange::span(fun.range, g.range);
+        let r = CRange::span(id.range, g.range);
         Ok(Ast::new(f, r))
     }
 

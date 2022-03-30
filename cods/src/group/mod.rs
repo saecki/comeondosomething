@@ -84,7 +84,6 @@ impl Context {
                     }
                 }
                 Some(Token::Expr(e)) => Item::Expr(e),
-                Some(Token::Fun(f)) => Item::Fun(f),
                 Some(Token::Op(o)) => Item::Op(o),
                 Some(Token::Sep(s)) => Item::Sep(s),
                 Some(Token::Kw(k)) => Item::Kw(k),

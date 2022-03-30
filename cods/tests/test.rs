@@ -171,14 +171,14 @@ fn squareroot() {
 
 #[test]
 fn binomial_coefficient() {
-    assert("nCr(6, 2)", Val::Int(15));
-    assert("nCr(23, 0)", Val::Int(1));
+    assert("ncr(6, 2)", Val::Int(15));
+    assert("ncr(23, 0)", Val::Int(1));
 }
 
 #[test]
 fn binomial_coefficient_invalid() {
     assert_err(
-        "nCr(3, 4)",
+        "ncr(3, 4)",
         Error::InvalidNcr(
             ValRange::new(Val::Int(3), CRange::pos(4)),
             ValRange::new(Val::Int(4), CRange::pos(7)),
@@ -189,7 +189,7 @@ fn binomial_coefficient_invalid() {
 #[test]
 fn binomial_coefficient_negative() {
     assert_err(
-        "nCr(5, -3)",
+        "ncr(5, -3)",
         Error::NegativeNcr(ValRange::new(Val::Int(-3), CRange::of(7, 9))),
     );
 }

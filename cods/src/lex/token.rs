@@ -7,7 +7,6 @@ use crate::{CRange, Ident, IdentRange};
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Expr(Expr),
-    Fun(Fun),
     Op(Op),
     Par(Par),
     Sep(Sep),
@@ -21,10 +20,6 @@ impl Token {
 
     pub fn op(typ: OpT, range: CRange) -> Self {
         Self::Op(Op::new(typ, range))
-    }
-
-    pub fn fun(typ: FunT, range: CRange) -> Self {
-        Self::Fun(Fun::new(typ, range))
     }
 
     pub fn par(typ: ParT, range: CRange) -> Self {
@@ -45,10 +40,6 @@ impl Token {
 
     pub fn is_op(&self) -> bool {
         matches!(self, Self::Op(_))
-    }
-
-    pub fn is_fun(&self) -> bool {
-        matches!(self, Self::Fun(_))
     }
 
     pub fn is_par(&self) -> bool {
@@ -81,7 +72,6 @@ impl Token {
         match self {
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Fun(c) => c.range,
             Self::Par(p) => p.range,
             Self::Sep(s) => s.range,
             Self::Kw(k) => k.range,
@@ -287,42 +277,6 @@ pub enum OpT {
     Degree,
     Radian,
     Dot,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Fun {
-    pub typ: FunT,
-    pub range: CRange,
-}
-
-impl Fun {
-    pub const fn new(typ: FunT, range: CRange) -> Self {
-        Self { typ, range }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FunT {
-    Pow,
-    Ln,
-    Log,
-    Sqrt,
-    Ncr,
-    Sin,
-    Cos,
-    Tan,
-    Asin,
-    Acos,
-    Atan,
-    Gcd,
-    Min,
-    Max,
-    Clamp,
-    Print,
-    Println,
-    Spill,
-    Assert,
-    AssertEq,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

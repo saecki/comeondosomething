@@ -1,10 +1,9 @@
-use crate::{CRange, Expr, Fun, Kw, Op, ParKind, Sep, Token};
+use crate::{CRange, Expr, Kw, Op, ParKind, Sep, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
     Expr(Expr),
-    Fun(Fun),
 
     Op(Op),
     Sep(Sep),
@@ -16,7 +15,6 @@ impl Item {
         match token {
             Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
-            Token::Fun(c) => Some(Self::Fun(c)),
             Token::Par(_) => None,
             Token::Sep(s) => Some(Self::Sep(s)),
             Token::Kw(k) => Some(Self::Kw(k)),
@@ -33,13 +31,6 @@ impl Item {
     pub fn into_expr(self) -> Option<Expr> {
         match self {
             Self::Expr(e) => Some(e),
-            _ => None,
-        }
-    }
-
-    pub fn as_fun(&self) -> Option<Fun> {
-        match self {
-            Self::Fun(c) => Some(*c),
             _ => None,
         }
     }
@@ -96,7 +87,6 @@ impl Item {
             Self::Group(g) => g.range,
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Fun(c) => c.range,
             Self::Sep(s) => s.range,
             Self::Kw(k) => k.range,
         }
