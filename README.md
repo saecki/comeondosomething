@@ -21,6 +21,7 @@ OPTIONS:
 ```
 
 ## TODO
-- Loops
+- User defined functions
+- Type checking
 - Warning for unnecessary semicolons (if a newline is following)
 - stdout/stderr in `Context`
