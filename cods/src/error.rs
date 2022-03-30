@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{CRange, Item, Kw, KwT, Op, Par};
+use crate::{CRange, Item, Kw, KwT, Op, Par, SepT};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -53,7 +53,9 @@ pub enum Error {
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
     ExpectedBlock(CRange),
+    ExpectedParams(CRange),
     ExpectedIdent(CRange),
+    ExpectedSep(SepT, CRange),
     ExpectedKw(KwT, CRange),
     WrongContext(Kw),
 
@@ -66,9 +68,9 @@ pub enum Error {
     ExpectedStr(ValRange),
     ExpectedRange(ValRange),
     Parsing(CRange),
-
     UndefinedVar(String, CRange),
     UndefinedFun(String, CRange),
+    RedefinedFun(String, CRange, CRange),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
     MulOverflow(ValRange, ValRange),
@@ -166,8 +168,10 @@ impl Display for Error {
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
             Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
+            Self::ExpectedParams(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
-            Self::ExpectedKw(k, _) => write!(f, "Expected kw '{}'", k.name()),
+            Self::ExpectedKw(k, _) => write!(f, "Expected '{}'", k.name()),
+            Self::ExpectedSep(s, _) => write!(f, "Expected '{s}'"),
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
             // Eval
@@ -192,6 +196,7 @@ impl Display for Error {
 
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
+            Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
             Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
@@ -309,8 +314,10 @@ impl UserFacing for Error {
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
             Self::ExpectedBlock(r) => vec![*r],
+            Self::ExpectedParams(r) => vec![*r],
             Self::ExpectedIdent(r) => vec![*r],
             Self::ExpectedKw(_, r) => vec![*r],
+            Self::ExpectedSep(_, r) => vec![*r],
             Self::WrongContext(k) => vec![k.range],
 
             // Eval
@@ -324,6 +331,7 @@ impl UserFacing for Error {
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
             Self::UndefinedFun(_, r) => vec![*r],
+            Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],
@@ -353,8 +361,8 @@ impl UserFacing for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     // SignFollowingAddition(Range, Range, Sign, usize),
-    // SignFollowingSubtraction(Range, Range, Sign, usize),
-    // MultipleSigns(Range, Sign),
+// SignFollowingSubtraction(Range, Range, Sign, usize),
+// MultipleSigns(Range, Sign),
 }
 
 impl Display for Warning {

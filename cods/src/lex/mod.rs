@@ -157,6 +157,7 @@ impl Context {
                 "while" => Token::kw(KwT::While, range),
                 "for" => Token::kw(KwT::For, range),
                 "in" => Token::kw(KwT::In, range),
+                "fun" => Token::kw(KwT::Fun, range),
                 _ => {
                     if literal.chars().next().unwrap().is_digit(10) {
                         let mut mood = None;

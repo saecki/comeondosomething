@@ -3,13 +3,13 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{CRange, Context, Expr, IdentRange, Range, Val};
 
+pub use scope::*;
 pub use val::*;
-pub use var::*;
 
+mod scope;
 #[cfg(test)]
 mod test;
 mod val;
-mod var;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
@@ -51,6 +51,8 @@ pub enum AstT {
     IfExpr(IfExpr),
     WhileLoop(Box<CondBlock>),
     ForLoop(ForLoop),
+    FunDef(IdentRange, Vec<IdentRange>, Block),
+    FunCall(IdentRange, Vec<Ast>),
     Assign(IdentRange, Box<Ast>),
     AddAssign(IdentRange, Box<Ast>),
     SubAssign(IdentRange, Box<Ast>),
@@ -225,6 +227,8 @@ impl Context {
             AstT::IfExpr(a) => self.if_expr(a, r),
             AstT::WhileLoop(a) => self.while_loop(a, r),
             AstT::ForLoop(a) => self.for_loop(a, r),
+            AstT::FunDef(a, b, c) => self.fun_def(a, b, c, r),
+            AstT::FunCall(a, b) => self.fun_call(a, b, r),
             AstT::Assign(a, b) => self.assign(a, b, r),
             AstT::AddAssign(a, b) => self.add_assign(a, b, r),
             AstT::SubAssign(a, b) => self.sub_assign(a, b, r),
@@ -332,6 +336,64 @@ impl Context {
         }
 
         Ok(Return::Unit(range))
+    }
+
+    fn fun_def(
+        &mut self,
+        id: &IdentRange,
+        params: &[IdentRange],
+        block: &Block,
+        range: CRange,
+    ) -> crate::Result<Return> {
+        self.def_fun(id, params, block)?;
+        Ok(Return::Unit(range))
+    }
+
+    fn fun_call(&mut self, id: &IdentRange, args: &[Ast], range: CRange) -> crate::Result<Return> {
+        // PERF: avoid clone
+        let fun = self.resolve_fun(id)?.clone();
+
+        if args.len() < fun.params.len() {
+            return Err(crate::Error::MissingFunArgs {
+                range: CRange::pos(range.end - 1),
+                expected: fun.params.len(),
+                found: args.len(),
+            });
+        }
+
+        if args.len() > fun.params.len() {
+            let ranges = args
+                .iter()
+                .skip(fun.params.len())
+                .map(|a| a.range)
+                .collect();
+            return Err(crate::Error::UnexpectedFunArgs {
+                ranges,
+                expected: fun.params.len(),
+                found: args.len(),
+            });
+        }
+
+        let mut scope = Scope::default();
+        for (p, v) in fun.params.iter().zip(args) {
+            let val = self.eval_to_val(v)?;
+            scope.set_var(p.ident, Some(val.val));
+        }
+        self.scopes.push(scope);
+
+        let r = match fun.block.asts.split_last() {
+            Some((last, others)) => {
+                for c in others {
+                    self.eval_ast(c)?;
+                }
+                self.eval_ast(last)
+            }
+            None => Ok(Return::Unit(range)),
+        };
+
+        self.scopes.pop();
+
+        r
     }
 
     fn assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {

@@ -147,7 +147,7 @@ impl Context {
                     if newln {
                         break;
                     }
-                    // stop if parsing and if condition
+                    // stop if parsing an if condition
                     // TODO: cleanup
                     if cond && g.par_kind.is_curly() {
                         break;
@@ -294,7 +294,6 @@ impl Context {
     }
 
     fn parse_fun(&mut self, id: IdentRange, g: Group) -> crate::Result<Ast> {
-        // builtins
         let f = match self.ident_name(id.ident) {
             "pow" => {
                 let [base, exp] = self.parse_fun_args(g.items, g.range)?;
@@ -376,8 +375,10 @@ impl Context {
                 let [a, b] = self.parse_fun_args(g.items, g.range)?;
                 AstT::AssertEq(Box::new(a), Box::new(b))
             }
-            // TODO: user defined functions
-            name => return Err(crate::Error::UndefinedFun(name.to_owned(), id.range)),
+            _ => {
+                let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
+                AstT::FunCall(id, args)
+            }
         };
         let r = CRange::span(id.range, g.range);
         Ok(Ast::new(f, r))
@@ -557,46 +558,50 @@ impl Context {
                 Ok(Ast::new(AstT::WhileLoop(Box::new(case)), r))
             }
             KwT::For => {
-                let ident = match parser.next() {
-                    Some(i) => {
-                        let r = i.range();
-                        match i.into_expr().and_then(|e| e.as_ident()) {
-                            Some(i) => i,
-                            None => return Err(crate::Error::ExpectedIdent(r)),
-                        }
-                    }
-                    None => {
-                        let r = CRange::pos(kw.range.end);
-                        return Err(crate::Error::ExpectedIdent(r));
-                    }
-                };
+                let ident = parser.expect_ident(kw.range.end)?;
 
-                match parser.next() {
-                    Some(Item::Kw(Kw { typ: KwT::In, .. })) => (),
-                    Some(i) => return Err(crate::Error::ExpectedKw(KwT::In, i.range())),
-                    None => {
-                        let r = CRange::pos(ident.range.end);
-                        return Err(crate::Error::ExpectedKw(KwT::In, r));
-                    }
-                }
+                parser.expect_kw(KwT::In, ident.range.end)?;
 
                 let iter = self.parse_bp(parser, 0, range, true)?;
 
-                let group = match parser.next() {
-                    Some(Item::Group(g)) if g.par_kind.is_curly() => g,
-                    Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
-                    None => {
-                        let r = CRange::pos(iter.range.end);
-                        return Err(crate::Error::ExpectedBlock(r));
-                    }
-                };
-                let range = CRange::span(kw.range, group.range);
+                let group = parser.expect_block(iter.range.end)?;
                 let block = self.parse_block(group)?;
 
+                let range = CRange::span(kw.range, block.range);
                 let for_loop = ForLoop::new(ident, Box::new(iter), block);
                 Ok(Ast::new(AstT::ForLoop(for_loop), range))
             }
             KwT::In => Err(crate::Error::WrongContext(kw)),
+            KwT::Fun => {
+                let ident = parser.expect_ident(kw.range.end)?;
+
+                let group = parser.expect_params(ident.range.end)?;
+                let mut params = Vec::new();
+                let mut group_items = group.items.into_iter();
+                while let Some(i) = group_items.next() {
+                    let r = i.range();
+                    let p = i
+                        .into_expr()
+                        .and_then(|e| e.as_ident())
+                        .ok_or(crate::Error::ExpectedIdent(r))?;
+                    params.push(p);
+
+                    match group_items.next() {
+                        Some(i) if i.is_comma() => (),
+                        Some(i) => {
+                            let r = CRange::pos(i.range().end);
+                            return Err(crate::Error::ExpectedSep(SepT::Comma, r));
+                        }
+                        None => break,
+                    }
+                }
+
+                let group = parser.expect_block(group.range.end)?;
+                let block = self.parse_block(group)?;
+
+                let range = CRange::span(kw.range, block.range);
+                Ok(Ast::new(AstT::FunDef(ident, params, block), range))
+            }
         }
     }
 
@@ -609,14 +614,7 @@ impl Context {
         let cond_r = CRange::of(kw.range.end, range.end);
         let cond = self.parse_bp(parser, 0, cond_r, true)?;
 
-        let group = match parser.next() {
-            Some(Item::Group(g)) if g.par_kind.is_curly() => g,
-            Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
-            None => {
-                let r = CRange::pos(kw.range.end);
-                return Err(crate::Error::ExpectedBlock(r));
-            }
-        };
+        let group = parser.expect_block(cond.range.end)?;
         let range = CRange::span(kw.range, group.range);
         let block = self.parse_block(group)?;
 

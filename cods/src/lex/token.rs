@@ -452,6 +452,7 @@ pub enum KwT {
     While,
     For,
     In,
+    Fun,
 }
 
 impl KwT {
@@ -462,6 +463,7 @@ impl KwT {
             KwT::While => "while",
             KwT::For => "for",
             KwT::In => "in",
+            KwT::Fun => "fun",
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::Item;
+use crate::{CRange, Group, IdentRange, Item, KwT};
 
 pub struct Parser {
     items: VecDeque<Item>,
@@ -61,5 +61,53 @@ impl Parser {
             }
         }
         false
+    }
+
+    pub fn expect_block(&mut self, pos: usize) -> crate::Result<Group> {
+        match self.next() {
+            Some(Item::Group(g)) if g.par_kind.is_curly() => Ok(g),
+            Some(i) => Err(crate::Error::ExpectedBlock(i.range())),
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedBlock(r))
+            }
+        }
+    }
+
+    pub fn expect_params(&mut self, pos: usize) -> crate::Result<Group> {
+        match self.next() {
+            Some(Item::Group(g)) if g.par_kind.is_round() => Ok(g),
+            Some(i) => Err(crate::Error::ExpectedParams(i.range())),
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedParams(r))
+            }
+        }
+    }
+
+    pub fn expect_ident(&mut self, pos: usize) -> crate::Result<IdentRange> {
+        match self.next() {
+            Some(i) => {
+                let r = i.range();
+                i.into_expr()
+                    .and_then(|e| e.as_ident())
+                    .ok_or(crate::Error::ExpectedIdent(r))
+            }
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedIdent(r))
+            }
+        }
+    }
+
+    pub fn expect_kw(&mut self, kw: KwT, pos: usize) -> crate::Result<CRange> {
+        match self.next() {
+            Some(Item::Kw(k)) if k.typ == kw => Ok(k.range),
+            Some(i) => Err(crate::Error::ExpectedKw(kw, i.range())),
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedKw(kw, r))
+            }
+        }
     }
 }

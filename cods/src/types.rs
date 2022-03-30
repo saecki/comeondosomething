@@ -46,7 +46,7 @@ impl CRange {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IdentRange {
     pub ident: Ident,
     pub range: CRange,

@@ -8,6 +8,7 @@ fn resolve_var() {
         idents: vec!["x".into()],
         scopes: vec![Scope {
             vars: HashMap::from_iter([(Ident(0), Var::new(Some(Val::Int(4))))]),
+            ..Default::default()
         }],
         ..Default::default()
     };
@@ -23,6 +24,7 @@ fn undefined_var() {
         idents: vec!["x".into()],
         scopes: vec![Scope {
             vars: HashMap::from_iter([(Ident(0), Var::new(None))]),
+            ..Default::default()
         }],
         ..Default::default()
     };

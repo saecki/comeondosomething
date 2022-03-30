@@ -461,3 +461,20 @@ fn for_loop() {
         Val::Int((1..=10).sum()),
     );
 }
+
+#[test]
+fn function() {
+    assert(
+        r#"
+        fun factorial(n) {
+            f = 1
+            for i in 1..=n {
+                f *= i;
+            }
+            f
+        }
+        factorial(4)
+        "#,
+        Val::Int(1 * 2 * 3 * 4),
+    )
+}
