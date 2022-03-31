@@ -68,6 +68,8 @@ pub enum Error {
     ExpectedRange(ValRange),
     Parsing(CRange),
     UndefinedVar(String, CRange),
+    UninitializedVar(String, CRange, CRange),
+    RedefinedBuiltinConst(String, CRange),
     ImmutableAssign(String, CRange, CRange),
     UndefinedFun(String, CRange),
     RedefinedFun(String, CRange, CRange),
@@ -195,6 +197,10 @@ impl Display for Error {
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
+            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"),
+            Self::RedefinedBuiltinConst(name, _) => {
+                write!(f, "Redefined builtin constant '{name}'")
+            }
             Self::ImmutableAssign(name, _, _) => {
                 write!(f, "Cannot assign twice to immutable variable '{name}'")
             }
@@ -333,6 +339,8 @@ impl UserFacing for Error {
             Self::ExpectedRange(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
+            Self::UninitializedVar(_, a, b) => vec![*a, *b],
+            Self::RedefinedBuiltinConst(_, r) => vec![*r],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::UndefinedFun(_, r) => vec![*r],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],

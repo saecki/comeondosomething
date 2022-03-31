@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::{CRange, Context, Expr, IdentRange, Range, Val};
+use crate::{CRange, Context, Expr, ExprT, IdentRange, Range, Val};
 
 pub use scope::*;
 pub use val::*;
@@ -223,7 +223,7 @@ impl Context {
         match &ast.typ {
             AstT::Empty => Ok(Return::Unit(r)),
             AstT::Error => Err(crate::Error::Parsing(r)),
-            AstT::Expr(e) => return_val(self.to_val(e)?.clone(), r),
+            AstT::Expr(e) => self.expr(e, r),
             AstT::Block(a) => self.block(a, r),
             AstT::IfExpr(a) => self.if_expr(a, r),
             AstT::WhileLoop(a) => self.while_loop(a, r),
@@ -288,6 +288,16 @@ impl Context {
             }
             r
         })
+    }
+
+    fn expr(&mut self, expr: &Expr, range: CRange) -> crate::Result<Return> {
+        match &expr.typ {
+            ExprT::Val(v) => return_val(v.clone(), range),
+            &ExprT::Ident(id) => {
+                let ident = IdentRange::new(id, expr.range);
+                Ok(Return::Val(self.resolve_var(&ident)?))
+            }
+        }
     }
 
     fn block(&mut self, asts: &[Ast], range: CRange) -> crate::Result<Return> {

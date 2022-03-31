@@ -196,7 +196,7 @@ fn binomial_coefficient_negative() {
 
 #[test]
 fn ln() {
-    assert("ln(e^27)", Val::Int(27));
+    assert("ln(E^27)", Val::Int(27));
 }
 
 #[test]

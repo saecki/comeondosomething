@@ -1,4 +1,8 @@
-pub enum Builtin {
+use std::f64::consts;
+
+use crate::Val;
+
+pub enum BuiltinFun {
     Pow,
     Ln,
     Log,
@@ -21,7 +25,7 @@ pub enum Builtin {
     AssertEq,
 }
 
-impl Builtin {
+impl BuiltinFun {
     pub fn from(name: &str) -> Option<Self> {
         let b = match name {
             "pow" => Self::Pow,
@@ -47,5 +51,43 @@ impl Builtin {
             _ => return None,
         };
         Some(b)
+    }
+}
+
+pub const PI: Val = Val::Float(consts::PI);
+pub const TAU: Val = Val::Float(consts::TAU);
+pub const E: Val = Val::Float(consts::E);
+
+pub enum BuiltinConst {
+    Pi,
+    Tau,
+    E,
+}
+
+impl BuiltinConst {
+    pub fn from(name: &str) -> Option<Self> {
+        let b = match name {
+            "PI" => Self::Pi,
+            "TAU" => Self::Tau,
+            "E" => Self::E,
+            _ => return None,
+        };
+        Some(b)
+    }
+
+    pub const fn val(&self) -> Val {
+        match self {
+            Self::Pi => PI,
+            Self::Tau => TAU,
+            Self::E => E,
+        }
+    }
+
+    pub const fn val_ref(&self) -> &'static Val {
+        match self {
+            Self::Pi => &PI,
+            Self::Tau => &TAU,
+            Self::E => &E,
+        }
     }
 }

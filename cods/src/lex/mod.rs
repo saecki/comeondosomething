@@ -146,10 +146,6 @@ impl Context {
 
         let literal = lexer.literal.as_str();
         let token = match literal {
-            // TODO: make PI, TAU and E builtin constants similar
-            "π" | "pi" => Token::expr(ExprT::PI, range),
-            "τ" | "tau" => Token::expr(ExprT::TAU, range),
-            "e" => Token::expr(ExprT::E, range),
             "true" => Token::expr(ExprT::bool(true), range),
             "false" => Token::expr(ExprT::bool(false), range),
             "div" => Token::op(OpT::IntDiv, range),

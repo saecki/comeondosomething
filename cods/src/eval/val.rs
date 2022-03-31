@@ -1,22 +1,7 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::{CRange, Context, Expr, ExprT, Range, Val};
-
-impl Context {
-    pub fn to_val<'a>(&'a self, expr: &'a Expr) -> crate::Result<&'a Val> {
-        match &expr.typ {
-            ExprT::Val(p) => Ok(p),
-            ExprT::Ident(id) => match self.var_val(*id) {
-                Some(d) => Ok(d),
-                None => {
-                    let name = self.ident_name(*id);
-                    Err(crate::Error::UndefinedVar(name.to_owned(), expr.range))
-                }
-            },
-        }
-    }
-}
+use crate::{CRange, Range, Val};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {

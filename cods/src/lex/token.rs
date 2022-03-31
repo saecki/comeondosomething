@@ -1,4 +1,3 @@
-use std::f64::consts;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
@@ -113,10 +112,6 @@ pub enum ExprT {
 }
 
 impl ExprT {
-    pub const TAU: Self = Self::Val(Val::Float(consts::TAU));
-    pub const PI: Self = Self::Val(Val::Float(consts::PI));
-    pub const E: Self = Self::Val(Val::Float(consts::E));
-
     pub fn int(i: i128) -> Self {
         Self::Val(Val::Int(i))
     }

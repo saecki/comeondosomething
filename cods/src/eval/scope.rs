@@ -1,27 +1,17 @@
 use std::collections::HashMap;
 
-use crate::{Block, CRange, Context, Ident, IdentRange, Val, ValRange};
+use crate::{Block, BuiltinConst, CRange, Context, Ident, IdentRange, Val, ValRange};
 
 impl Context {
-    pub fn scopes(&self) -> impl Iterator<Item = &Scope> {
+    fn scopes(&self) -> impl Iterator<Item = &Scope> {
         self.scopes.iter().rev()
     }
 
-    pub fn scopes_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
+    fn scopes_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
         self.scopes.iter_mut().rev()
     }
 
-    pub fn resolve_var(&self, id: &IdentRange) -> crate::Result<ValRange> {
-        match self.var_val(id.ident) {
-            Some(v) => Ok(ValRange::new(v.clone(), id.range)),
-            None => {
-                let name = self.ident_name(id.ident);
-                Err(crate::Error::UndefinedVar(name.to_owned(), id.range))
-            }
-        }
-    }
-
-    pub fn var(&self, id: Ident) -> Option<&Var> {
+    fn var(&self, id: Ident) -> Option<&Var> {
         for s in self.scopes() {
             if let Some(v) = s.var(id) {
                 return Some(v);
@@ -30,7 +20,7 @@ impl Context {
         None
     }
 
-    pub fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
+    fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
         for s in self.scopes_mut() {
             if let Some(v) = s.var_mut(id) {
                 return Some(v);
@@ -39,13 +29,25 @@ impl Context {
         None
     }
 
-    pub fn var_val(&self, id: Ident) -> Option<&Val> {
-        for s in self.scopes() {
-            if let Some(v) = s.val(id) {
-                return Some(v);
-            }
+    pub fn resolve_var(&self, id: &IdentRange) -> crate::Result<ValRange> {
+        let name = self.ident_name(id.ident);
+        if let Some(b) = BuiltinConst::from(name) {
+            return Ok(ValRange::new(b.val(), id.range));
         }
-        None
+
+        let var = match self.var(id.ident) {
+            Some(v) => v,
+            None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.range)),
+        };
+
+        match &var.value {
+            Some(v) => Ok(ValRange::new(v.clone(), id.range)),
+            None => Err(crate::Error::UninitializedVar(
+                name.to_owned(),
+                var.ident.range,
+                id.range,
+            )),
+        }
     }
 
     pub fn def_var(&mut self, id: IdentRange, val: Option<Val>, mutable: bool) {
@@ -76,6 +78,15 @@ impl Context {
         }
     }
 
+    fn fun(&self, id: Ident) -> Option<&Fun> {
+        for s in self.scopes() {
+            if let Some(f) = s.fun(id) {
+                return Some(f);
+            }
+        }
+        None
+    }
+
     pub fn resolve_fun(&self, id: &IdentRange) -> crate::Result<&Fun> {
         match self.fun(id.ident) {
             Some(f) => Ok(f),
@@ -86,15 +97,6 @@ impl Context {
         }
     }
 
-    pub fn fun(&self, id: Ident) -> Option<&Fun> {
-        for s in self.scopes() {
-            if let Some(f) = s.fun(id) {
-                return Some(f);
-            }
-        }
-        None
-    }
-
     pub fn def_fun(
         &mut self,
         id: IdentRange,
@@ -102,7 +104,7 @@ impl Context {
         block: Block,
     ) -> crate::Result<()> {
         let s = self.scopes.last_mut().expect("At least the global scope");
-        if let Some(f) = s.funs.get(&id.ident) {
+        if let Some(f) = s.fun(id.ident) {
             let i_r = f.ident.range;
             let name = self.ident_name(id.ident);
             return Err(crate::Error::RedefinedFun(name.to_owned(), i_r, id.range));
@@ -132,10 +134,6 @@ impl Scope {
 
     pub fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
         self.vars.get_mut(&id)
-    }
-
-    pub fn val(&self, id: Ident) -> Option<&Val> {
-        self.var(id).and_then(|v| v.value.as_ref())
     }
 
     pub fn def_var(&mut self, id: IdentRange, val: Option<Val>, mutable: bool) {

@@ -6,7 +6,7 @@ use crate::{
     KwT, OpT, ParKind, SepT,
 };
 
-use builtin::*;
+pub use builtin::*;
 pub use op::*;
 use parser::*;
 
@@ -158,7 +158,7 @@ impl Context {
                     if g.par_kind.is_round() {
                         if let Some(id) = lhs.as_ident() {
                             let g = parser.next().unwrap().into_group().unwrap();
-                            lhs = self.parse_fun(id, g)?;
+                            lhs = self.parse_fun_call(id, g)?;
                             continue;
                         }
                     }
@@ -294,8 +294,8 @@ impl Context {
         }
     }
 
-    fn parse_fun(&mut self, id: IdentRange, g: Group) -> crate::Result<Ast> {
-        let b = match Builtin::from(self.ident_name(id.ident)) {
+    fn parse_fun_call(&mut self, id: IdentRange, g: Group) -> crate::Result<Ast> {
+        let b = match BuiltinFun::from(self.ident_name(id.ident)) {
             Some(b) => b,
             None => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
@@ -305,83 +305,83 @@ impl Context {
         };
 
         let f = match b {
-            Builtin::Pow => {
+            BuiltinFun::Pow => {
                 let [base, exp] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Pow(Box::new(base), Box::new(exp))
             }
-            Builtin::Ln => {
+            BuiltinFun::Ln => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Ln(Box::new(n))
             }
-            Builtin::Log => {
+            BuiltinFun::Log => {
                 let [base, n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Log(Box::new(base), Box::new(n))
             }
-            Builtin::Sqrt => {
+            BuiltinFun::Sqrt => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Sqrt(Box::new(n))
             }
-            Builtin::Ncr => {
+            BuiltinFun::Ncr => {
                 let [n, r] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Ncr(Box::new(n), Box::new(r))
             }
-            Builtin::Sin => {
+            BuiltinFun::Sin => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Sin(Box::new(n))
             }
-            Builtin::Cos => {
+            BuiltinFun::Cos => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Cos(Box::new(n))
             }
-            Builtin::Tan => {
+            BuiltinFun::Tan => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Tan(Box::new(n))
             }
-            Builtin::Asin => {
+            BuiltinFun::Asin => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Asin(Box::new(n))
             }
-            Builtin::Acos => {
+            BuiltinFun::Acos => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Acos(Box::new(n))
             }
-            Builtin::Atan => {
+            BuiltinFun::Atan => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Atan(Box::new(n))
             }
-            Builtin::Gcd => {
+            BuiltinFun::Gcd => {
                 let [a, b] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Gcd(Box::new(a), Box::new(b))
             }
-            Builtin::Min => {
+            BuiltinFun::Min => {
                 let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                 AstT::Min(args)
             }
-            Builtin::Max => {
+            BuiltinFun::Max => {
                 let args = self.parse_dyn_fun_args(2, usize::MAX, g.items, g.range)?;
                 AstT::Max(args)
             }
-            Builtin::Clamp => {
+            BuiltinFun::Clamp => {
                 let [n, min, max] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Clamp(Box::new(n), Box::new(min), Box::new(max))
             }
-            Builtin::Print => {
+            BuiltinFun::Print => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                 AstT::Print(args)
             }
-            Builtin::Println => {
+            BuiltinFun::Println => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
                 AstT::Println(args)
             }
-            Builtin::Spill => {
+            BuiltinFun::Spill => {
                 self.parse_fun_args::<0>(g.items, g.range)?;
                 AstT::Spill
             }
-            Builtin::Assert => {
+            BuiltinFun::Assert => {
                 let [a] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Assert(Box::new(a))
             }
-            Builtin::AssertEq => {
+            BuiltinFun::AssertEq => {
                 let [a, b] = self.parse_fun_args(g.items, g.range)?;
                 AstT::AssertEq(Box::new(a), Box::new(b))
             }
@@ -582,7 +582,7 @@ impl Context {
                 let ident = parser.expect_ident(kw.range.end)?;
 
                 let name = self.ident_name(ident.ident);
-                if Builtin::from(name).is_some() {
+                if BuiltinFun::from(name).is_some() {
                     return Err(crate::Error::RedefinedBuiltinFun(
                         name.to_owned(),
                         ident.range,
@@ -618,6 +618,14 @@ impl Context {
             }
             KwT::Val | KwT::Var => {
                 let ident = parser.expect_ident(kw.range.end)?;
+
+                let name = self.ident_name(ident.ident);
+                if BuiltinConst::from(name).is_some() {
+                    return Err(crate::Error::RedefinedBuiltinConst(
+                        name.to_owned(),
+                        ident.range,
+                    ));
+                }
 
                 let assign_r = parser.expect_op(OpT::Assign, ident.range.end)?;
 
