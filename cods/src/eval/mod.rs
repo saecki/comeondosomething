@@ -367,7 +367,8 @@ impl Context {
         block: &Block,
         range: CRange,
     ) -> crate::Result<Return> {
-        self.def_fun(*id, params.to_owned(), block.to_owned())?;
+        let fun = Fun::new(*id, params.to_owned(), block.to_owned());
+        self.def_fun(fun)?;
         Ok(Return::Unit(range))
     }
 

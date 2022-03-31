@@ -62,20 +62,15 @@ impl Context {
         }
     }
 
-    pub fn def_fun(
-        &mut self,
-        id: IdentRange,
-        params: Vec<IdentRange>,
-        block: Block,
-    ) -> crate::Result<()> {
+    pub fn def_fun(&mut self, fun: Fun) -> crate::Result<()> {
         let s = self.scopes.current_mut();
+        let id = fun.ident;
         if let Some(f) = s.fun(id.ident) {
             let i_r = f.ident.range;
             let name = self.idents.name(id.ident);
             return Err(crate::Error::RedefinedFun(name.to_owned(), i_r, id.range));
         }
 
-        let fun = Fun::new(id, params, block);
         s.funs.insert(id.ident, Rc::new(fun));
 
         Ok(())
