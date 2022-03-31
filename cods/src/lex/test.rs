@@ -70,50 +70,6 @@ fn bools() {
 }
 
 #[test]
-fn angle_literal_deg1() {
-    assert(
-        "234deg",
-        vec![
-            Token::expr(ExprT::int(234), CRange::of(0, 3)),
-            Token::op(OpT::Degree, CRange::of(3, 6)),
-        ],
-    );
-}
-
-#[test]
-fn angle_literal_deg2() {
-    assert(
-        "94.3_deg",
-        vec![
-            Token::expr(ExprT::float(94.3), CRange::of(0, 4)),
-            Token::op(OpT::Degree, CRange::of(4, 8)),
-        ],
-    );
-}
-
-#[test]
-fn angle_literal_rad1() {
-    assert(
-        "43_rad",
-        vec![
-            Token::expr(ExprT::int(43), CRange::of(0, 2)),
-            Token::op(OpT::Radian, CRange::of(2, 6)),
-        ],
-    );
-}
-
-#[test]
-fn angle_literal_rad2() {
-    assert(
-        "1.45rad",
-        vec![
-            Token::expr(ExprT::float(1.45_f64), CRange::of(0, 4)),
-            Token::op(OpT::Radian, CRange::of(4, 7)),
-        ],
-    );
-}
-
-#[test]
 fn eq_range() {
     assert(
         "234 == 43",

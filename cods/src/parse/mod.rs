@@ -200,8 +200,6 @@ impl Context {
 
                 let val_r = CRange::span(lhs.range, op.range);
                 let val = match postfix {
-                    Postfix::Degree => AstT::Degree(Box::new(lhs)),
-                    Postfix::Radian => AstT::Radian(Box::new(lhs)),
                     Postfix::Factorial => AstT::Factorial(Box::new(lhs)),
                 };
 

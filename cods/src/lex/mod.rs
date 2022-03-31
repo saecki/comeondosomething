@@ -10,13 +10,6 @@ mod str;
 mod test;
 mod token;
 
-const LITERAL_SUFFIXES: [(&str, OpT); 4] = [
-    ("_deg", OpT::Degree),
-    ("deg", OpT::Degree),
-    ("_rad", OpT::Radian),
-    ("rad", OpT::Radian),
-];
-
 struct Lexer<'a> {
     tokens: Vec<Token>,
     literal: String,
@@ -93,7 +86,6 @@ impl Context {
                 '|' => self.two_char_op(&mut lexer, OpT::BwOr, OpT::Or, '|')?,
                 '&' => self.two_char_op(&mut lexer, OpT::BwAnd, OpT::And, '&')?,
                 '!' => self.two_char_op(&mut lexer, OpT::Bang, OpT::Ne, '=')?,
-                '°' => self.new_atom(&mut lexer, Token::op(OpT::Degree, range))?,
                 '(' => self.new_atom(&mut lexer, Token::par(ParT::RoundOpen, range))?,
                 '[' => self.new_atom(&mut lexer, Token::par(ParT::SquareOpen, range))?,
                 '{' => self.new_atom(&mut lexer, Token::par(ParT::CurlyOpen, range))?,
@@ -150,8 +142,6 @@ impl Context {
             "false" => Token::expr(ExprT::bool(false), range),
             "div" => Token::op(OpT::IntDiv, range),
             "mod" => Token::op(OpT::Rem, range),
-            "deg" => Token::op(OpT::Degree, range),
-            "rad" => Token::op(OpT::Radian, range),
             "if" => Token::kw(KwT::If, range),
             "else" => Token::kw(KwT::Else, range),
             "while" => Token::kw(KwT::While, range),
@@ -162,34 +152,14 @@ impl Context {
             "var" => Token::kw(KwT::Var, range),
             _ => {
                 if literal.chars().next().unwrap().is_digit(10) {
-                    let mut mood = None;
-                    let mut num_lit = literal;
-                    for (s, op) in LITERAL_SUFFIXES {
-                        if literal.ends_with(s) {
-                            let op_r = CRange::of(range.end - s.len(), range.end);
-                            mood = Some(Token::op(op, op_r));
-
-                            num_lit = &literal[0..(literal.len() - s.len())];
-                            break;
-                        }
-                    }
-
-                    let num_range = CRange::of(start, start + num_lit.len());
-                    let num = if let Ok(i) = num_lit.parse::<i128>() {
+                    let num = if let Ok(i) = literal.parse::<i128>() {
                         ExprT::int(i)
-                    } else if let Ok(f) = num_lit.parse::<f64>() {
+                    } else if let Ok(f) = literal.parse::<f64>() {
                         ExprT::float(f)
                     } else {
-                        return Err(crate::Error::InvalidNumberFormat(num_range));
+                        return Err(crate::Error::InvalidNumberFormat(range));
                     };
-                    lexer.literal.clear();
-                    lexer.tokens.push(Token::expr(num, num_range));
-
-                    if let Some(m) = mood {
-                        lexer.tokens.push(m);
-                    }
-
-                    return Ok(());
+                    Token::expr(num, range)
                 } else {
                     for (i, c) in literal.char_indices() {
                         match c {

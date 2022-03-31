@@ -269,8 +269,6 @@ pub enum OpT {
     BwAnd,
     /// Not or Factorial depending on position
     Bang,
-    Degree,
-    Radian,
     Dot,
 }
 
@@ -302,8 +300,6 @@ impl Display for OpT {
             Self::BwOr => write!(f, "|"),
             Self::BwAnd => write!(f, "&"),
             Self::Bang => write!(f, "!"),
-            Self::Degree => write!(f, "deg"),
-            Self::Radian => write!(f, "rad"),
             Self::Dot => write!(f, "."),
         }
     }

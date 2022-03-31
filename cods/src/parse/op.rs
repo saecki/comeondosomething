@@ -35,8 +35,6 @@ pub enum Prefix {
 }
 
 pub enum Postfix {
-    Degree,
-    Radian,
     Factorial,
 }
 
@@ -68,14 +66,12 @@ impl OpT {
             Self::SubAssign => Some((1, Infix::SubAssign, 2)),
             Self::MulAssign => Some((1, Infix::MulAssign, 2)),
             Self::DivAssign => Some((1, Infix::DivAssign, 2)),
-            Self::Bang | Self::Degree | Self::Radian => None,
+            Self::Bang => None,
         }
     }
 
     pub fn postfix_bp(&self) -> Option<(u8, Postfix)> {
         match self {
-            Self::Degree => Some((21, Postfix::Degree)),
-            Self::Radian => Some((21, Postfix::Radian)),
             Self::Bang => Some((21, Postfix::Factorial)),
             Self::Assign
             | Self::AddAssign
@@ -132,8 +128,6 @@ impl OpT {
             | Self::BwAnd
             | Self::Or
             | Self::And
-            | Self::Degree
-            | Self::Radian
             | Self::Dot => None,
         }
     }
