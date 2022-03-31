@@ -160,6 +160,7 @@ pub struct Scope {
 impl Scope {
     pub fn clear(&mut self) {
         self.vars.clear();
+        self.funs.clear();
     }
 
     pub fn var(&self, id: Ident) -> Option<&Var> {
