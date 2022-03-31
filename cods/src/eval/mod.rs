@@ -302,7 +302,7 @@ impl Context {
     }
 
     fn block(&mut self, asts: &[Ast], range: CRange) -> crate::Result<Return> {
-        self.scopes.push(Scope::default());
+        self.scopes.push();
         let r = match asts.split_last() {
             Some((last, others)) => {
                 for c in others {
@@ -329,23 +329,22 @@ impl Context {
     }
 
     fn while_loop(&mut self, whl_loop: &CondBlock, range: CRange) -> crate::Result<Return> {
-        self.scopes.push(Scope::default());
         while self.eval_to_bool(&whl_loop.cond)? {
+            self.scopes.push();
             for a in whl_loop.block.iter() {
                 self.eval_ast(a)?;
             }
 
-            self.scopes.current_mut().clear();
+            self.scopes.pop();
         }
-        self.scopes.pop();
         Ok(Return::Unit(range))
     }
 
     fn for_loop(&mut self, for_loop: &ForLoop, range: CRange) -> crate::Result<Return> {
         let iter = self.eval_to_range(&for_loop.iter)?;
 
-        self.scopes.push(Scope::default());
         for i in iter.iter() {
+            self.scopes.push();
             let var = Var::new(for_loop.ident, Some(Val::Int(i)), false);
             self.scopes.current_mut().def_var(var);
 
@@ -353,9 +352,8 @@ impl Context {
                 self.eval_ast(c)?;
             }
 
-            self.scopes.current_mut().clear();
+            self.scopes.pop();
         }
-        self.scopes.pop();
 
         Ok(Return::Unit(range))
     }
@@ -396,13 +394,18 @@ impl Context {
             });
         }
 
-        let mut scope = Scope::default();
-        for (p, v) in fun.params.iter().zip(args) {
-            let val = self.eval_to_val(v)?;
-            let var = Var::new(*p, Some(val.val), false);
+        let mut arg_vals = Vec::new();
+        for a in args.iter() {
+            let val = self.eval_to_val(a)?;
+            arg_vals.push(val);
+        }
+
+        self.scopes.push();
+        let scope = self.scopes.current_mut();
+        for (p, a) in fun.params.iter().zip(arg_vals) {
+            let var = Var::new(*p, Some(a.val), false);
             scope.def_var(var);
         }
-        self.scopes.push(scope);
 
         let r = match fun.block.asts.split_last() {
             Some((last, others)) => {
