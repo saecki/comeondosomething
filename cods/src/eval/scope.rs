@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::{Block, BuiltinConst, CRange, Context, Ident, IdentRange, Val, ValRange};
 
@@ -51,7 +52,7 @@ impl Context {
         }
     }
 
-    pub fn resolve_fun(&self, id: &IdentRange) -> crate::Result<&Fun> {
+    pub fn resolve_fun(&self, id: &IdentRange) -> crate::Result<Rc<Fun>> {
         match self.scopes.fun(id.ident) {
             Some(f) => Ok(f),
             None => {
@@ -75,7 +76,7 @@ impl Context {
         }
 
         let fun = Fun::new(id, params, block);
-        s.funs.insert(id.ident, fun);
+        s.funs.insert(id.ident, Rc::new(fun));
 
         Ok(())
     }
@@ -143,7 +144,7 @@ impl Scopes {
         None
     }
 
-    fn fun(&self, id: Ident) -> Option<&Fun> {
+    fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
         for s in self.rev() {
             if let Some(f) = s.fun(id) {
                 return Some(f);
@@ -156,7 +157,7 @@ impl Scopes {
 #[derive(Debug, Default)]
 pub struct Scope {
     vars: HashMap<Ident, Var>,
-    funs: HashMap<Ident, Fun>,
+    funs: HashMap<Ident, Rc<Fun>>,
 }
 
 impl Scope {
@@ -169,7 +170,7 @@ impl Scope {
         self.vars.values()
     }
 
-    pub fn funs(&self) -> impl Iterator<Item = &Fun> {
+    pub fn funs(&self) -> impl Iterator<Item = &Rc<Fun>> {
         self.funs.values()
     }
 
@@ -185,8 +186,8 @@ impl Scope {
         self.vars.insert(var.ident.ident, var);
     }
 
-    pub fn fun(&self, id: Ident) -> Option<&Fun> {
-        self.funs.get(&id)
+    pub fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
+        self.funs.get(&id).map(|f| Rc::clone(f))
     }
 }
 

@@ -372,8 +372,7 @@ impl Context {
     }
 
     fn fun_call(&mut self, id: &IdentRange, args: &[Ast], range: CRange) -> crate::Result<Return> {
-        // PERF: avoid clone
-        let fun = self.resolve_fun(id)?.clone();
+        let fun = self.resolve_fun(id)?;
 
         if args.len() < fun.params.len() {
             return Err(crate::Error::MissingFunArgs {
