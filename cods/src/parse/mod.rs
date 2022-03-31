@@ -323,6 +323,14 @@ impl Context {
                 let [n, r] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Ncr(Box::new(n), Box::new(r))
             }
+            BuiltinFun::ToDeg => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::ToDeg(Box::new(n))
+            }
+            BuiltinFun::ToRad => {
+                let [n] = self.parse_fun_args(g.items, g.range)?;
+                AstT::ToRad(Box::new(n))
+            }
             BuiltinFun::Sin => {
                 let [n] = self.parse_fun_args(g.items, g.range)?;
                 AstT::Sin(Box::new(n))

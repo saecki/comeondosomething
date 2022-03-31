@@ -1,3 +1,5 @@
+use std::f64::consts;
+
 use cods::{CRange, Error, Par, ParT, Val, ValRange};
 
 fn assert(input: &str, expected: Val) {
@@ -67,6 +69,18 @@ fn mul_assign() {
 #[test]
 fn div_assign() {
     assert("var a = 8; a /= 4; a", Val::Int(2));
+}
+
+#[test]
+fn to_deg() {
+    assert("to_deg(PI)", Val::Int(180));
+    assert("to_deg(PI / 2)", Val::Int(90));
+}
+
+#[test]
+fn to_rad() {
+    assert("to_rad(180)", Val::Float(consts::PI));
+    assert("to_rad(45)", Val::Float(consts::FRAC_PI_4));
 }
 
 #[test]

@@ -81,8 +81,8 @@ pub enum AstT {
     BwOr(Box<Ast>, Box<Ast>),
     BwAnd(Box<Ast>, Box<Ast>),
     Not(Box<Ast>),
-    Degree(Box<Ast>),
-    Radian(Box<Ast>),
+    ToDeg(Box<Ast>),
+    ToRad(Box<Ast>),
     Factorial(Box<Ast>),
     Ln(Box<Ast>),
     Log(Box<Ast>, Box<Ast>),
@@ -258,8 +258,8 @@ impl Context {
             AstT::BwOr(a, b) => self.bw_or(a, b, r),
             AstT::BwAnd(a, b) => self.bw_and(a, b, r),
             AstT::Not(a) => self.not(a, r),
-            AstT::Degree(a) => self.degree(a, r),
-            AstT::Radian(a) => self.radian(a, r),
+            AstT::ToDeg(a) => self.to_deg(a, r),
+            AstT::ToRad(a) => self.to_rad(a, r),
             AstT::Factorial(a) => self.factorial(a, r),
             AstT::Ln(a) => self.ln(a, r),
             AstT::Log(a, b) => self.log(a, b, r),
@@ -658,14 +658,14 @@ impl Context {
         return_val(Val::Bool(!va), range)
     }
 
-    // TODO add a angle value type as input for trigeometrical functions
-    fn degree(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?.to_radians();
+    // TODO: make these methods
+    fn to_deg(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
+        let rad = self.eval_to_f64(n)?.to_degrees();
         return_val(Val::Float(rad), range)
     }
 
-    fn radian(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?;
+    fn to_rad(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
+        let rad = self.eval_to_f64(n)?.to_radians();
         return_val(Val::Float(rad), range)
     }
 
