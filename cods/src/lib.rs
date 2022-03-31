@@ -3,6 +3,7 @@ pub use eval::*;
 pub use group::*;
 pub use lex::*;
 pub use parse::*;
+pub use stdio::*;
 pub use types::*;
 pub use util::*;
 
@@ -11,26 +12,17 @@ mod eval;
 mod group;
 mod lex;
 mod parse;
+mod stdio;
 mod types;
 mod util;
 
 #[derive(Debug)]
 pub struct Context {
-    pub idents: Vec<String>,
-    pub scopes: Vec<Scope>,
+    pub idents: Idents,
+    pub scopes: Scopes,
+    pub stdio: Stdio,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self {
-            scopes: vec![Scope::default()],
-            idents: Vec::new(),
-            errors: Vec::new(),
-            warnings: Vec::new(),
-        }
-    }
 }
 
 impl Context {

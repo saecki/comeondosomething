@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
 use crate::{CRange, Context, Expr, ExprT, IdentRange, Range, Val};
@@ -850,9 +851,9 @@ impl Context {
     fn print(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         let vals = self.eval_to_vals(args)?;
         if let Some((first, others)) = vals.split_first() {
-            print!("{first}");
+            self.stdio.print(format_args!("{first}"));
             for v in others {
-                print!(" {v}");
+                self.stdio.print(format_args!(" {v}"));
             }
         }
         Ok(Return::Unit(range))
@@ -860,7 +861,7 @@ impl Context {
 
     fn println(&mut self, args: &[Ast], range: CRange) -> crate::Result<Return> {
         self.print(args, range)?;
-        println!();
+        let _ = self.stdio.stdout.write_all(&*b"\n");
         Ok(Return::Unit(range))
     }
 
@@ -868,8 +869,8 @@ impl Context {
         for s in self.scopes.iter() {
             for (id, var) in s.vars.iter() {
                 if let Some(val) = &var.value {
-                    let name = self.ident_name(*id);
-                    println!("{name} = {val}");
+                    let name = self.idents.name(*id);
+                    self.stdio.print(format_args!("{name} = {val}\n"));
                 }
             }
         }
