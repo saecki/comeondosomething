@@ -30,3 +30,14 @@ fn postfix_op_on_newline() {
 
     assert_eq!(error, crate::Error::MissingOperator(CRange::pos(7)));
 }
+
+#[test]
+fn cannot_redefine_builtin_function() {
+    let input = "fun pow(i) { }";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::RedefinedBuiltinFun("pow".into(), CRange::of(4, 7)),
+    );
+}

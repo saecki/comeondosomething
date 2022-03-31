@@ -51,22 +51,22 @@ fn int() {
 
 #[test]
 fn add_assign() {
-    assert("a = 4; a += 8; a", Val::Int(12));
+    assert("var a = 4; a += 8; a", Val::Int(12));
 }
 
 #[test]
 fn sub_assign() {
-    assert("a = 4; a -= 8; a", Val::Int(-4));
+    assert("var a = 4; a -= 8; a", Val::Int(-4));
 }
 
 #[test]
 fn mul_assign() {
-    assert("a = 4; a *= 8; a", Val::Int(32));
+    assert("var a = 4; a *= 8; a", Val::Int(32));
 }
 
 #[test]
 fn div_assign() {
-    assert("a = 8; a /= 4; a", Val::Int(2));
+    assert("var a = 8; a /= 4; a", Val::Int(2));
 }
 
 #[test]
@@ -331,11 +331,6 @@ fn not() {
 }
 
 #[test]
-fn var() {
-    assert("x = 7; x", Val::Int(7));
-}
-
-#[test]
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
@@ -345,17 +340,17 @@ fn unmatched_par() {
 
 #[test]
 fn newline_sep() {
-    assert("x = 7\n x", Val::Int(7));
+    assert("val x = 7\n x", Val::Int(7));
 }
 
 #[test]
 fn newline_ignored_after_op() {
-    assert("x = 9 + \n 12 \n x", Val::Int(21));
+    assert("val x = 9 + \n 12 \n x", Val::Int(21));
 }
 
 #[test]
 fn newline_ignored_before_op() {
-    assert("x = 34\n - 45 \n x", Val::Int(-11));
+    assert("val x = 34\n - 45 \n x", Val::Int(-11));
 }
 
 #[test]
@@ -386,10 +381,10 @@ fn assertion_eq_failed() {
 
 #[test]
 fn if_statement() {
-    assert("x = 2; if 4 == 3 + 1 { x += 3 }; x", Val::Int(5));
+    assert("var x = 2; if 4 == 3 + 1 { x += 3 }; x", Val::Int(5));
     assert(
         r#"
-        x = 2
+        var x = 2
         if false {
             x += 3
         } else if true {
@@ -405,9 +400,9 @@ fn if_statement() {
 
 #[test]
 fn if_expr() {
-    assert("x = if false { 3 } else { 9 }; x", Val::Int(9));
+    assert("val x = if false { 3 } else { 9 }; x", Val::Int(9));
     assert(
-        r#"x = if true { "hi" } else { "there" }; x"#,
+        r#"val x = if true { "hi" } else { "there" }; x"#,
         Val::Str("hi".into()),
     );
 }
@@ -416,7 +411,7 @@ fn if_expr() {
 fn while_loop() {
     assert(
         r#"
-        i = 0
+        var i = 0
         while i < 10 {
             i += 1
         }
@@ -426,8 +421,8 @@ fn while_loop() {
     );
     assert(
         r#"
-        i = 20
-        c = 0;
+        var i = 20
+        var c = 0;
         while i > 0 {
             i = i div 2
             c += 1
@@ -442,7 +437,7 @@ fn while_loop() {
 fn for_loop() {
     assert(
         r#"
-        sum = 0
+        var sum = 0
         for i in 0..10 {
             sum += i
         }
@@ -452,7 +447,7 @@ fn for_loop() {
     );
     assert(
         r#"
-        sum = 0
+        var sum = 0
         for i in 1..=10 {
             sum += i
         }
@@ -467,7 +462,7 @@ fn function() {
     assert(
         r#"
         fun factorial(n) {
-            f = 1
+            var f = 1
             for i in 1..=n {
                 f *= i;
             }
