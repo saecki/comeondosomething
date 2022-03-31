@@ -329,24 +329,33 @@ impl Context {
     }
 
     fn while_loop(&mut self, whl_loop: &CondBlock, range: CRange) -> crate::Result<Return> {
+        self.scopes.push(Scope::default());
         while self.eval_to_bool(&whl_loop.cond)? {
-            self.block(&whl_loop.block, range)?;
+            for a in whl_loop.block.iter() {
+                self.eval_ast(a)?;
+            }
+
+            self.scopes.current_mut().clear();
         }
+        self.scopes.pop();
         Ok(Return::Unit(range))
     }
 
     fn for_loop(&mut self, for_loop: &ForLoop, range: CRange) -> crate::Result<Return> {
         let iter = self.eval_to_range(&for_loop.iter)?;
 
+        self.scopes.push(Scope::default());
         for i in iter.iter() {
-            let mut scope = Scope::default();
-            scope.def_var(for_loop.ident, Some(Val::Int(i)), false);
-            self.scopes.push(scope);
+            let var = Var::new(for_loop.ident, Some(Val::Int(i)), false);
+            self.scopes.current_mut().def_var(var);
+
             for c in for_loop.block.asts.iter() {
                 self.eval_ast(c)?;
             }
-            self.scopes.pop();
+
+            self.scopes.current_mut().clear();
         }
+        self.scopes.pop();
 
         Ok(Return::Unit(range))
     }
@@ -390,7 +399,8 @@ impl Context {
         let mut scope = Scope::default();
         for (p, v) in fun.params.iter().zip(args) {
             let val = self.eval_to_val(v)?;
-            scope.def_var(*p, Some(val.val), false);
+            let var = Var::new(*p, Some(val.val), false);
+            scope.def_var(var);
         }
         self.scopes.push(scope);
 
@@ -417,7 +427,8 @@ impl Context {
         range: CRange,
     ) -> crate::Result<Return> {
         let val = self.eval_to_val(b)?;
-        self.def_var(*id, Some(val.val), mutable);
+        let var = Var::new(*id, Some(val.val), mutable);
+        self.def_var(var);
         Ok(Return::Unit(range))
     }
 

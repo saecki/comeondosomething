@@ -24,9 +24,9 @@ impl Context {
         }
     }
 
-    pub fn def_var(&mut self, id: IdentRange, val: Option<Val>, mutable: bool) {
+    pub fn def_var(&mut self, var: Var) {
         let s = self.scopes.current_mut();
-        s.def_var(id, val, mutable);
+        s.def_var(var);
     }
 
     pub fn set_var(
@@ -96,7 +96,9 @@ impl Scopes {
     }
 
     pub fn current_mut(&mut self) -> &mut Scope {
-        self.0.last_mut().expect("Expected at least the global scope")
+        self.0
+            .last_mut()
+            .expect("Expected at least the global scope")
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Scope> {
@@ -171,9 +173,8 @@ impl Scope {
         self.vars.get_mut(&id)
     }
 
-    pub fn def_var(&mut self, id: IdentRange, val: Option<Val>, mutable: bool) {
-        let var = Var::new(id, val, mutable);
-        self.vars.insert(id.ident, var);
+    pub fn def_var(&mut self, var: Var) {
+        self.vars.insert(var.ident.ident, var);
     }
 
     pub fn fun(&self, id: Ident) -> Option<&Fun> {
