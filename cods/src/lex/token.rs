@@ -8,7 +8,7 @@ pub enum Token {
     Expr(Expr),
     Op(Op),
     Par(Par),
-    Sep(Sep),
+    Pct(Pct),
     Kw(Kw),
 }
 
@@ -25,8 +25,8 @@ impl Token {
         Self::Par(Par::new(typ, range))
     }
 
-    pub fn sep(typ: SepT, range: CRange) -> Self {
-        Self::Sep(Sep::new(typ, range))
+    pub fn pct(typ: PctT, range: CRange) -> Self {
+        Self::Pct(Pct::new(typ, range))
     }
 
     pub fn kw(typ: KwT, range: CRange) -> Self {
@@ -45,8 +45,8 @@ impl Token {
         matches!(self, Self::Par(_))
     }
 
-    pub fn is_sep(&self) -> bool {
-        matches!(self, Self::Sep(_))
+    pub fn is_pct(&self) -> bool {
+        matches!(self, Self::Pct(_))
     }
 
     pub fn is_kw(&self) -> bool {
@@ -72,7 +72,7 @@ impl Token {
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
             Self::Par(p) => p.range,
-            Self::Sep(s) => s.range,
+            Self::Pct(s) => s.range,
             Self::Kw(k) => k.range,
         }
     }
@@ -395,33 +395,33 @@ impl ParKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Sep {
-    pub typ: SepT,
+pub struct Pct {
+    pub typ: PctT,
     pub range: CRange,
 }
 
-impl Deref for Sep {
-    type Target = SepT;
+impl Deref for Pct {
+    type Target = PctT;
 
     fn deref(&self) -> &Self::Target {
         &self.typ
     }
 }
 
-impl Sep {
-    pub const fn new(typ: SepT, range: CRange) -> Self {
+impl Pct {
+    pub const fn new(typ: PctT, range: CRange) -> Self {
         Self { typ, range }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SepT {
+pub enum PctT {
     Comma,
     Semi,
     Newln,
 }
 
-impl Display for SepT {
+impl Display for PctT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Comma => write!(f, ","),
@@ -431,7 +431,7 @@ impl Display for SepT {
     }
 }
 
-impl SepT {
+impl PctT {
     pub fn is_comma(&self) -> bool {
         matches!(self, Self::Comma)
     }

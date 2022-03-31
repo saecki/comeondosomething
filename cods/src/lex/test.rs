@@ -95,7 +95,7 @@ fn vars() {
             Token::expr(ExprT::Ident(Ident(0)), CRange::of(0, 3)),
             Token::op(OpT::Assign, CRange::pos(4)),
             Token::expr(ExprT::int(2), CRange::pos(6)),
-            Token::sep(SepT::Semi, CRange::pos(7)),
+            Token::pct(PctT::Semi, CRange::pos(7)),
             Token::expr(ExprT::Ident(Ident(1)), CRange::of(9, 12)),
             Token::op(OpT::Assign, CRange::pos(13)),
             Token::expr(ExprT::int(3), CRange::pos(15)),

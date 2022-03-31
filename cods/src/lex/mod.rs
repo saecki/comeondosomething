@@ -60,7 +60,7 @@ impl Context {
             match c {
                 '"' => self.string_literal(&mut lexer)?,
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
-                '\n' => self.new_atom(&mut lexer, Token::sep(SepT::Newln, range))?,
+                '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, range))?,
                 '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
                 '-' | '−' => self.two_char_op(&mut lexer, OpT::Sub, OpT::SubAssign, '=')?,
                 '*' | '×' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
@@ -92,8 +92,8 @@ impl Context {
                 ')' => self.new_atom(&mut lexer, Token::par(ParT::RoundClose, range))?,
                 ']' => self.new_atom(&mut lexer, Token::par(ParT::SquareClose, range))?,
                 '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, range))?,
-                ',' => self.new_atom(&mut lexer, Token::sep(SepT::Comma, range))?,
-                ';' => self.new_atom(&mut lexer, Token::sep(SepT::Semi, range))?,
+                ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, range))?,
+                ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, range))?,
                 c => lexer.literal.push(c),
             }
         }

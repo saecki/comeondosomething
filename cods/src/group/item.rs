@@ -1,4 +1,4 @@
-use crate::{CRange, Expr, Kw, Op, ParKind, Sep, Token};
+use crate::{CRange, Expr, Kw, Op, ParKind, Pct, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -6,7 +6,7 @@ pub enum Item {
     Expr(Expr),
 
     Op(Op),
-    Sep(Sep),
+    Pct(Pct),
     Kw(Kw),
 }
 
@@ -16,7 +16,7 @@ impl Item {
             Token::Expr(n) => Some(Self::Expr(n)),
             Token::Op(o) => Some(Self::Op(o)),
             Token::Par(_) => None,
-            Token::Sep(s) => Some(Self::Sep(s)),
+            Token::Pct(s) => Some(Self::Pct(s)),
             Token::Kw(k) => Some(Self::Kw(k)),
         }
     }
@@ -42,9 +42,9 @@ impl Item {
         }
     }
 
-    pub fn as_sep(&self) -> Option<Sep> {
+    pub fn as_pct(&self) -> Option<Pct> {
         match self {
-            Self::Sep(c) => Some(*c),
+            Self::Pct(c) => Some(*c),
             _ => None,
         }
     }
@@ -57,27 +57,27 @@ impl Item {
         matches!(self, Self::Op(_))
     }
 
-    pub fn is_sep(&self) -> bool {
-        matches!(self, Self::Sep(_))
+    pub fn is_pct(&self) -> bool {
+        matches!(self, Self::Pct(_))
     }
 
     pub fn is_comma(&self) -> bool {
         match self {
-            Self::Sep(s) => s.is_comma(),
+            Self::Pct(p) => p.is_comma(),
             _ => false,
         }
     }
 
     pub fn is_semi(&self) -> bool {
         match self {
-            Self::Sep(s) => s.is_semi(),
+            Self::Pct(p) => p.is_semi(),
             _ => false,
         }
     }
 
     pub fn is_newln(&self) -> bool {
         match self {
-            Self::Sep(s) => s.is_newln(),
+            Self::Pct(p) => p.is_newln(),
             _ => false,
         }
     }
@@ -87,7 +87,7 @@ impl Item {
             Self::Group(g) => g.range,
             Self::Expr(n) => n.range,
             Self::Op(o) => o.range,
-            Self::Sep(s) => s.range,
+            Self::Pct(p) => p.range,
             Self::Kw(k) => k.range,
         }
     }

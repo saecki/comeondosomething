@@ -3,7 +3,7 @@ use std::cmp;
 use crate::util::array_of;
 use crate::{
     Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Group, IdentRange, IfExpr, Item, Kw,
-    KwT, OpT, ParKind, SepT,
+    KwT, OpT, ParKind, PctT,
 };
 
 pub use builtin::*;
@@ -116,13 +116,13 @@ impl Context {
 
                 Ast::new(ast, ast_r)
             }
-            Some(&Item::Sep(s)) => match s.typ {
-                SepT::Comma => {
-                    parser.next();
-                    self.errors.push(crate::Error::UnexpectedSeparator(s));
+            Some(&Item::Pct(s)) => match s.typ {
+                PctT::Comma => {
+                    let i = parser.next().unwrap();
+                    self.errors.push(crate::Error::UnexpectedItem(i));
                     return Ok(Ast::new(AstT::Error, range));
                 }
-                SepT::Semi | SepT::Newln => {
+                PctT::Semi | PctT::Newln => {
                     let r = CRange::of(range.start, s.range.end);
                     return Ok(Ast::new(AstT::Empty, r));
                 }
@@ -174,12 +174,12 @@ impl Context {
                     return Err(crate::Error::MissingOperator(r));
                 }
                 &Item::Op(o) => o,
-                &Item::Sep(s) => match s.typ {
-                    SepT::Comma => {
-                        parser.next();
-                        return Err(crate::Error::UnexpectedSeparator(s));
+                &Item::Pct(s) => match s.typ {
+                    PctT::Comma => {
+                        let i = parser.next().unwrap();
+                        return Err(crate::Error::UnexpectedItem(i));
                     }
-                    SepT::Semi | SepT::Newln => break,
+                    PctT::Semi | PctT::Newln => break,
                 },
                 Item::Kw(k) => {
                     if newln {
@@ -402,7 +402,7 @@ impl Context {
         items: Vec<Item>,
         range: CRange,
     ) -> crate::Result<Vec<Ast>> {
-        let arg_count = items.iter().filter(|i| i.is_sep()).count() + 1;
+        let arg_count = items.iter().filter(|i| i.is_pct()).count() + 1;
         let mut args = Vec::with_capacity(cmp::min(arg_count, max));
         let mut unexpected_args = Vec::new();
         let mut parsed_args = 0;
@@ -609,7 +609,7 @@ impl Context {
                         Some(i) if i.is_comma() => (),
                         Some(i) => {
                             let r = i.range().after();
-                            return Err(crate::Error::ExpectedSep(SepT::Comma, r));
+                            return Err(crate::Error::ExpectedPct(PctT::Comma, r));
                         }
                         None => break,
                     }

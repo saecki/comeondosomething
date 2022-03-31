@@ -1,8 +1,8 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{CRange, Item, Kw, KwT, Op, OpT, Par, SepT};
-use crate::{Sep, ValRange};
+use crate::ValRange;
+use crate::{CRange, Item, Kw, KwT, Op, OpT, Par, PctT};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -49,12 +49,11 @@ pub enum Error {
     },
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
-    UnexpectedSeparator(Sep),
     ExpectedBlock(CRange),
     ExpectedFunPars(CRange),
     ExpectedIdent(CRange),
     ExpectedOp(OpT, CRange),
-    ExpectedSep(SepT, CRange),
+    ExpectedPct(PctT, CRange),
     ExpectedKw(KwT, CRange),
     WrongContext(Kw),
 
@@ -168,12 +167,11 @@ impl Display for Error {
                 write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
-            Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
             Self::ExpectedOp(o, _) => write!(f, "Expected '{o}'"),
             Self::ExpectedKw(k, _) => write!(f, "Expected '{}'", k.name()),
-            Self::ExpectedSep(s, _) => write!(f, "Expected '{s}'"),
+            Self::ExpectedPct(s, _) => write!(f, "Expected '{s}'"),
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
             // Eval
@@ -320,13 +318,12 @@ impl UserFacing for Error {
             Self::UnexpectedItem(i) => vec![i.range()],
             Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
-            Self::UnexpectedSeparator(s) => vec![s.range],
             Self::ExpectedBlock(r) => vec![*r],
             Self::ExpectedFunPars(r) => vec![*r],
             Self::ExpectedIdent(r) => vec![*r],
             Self::ExpectedOp(_, r) => vec![*r],
             Self::ExpectedKw(_, r) => vec![*r],
-            Self::ExpectedSep(_, r) => vec![*r],
+            Self::ExpectedPct(_, r) => vec![*r],
             Self::WrongContext(k) => vec![k.range],
 
             // Eval
