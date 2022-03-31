@@ -295,7 +295,7 @@ impl Context {
     }
 
     fn parse_fun_call(&mut self, id: IdentRange, g: Group) -> crate::Result<Ast> {
-        let b = match BuiltinFun::from(self.ident_name(id.ident)) {
+        let b = match BuiltinFun::from(self.idents.name(id.ident)) {
             Some(b) => b,
             None => {
                 let args = self.parse_dyn_fun_args(0, usize::MAX, g.items, g.range)?;
@@ -581,7 +581,7 @@ impl Context {
             KwT::Fun => {
                 let ident = parser.expect_ident(kw.range.end)?;
 
-                let name = self.ident_name(ident.ident);
+                let name = self.idents.name(ident.ident);
                 if BuiltinFun::from(name).is_some() {
                     return Err(crate::Error::RedefinedBuiltinFun(
                         name.to_owned(),
@@ -619,7 +619,7 @@ impl Context {
             KwT::Val | KwT::Var => {
                 let ident = parser.expect_ident(kw.range.end)?;
 
-                let name = self.ident_name(ident.ident);
+                let name = self.idents.name(ident.ident);
                 if BuiltinConst::from(name).is_some() {
                     return Err(crate::Error::RedefinedBuiltinConst(
                         name.to_owned(),

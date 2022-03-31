@@ -45,18 +45,3 @@ impl CRange {
         self.start <= pos && self.end > pos
     }
 }
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct IdentRange {
-    pub ident: Ident,
-    pub range: CRange,
-}
-
-impl IdentRange {
-    pub const fn new(ident: Ident, range: CRange) -> Self {
-        Self { ident, range }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Ident(pub usize);

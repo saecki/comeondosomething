@@ -1,6 +1,7 @@
 pub use error::*;
 pub use eval::*;
 pub use group::*;
+pub use ident::*;
 pub use lex::*;
 pub use parse::*;
 pub use stdio::*;
@@ -10,13 +11,14 @@ pub use util::*;
 mod error;
 mod eval;
 mod group;
+mod ident;
 mod lex;
 mod parse;
 mod stdio;
 mod types;
 mod util;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Context {
     pub idents: Idents,
     pub scopes: Scopes,
@@ -46,22 +48,6 @@ impl Context {
         let items = self.group(tokens)?;
         let asts = self.parse(items)?;
         Ok(asts)
-    }
-
-    pub fn push_ident(&mut self, name: &str) -> Ident {
-        for (id, n) in self.idents.iter().enumerate() {
-            if n == name {
-                return Ident(id);
-            }
-        }
-
-        let id = self.idents.len();
-        self.idents.push(name.to_owned());
-        Ident(id)
-    }
-
-    pub fn ident_name(&self, id: Ident) -> &str {
-        &self.idents[id.0]
     }
 }
 

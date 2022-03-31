@@ -3,39 +3,13 @@ use std::collections::HashMap;
 use crate::{Block, BuiltinConst, CRange, Context, Ident, IdentRange, Val, ValRange};
 
 impl Context {
-    fn scopes(&self) -> impl Iterator<Item = &Scope> {
-        self.scopes.iter().rev()
-    }
-
-    fn scopes_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
-        self.scopes.iter_mut().rev()
-    }
-
-    fn var(&self, id: Ident) -> Option<&Var> {
-        for s in self.scopes() {
-            if let Some(v) = s.var(id) {
-                return Some(v);
-            }
-        }
-        None
-    }
-
-    fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
-        for s in self.scopes_mut() {
-            if let Some(v) = s.var_mut(id) {
-                return Some(v);
-            }
-        }
-        None
-    }
-
     pub fn resolve_var(&self, id: &IdentRange) -> crate::Result<ValRange> {
-        let name = self.ident_name(id.ident);
+        let name = self.idents.name(id.ident);
         if let Some(b) = BuiltinConst::from(name) {
             return Ok(ValRange::new(b.val(), id.range));
         }
 
-        let var = match self.var(id.ident) {
+        let var = match self.scopes.var(id.ident) {
             Some(v) => v,
             None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.range)),
         };
@@ -51,9 +25,8 @@ impl Context {
     }
 
     pub fn def_var(&mut self, id: IdentRange, val: Option<Val>, mutable: bool) {
-        let s = self.scopes.last_mut().expect("At least the global scope");
-        let var = Var::new(id, val, mutable);
-        s.vars.insert(id.ident, var);
+        let s = self.scopes.current_mut();
+        s.def_var(id, val, mutable);
     }
 
     pub fn set_var(
@@ -62,36 +35,27 @@ impl Context {
         val: Option<Val>,
         val_r: CRange,
     ) -> crate::Result<()> {
-        match self.var_mut(id.ident) {
+        match self.scopes.var_mut(id.ident) {
             Some(v) => {
                 if !v.mutable && v.value.is_some() {
-                    let name = self.ident_name(id.ident);
+                    let name = self.idents.name(id.ident);
                     return Err(crate::Error::ImmutableAssign(name.into(), id.range, val_r));
                 }
                 v.value = val;
                 Ok(())
             }
             None => {
-                let name = self.ident_name(id.ident);
+                let name = self.idents.name(id.ident);
                 Err(crate::Error::UndefinedVar(name.to_owned(), id.range))
             }
         }
     }
 
-    fn fun(&self, id: Ident) -> Option<&Fun> {
-        for s in self.scopes() {
-            if let Some(f) = s.fun(id) {
-                return Some(f);
-            }
-        }
-        None
-    }
-
     pub fn resolve_fun(&self, id: &IdentRange) -> crate::Result<&Fun> {
-        match self.fun(id.ident) {
+        match self.scopes.fun(id.ident) {
             Some(f) => Ok(f),
             None => {
-                let name = self.ident_name(id.ident);
+                let name = self.idents.name(id.ident);
                 Err(crate::Error::UndefinedFun(name.to_owned(), id.range))
             }
         }
@@ -103,10 +67,10 @@ impl Context {
         params: Vec<IdentRange>,
         block: Block,
     ) -> crate::Result<()> {
-        let s = self.scopes.last_mut().expect("At least the global scope");
+        let s = self.scopes.current_mut();
         if let Some(f) = s.fun(id.ident) {
             let i_r = f.ident.range;
-            let name = self.ident_name(id.ident);
+            let name = self.idents.name(id.ident);
             return Err(crate::Error::RedefinedFun(name.to_owned(), i_r, id.range));
         }
 
@@ -114,6 +78,76 @@ impl Context {
         s.funs.insert(id.ident, fun);
 
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct Scopes(pub Vec<Scope>);
+
+impl Default for Scopes {
+    fn default() -> Self {
+        Self(vec![Scope::default()])
+    }
+}
+
+impl Scopes {
+    pub fn current(&self) -> &Scope {
+        self.0.last().expect("Expected at least the global scope")
+    }
+
+    pub fn current_mut(&mut self) -> &mut Scope {
+        self.0.last_mut().expect("Expected at least the global scope")
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Scope> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
+        self.0.iter_mut()
+    }
+
+    pub fn rev(&self) -> impl Iterator<Item = &Scope> {
+        self.0.iter().rev()
+    }
+
+    pub fn rev_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
+        self.0.iter_mut().rev()
+    }
+
+    pub fn push(&mut self, value: Scope) {
+        self.0.push(value)
+    }
+
+    pub fn pop(&mut self) -> Option<Scope> {
+        self.0.pop()
+    }
+
+    fn var(&self, id: Ident) -> Option<&Var> {
+        for s in self.rev() {
+            if let Some(v) = s.var(id) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
+        for s in self.rev_mut() {
+            if let Some(v) = s.var_mut(id) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn fun(&self, id: Ident) -> Option<&Fun> {
+        for s in self.rev() {
+            if let Some(f) = s.fun(id) {
+                return Some(f);
+            }
+        }
+        None
     }
 }
 
