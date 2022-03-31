@@ -23,8 +23,7 @@ impl Context {
     }
 
     fn parse_items(&mut self, items: Vec<Item>, mut range: CRange) -> crate::Result<Vec<Ast>> {
-        let sep_count = items.iter().filter(|i| i.is_semi()).count();
-        let mut asts: Vec<Ast> = Vec::with_capacity(sep_count + 1);
+        let mut asts: Vec<Ast> = Vec::new();
 
         let mut parser = Parser::new(items);
         while parser.peek().is_some() {
