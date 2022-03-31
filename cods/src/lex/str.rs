@@ -100,7 +100,7 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: usize) -> Result
 
         if c == ' ' || c == '"' {
             let e_r = CRange::pos(lexer.pos());
-            let s_r = e_r.offset(-(i + 1));
+            let s_r = CRange::pos(lexer.pos() - (i + 1));
             let end_str = c == '"';
             return Err(EscError {
                 error: crate::Error::MissingClosingUnicodeEscapePar(s_r, e_r),

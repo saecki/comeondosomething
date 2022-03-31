@@ -22,11 +22,8 @@ impl CRange {
         Self::of(pos, pos + 1)
     }
 
-    pub const fn offset(&self, offset: isize) -> Self {
-        Self::of(
-            (self.start as isize + offset) as usize,
-            (self.end as isize + offset) as usize,
-        )
+    pub const fn after(&self) -> Self {
+        Self::pos(self.end)
     }
 
     pub const fn len(&self) -> usize {

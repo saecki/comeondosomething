@@ -102,7 +102,7 @@ impl Context {
                 };
 
                 if parser.peek().is_none() {
-                    let r = CRange::pos(o.range.end);
+                    let r = o.range.after();
                     return Err(crate::Error::MissingOperand(r));
                 }
 
@@ -226,7 +226,7 @@ impl Context {
             let rhs = self.parse_bp(parser, r_bp, rhs_r, cond)?;
 
             if let AstT::Empty = rhs.typ {
-                let r = CRange::pos(op.range.end);
+                let r = op.range.after();
                 return Err(crate::Error::MissingOperand(r));
             }
 
@@ -441,7 +441,7 @@ impl Context {
         } else if parsed_args < min {
             let range = match args.last() {
                 Some(a) => CRange::of(a.range.end, range.end),
-                None => CRange::pos(range.end),
+                None => range.after(),
             };
             self.errors.push(crate::Error::MissingFunArgs {
                 range,
@@ -501,7 +501,7 @@ impl Context {
         } else if parsed_args < COUNT {
             let range = match args.last() {
                 Some(a) => CRange::of(a.range.end, range.end),
-                None => CRange::pos(range.end),
+                None => range.after(),
             };
             self.errors.push(crate::Error::MissingFunArgs {
                 range,
@@ -547,7 +547,7 @@ impl Context {
                         }
                         Some(i) => return Err(crate::Error::ExpectedBlock(i.range())),
                         None => {
-                            let r = CRange::pos(kw.range.end);
+                            let r = kw.range.after();
                             return Err(crate::Error::ExpectedBlock(r));
                         }
                     }
@@ -603,7 +603,7 @@ impl Context {
                     match group_items.next() {
                         Some(i) if i.is_comma() => (),
                         Some(i) => {
-                            let r = CRange::pos(i.range().end);
+                            let r = i.range().after();
                             return Err(crate::Error::ExpectedSep(SepT::Comma, r));
                         }
                         None => break,
