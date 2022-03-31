@@ -878,9 +878,9 @@ impl Context {
 
     fn spill(&mut self, range: CRange) -> crate::Result<Return> {
         for s in self.scopes.iter() {
-            for (id, var) in s.vars.iter() {
+            for var in s.vars() {
                 if let Some(val) = &var.value {
-                    let name = self.idents.name(*id);
+                    let name = self.idents.name(var.ident.ident);
                     self.stdio.print(format_args!("{name} = {val}\n"));
                 }
             }

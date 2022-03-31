@@ -82,7 +82,7 @@ impl Context {
 }
 
 #[derive(Debug)]
-pub struct Scopes(pub Vec<Scope>);
+pub struct Scopes(Vec<Scope>);
 
 impl Default for Scopes {
     fn default() -> Self {
@@ -155,14 +155,22 @@ impl Scopes {
 
 #[derive(Debug, Default)]
 pub struct Scope {
-    pub vars: HashMap<Ident, Var>,
-    pub funs: HashMap<Ident, Fun>,
+    vars: HashMap<Ident, Var>,
+    funs: HashMap<Ident, Fun>,
 }
 
 impl Scope {
     pub fn clear(&mut self) {
         self.vars.clear();
         self.funs.clear();
+    }
+
+    pub fn vars(&self) -> impl Iterator<Item = &Var> {
+        self.vars.values()
+    }
+
+    pub fn funs(&self) -> impl Iterator<Item = &Fun> {
+        self.funs.values()
     }
 
     pub fn var(&self, id: Ident) -> Option<&Var> {

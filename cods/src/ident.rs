@@ -1,7 +1,7 @@
 use crate::CRange;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Idents(pub Vec<String>);
+pub struct Idents(Vec<String>);
 
 impl Idents {
     pub fn push(&mut self, name: &str) -> Ident {

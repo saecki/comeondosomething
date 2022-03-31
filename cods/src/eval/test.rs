@@ -1,43 +1,14 @@
-use std::collections::HashMap;
-
-use crate::{
-    Ast, CRange, Context, Expr, ExprT, Ident, IdentRange, Idents, Scope, Scopes, Val, Var,
-};
-
-#[test]
-fn resolve_var() {
-    let mut ctx = Context {
-        idents: Idents(vec!["x".into()]),
-        scopes: Scopes(vec![Scope {
-            vars: HashMap::from_iter([(
-                Ident(0),
-                Var::new(
-                    IdentRange::new(Ident(0), CRange::pos(0)),
-                    Some(Val::Int(4)),
-                    false,
-                ),
-            )]),
-            ..Default::default()
-        }]),
-        ..Default::default()
-    };
-    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), CRange::pos(0)));
-
-    let val = ctx.eval(&expr).unwrap().unwrap();
-    assert_eq!(Val::Int(4), val);
-}
+use crate::{CRange, Context, Val};
 
 #[test]
 fn undefined_var() {
-    let mut ctx = Context {
-        idents: Idents(vec!["x".into()]),
-        scopes: Scopes(vec![Scope::default()]),
-        ..Default::default()
-    };
-    let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), CRange::pos(0)));
-
-    let val = ctx.eval(&expr).unwrap_err();
-    assert_eq!(crate::Error::UndefinedVar("x".into(), CRange::pos(0)), val);
+    let input = "print(x)";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::UndefinedVar("x".into(), CRange::pos(6))
+    );
 }
 
 #[test]

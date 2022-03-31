@@ -86,7 +86,8 @@ fn vars() {
     let mut ctx = Context::default();
     let tokens = ctx.lex("x64 = 2; arm = 3").unwrap();
 
-    assert_eq!(ctx.idents.0, ["x64", "arm"]);
+    assert_eq!(ctx.idents.name(Ident(0)), "x64");
+    assert_eq!(ctx.idents.name(Ident(1)), "arm");
 
     assert_eq!(
         tokens,
