@@ -511,9 +511,8 @@ impl Context {
             (&Val::Int(a), &Val::Int(b)) => {
                 if b == 0 {
                     return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
-                } else {
-                    Val::Int(a / b)
                 }
+                Val::Int(a / b)
             }
             _ => return Err(crate::Error::FractionEuclidDiv(va.clone(), vb.clone())),
         };
@@ -528,13 +527,13 @@ impl Context {
             (&Val::Int(a), &Val::Int(b)) => {
                 if b == 0 {
                     return Err(crate::Error::RemainderByZero(va.clone(), vb.clone()));
+                }
+
+                let r = a % b;
+                if (r > 0 && b < 0) || (r < 0 && b > 0) {
+                    Val::Int(r + b)
                 } else {
-                    let r = a % b;
-                    if (r > 0 && b < 0) || (r < 0 && b > 0) {
-                        Val::Int(r + b)
-                    } else {
-                        Val::Int(r)
-                    }
+                    Val::Int(r)
                 }
             }
             _ => return Err(crate::Error::FractionRemainder(va.clone(), vb.clone())),

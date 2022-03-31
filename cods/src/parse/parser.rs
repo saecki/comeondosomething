@@ -110,7 +110,7 @@ impl Parser {
             }
         }
     }
-    
+
     pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<CRange> {
         match self.next() {
             Some(Item::Op(o)) if o.typ == op => Ok(o.range),

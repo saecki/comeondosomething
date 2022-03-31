@@ -195,9 +195,8 @@ impl Context {
             if let Some((l_bp, postfix)) = op.postfix_bp() {
                 if l_bp < min_bp {
                     break;
-                } else {
-                    parser.next();
                 }
+                parser.next();
 
                 let val_r = CRange::span(lhs.range, op.range);
                 let val = match postfix {

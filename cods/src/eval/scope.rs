@@ -71,7 +71,7 @@ impl Context {
             }
             None => {
                 let name = self.ident_name(id.ident);
-                return Err(crate::Error::UndefinedVar(name.to_owned(), id.range));
+                Err(crate::Error::UndefinedVar(name.to_owned(), id.range))
             }
         }
     }

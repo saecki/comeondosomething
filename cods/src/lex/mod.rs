@@ -83,7 +83,7 @@ impl Context {
                             None => OpT::RangeEx,
                         };
                         let r = CRange::of(range.start, lexer.pos() + 1);
-                        self.new_atom(&mut lexer, Token::op(op, r))?
+                        self.new_atom(&mut lexer, Token::op(op, r))?;
                     }
                     Some(c) if c.is_digit(10) => lexer.literal.push('.'),
                     _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, range))?,
@@ -137,84 +137,84 @@ impl Context {
     }
 
     fn end_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
-        if !lexer.literal.is_empty() {
-            let start = lexer.pos() - lexer.literal.chars().count();
-            let range = CRange::of(start, lexer.pos());
-
-            let literal = lexer.literal.as_str();
-            let token = match literal {
-                // TODO: make PI, TAU and E builtin constants similar
-                "π" | "pi" => Token::expr(ExprT::PI, range),
-                "τ" | "tau" => Token::expr(ExprT::TAU, range),
-                "e" => Token::expr(ExprT::E, range),
-                "true" => Token::expr(ExprT::bool(true), range),
-                "false" => Token::expr(ExprT::bool(false), range),
-                "div" => Token::op(OpT::IntDiv, range),
-                "mod" => Token::op(OpT::Rem, range),
-                "deg" => Token::op(OpT::Degree, range),
-                "rad" => Token::op(OpT::Radian, range),
-                "if" => Token::kw(KwT::If, range),
-                "else" => Token::kw(KwT::Else, range),
-                "while" => Token::kw(KwT::While, range),
-                "for" => Token::kw(KwT::For, range),
-                "in" => Token::kw(KwT::In, range),
-                "fun" => Token::kw(KwT::Fun, range),
-                "val" => Token::kw(KwT::Val, range),
-                "var" => Token::kw(KwT::Var, range),
-                _ => {
-                    if literal.chars().next().unwrap().is_digit(10) {
-                        let mut mood = None;
-                        let mut num_lit = literal;
-                        for (s, op) in LITERAL_SUFFIXES {
-                            if literal.ends_with(s) {
-                                let op_r = CRange::of(range.end - s.len(), range.end);
-                                mood = Some(Token::op(op, op_r));
-
-                                num_lit = &literal[0..(literal.len() - s.len())];
-                                break;
-                            }
-                        }
-
-                        let num_range = CRange::of(start, start + num_lit.len());
-                        let num = if let Ok(i) = num_lit.parse::<i128>() {
-                            ExprT::int(i)
-                        } else if let Ok(f) = num_lit.parse::<f64>() {
-                            ExprT::float(f)
-                        } else {
-                            return Err(crate::Error::InvalidNumberFormat(num_range));
-                        };
-                        lexer.literal.clear();
-                        lexer.tokens.push(Token::expr(num, num_range));
-
-                        if let Some(m) = mood {
-                            lexer.tokens.push(m);
-                        }
-
-                        return Ok(());
-                    } else {
-                        for (i, c) in literal.char_indices() {
-                            match c {
-                                '0'..='9' => (),
-                                'a'..='z' => (),
-                                'A'..='Z' => (),
-                                '_' => (),
-                                _ => {
-                                    return Err(crate::Error::InvalidChar(CRange::pos(
-                                        range.start + i,
-                                    )))
-                                }
-                            }
-                        }
-
-                        let id = self.push_ident(literal);
-                        Token::expr(ExprT::Ident(id), range)
-                    }
-                }
-            };
-
-            lexer.literal.clear();
-            lexer.tokens.push(token);
+        if lexer.literal.is_empty() {
+            return Ok(());
         }
+
+        let start = lexer.pos() - lexer.literal.chars().count();
+        let range = CRange::of(start, lexer.pos());
+
+        let literal = lexer.literal.as_str();
+        let token = match literal {
+            // TODO: make PI, TAU and E builtin constants similar
+            "π" | "pi" => Token::expr(ExprT::PI, range),
+            "τ" | "tau" => Token::expr(ExprT::TAU, range),
+            "e" => Token::expr(ExprT::E, range),
+            "true" => Token::expr(ExprT::bool(true), range),
+            "false" => Token::expr(ExprT::bool(false), range),
+            "div" => Token::op(OpT::IntDiv, range),
+            "mod" => Token::op(OpT::Rem, range),
+            "deg" => Token::op(OpT::Degree, range),
+            "rad" => Token::op(OpT::Radian, range),
+            "if" => Token::kw(KwT::If, range),
+            "else" => Token::kw(KwT::Else, range),
+            "while" => Token::kw(KwT::While, range),
+            "for" => Token::kw(KwT::For, range),
+            "in" => Token::kw(KwT::In, range),
+            "fun" => Token::kw(KwT::Fun, range),
+            "val" => Token::kw(KwT::Val, range),
+            "var" => Token::kw(KwT::Var, range),
+            _ => {
+                if literal.chars().next().unwrap().is_digit(10) {
+                    let mut mood = None;
+                    let mut num_lit = literal;
+                    for (s, op) in LITERAL_SUFFIXES {
+                        if literal.ends_with(s) {
+                            let op_r = CRange::of(range.end - s.len(), range.end);
+                            mood = Some(Token::op(op, op_r));
+
+                            num_lit = &literal[0..(literal.len() - s.len())];
+                            break;
+                        }
+                    }
+
+                    let num_range = CRange::of(start, start + num_lit.len());
+                    let num = if let Ok(i) = num_lit.parse::<i128>() {
+                        ExprT::int(i)
+                    } else if let Ok(f) = num_lit.parse::<f64>() {
+                        ExprT::float(f)
+                    } else {
+                        return Err(crate::Error::InvalidNumberFormat(num_range));
+                    };
+                    lexer.literal.clear();
+                    lexer.tokens.push(Token::expr(num, num_range));
+
+                    if let Some(m) = mood {
+                        lexer.tokens.push(m);
+                    }
+
+                    return Ok(());
+                } else {
+                    for (i, c) in literal.char_indices() {
+                        match c {
+                            '0'..='9' => (),
+                            'a'..='z' => (),
+                            'A'..='Z' => (),
+                            '_' => (),
+                            _ => {
+                                return Err(crate::Error::InvalidChar(CRange::pos(range.start + i)))
+                            }
+                        }
+                    }
+
+                    let id = self.push_ident(literal);
+                    Token::expr(ExprT::Ident(id), range)
+                }
+            }
+        };
+
+        lexer.literal.clear();
+        lexer.tokens.push(token);
 
         Ok(())
     }
@@ -248,12 +248,12 @@ impl Context {
                                 self.end_string_literal(lexer, start)?;
                             }
                             return Err(e.error);
-                        } else {
-                            self.errors.push(e.error);
-                            if e.end_str {
-                                self.end_string_literal(lexer, start)?;
-                                return Ok(());
-                            }
+                        }
+
+                        self.errors.push(e.error);
+                        if e.end_str {
+                            self.end_string_literal(lexer, start)?;
+                            return Ok(());
                         }
                     }
                 },
