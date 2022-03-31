@@ -74,13 +74,13 @@ impl Parser {
         }
     }
 
-    pub fn expect_params(&mut self, pos: usize) -> crate::Result<Group> {
+    pub fn expect_fun_pars(&mut self, pos: usize) -> crate::Result<Group> {
         match self.next() {
             Some(Item::Group(g)) if g.par_kind.is_round() => Ok(g),
-            Some(i) => Err(crate::Error::ExpectedParams(i.range())),
+            Some(i) => Err(crate::Error::ExpectedFunPars(i.range())),
             None => {
                 let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedParams(r))
+                Err(crate::Error::ExpectedFunPars(r))
             }
         }
     }

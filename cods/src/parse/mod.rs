@@ -589,7 +589,7 @@ impl Context {
                     ));
                 }
 
-                let group = parser.expect_params(ident.range.end)?;
+                let group = parser.expect_fun_pars(ident.range.end)?;
                 let mut params = Vec::new();
                 let mut group_items = group.items.into_iter();
                 while let Some(i) = group_items.next() {

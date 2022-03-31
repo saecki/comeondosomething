@@ -37,8 +37,6 @@ pub enum Error {
     // Parse
     MissingOperand(CRange),
     MissingOperator(CRange),
-    MissingFunPars(CRange),
-    NotFunPars(CRange, CRange),
     MissingFunArgs {
         range: CRange,
         expected: usize,
@@ -53,7 +51,7 @@ pub enum Error {
     UnexpectedOperator(Op),
     UnexpectedSeparator(Sep),
     ExpectedBlock(CRange),
-    ExpectedParams(CRange),
+    ExpectedFunPars(CRange),
     ExpectedIdent(CRange),
     ExpectedOp(OpT, CRange),
     ExpectedSep(SepT, CRange),
@@ -147,8 +145,7 @@ impl Display for Error {
             // Parse
             Self::MissingOperand(_) => write!(f, "Missing operand"),
             Self::MissingOperator(_) => write!(f, "Missing operator"),
-            Self::MissingFunPars(_) => write!(f, "Missing function call parentheses"),
-            Self::NotFunPars(_, _) => write!(f, "Function call parentheses, are round"),
+            Self::ExpectedFunPars(_) => write!(f, "Missing function parentheses"),
             Self::MissingFunArgs {
                 expected, found, ..
             } => {
@@ -171,7 +168,6 @@ impl Display for Error {
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
             Self::UnexpectedSeparator(_) => write!(f, "Unexpected separator"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
-            Self::ExpectedParams(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
             Self::ExpectedOp(o, _) => write!(f, "Expected '{o}'"),
             Self::ExpectedKw(k, _) => write!(f, "Expected '{}'", k.name()),
@@ -314,15 +310,13 @@ impl UserFacing for Error {
             // Parse
             Self::MissingOperand(r) => vec![*r],
             Self::MissingOperator(r) => vec![*r],
-            Self::MissingFunPars(r) => vec![*r],
-            Self::NotFunPars(a, b) => vec![*a, *b],
             Self::MissingFunArgs { range: pos, .. } => vec![*pos],
             Self::UnexpectedItem(i) => vec![i.range()],
             Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
             Self::UnexpectedOperator(o) => vec![o.range],
             Self::UnexpectedSeparator(s) => vec![s.range],
             Self::ExpectedBlock(r) => vec![*r],
-            Self::ExpectedParams(r) => vec![*r],
+            Self::ExpectedFunPars(r) => vec![*r],
             Self::ExpectedIdent(r) => vec![*r],
             Self::ExpectedOp(_, r) => vec![*r],
             Self::ExpectedKw(_, r) => vec![*r],
