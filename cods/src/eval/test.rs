@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 
-use crate::{Ast, CRange, Context, Expr, ExprT, Ident, Scope, Val, Var};
+use crate::{Ast, CRange, Context, Expr, ExprT, Ident, IdentRange, Scope, Val, Var};
 
 #[test]
 fn resolve_var() {
     let mut ctx = Context {
         idents: vec!["x".into()],
         scopes: vec![Scope {
-            vars: HashMap::from_iter([(Ident(0), Var::new(Some(Val::Int(4))))]),
+            vars: HashMap::from_iter([(
+                Ident(0),
+                Var::new(
+                    IdentRange::new(Ident(0), CRange::pos(0)),
+                    Some(Val::Int(4)),
+                    false,
+                ),
+            )]),
             ..Default::default()
         }],
         ..Default::default()
@@ -22,10 +29,7 @@ fn resolve_var() {
 fn undefined_var() {
     let mut ctx = Context {
         idents: vec!["x".into()],
-        scopes: vec![Scope {
-            vars: HashMap::from_iter([(Ident(0), Var::new(None))]),
-            ..Default::default()
-        }],
+        scopes: vec![Scope::default()],
         ..Default::default()
     };
     let expr = Ast::expr(Expr::new(ExprT::Ident(Ident(0)), CRange::pos(0)));

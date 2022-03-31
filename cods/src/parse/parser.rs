@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{CRange, Group, IdentRange, Item, KwT};
+use crate::{CRange, Group, IdentRange, Item, KwT, OpT};
 
 pub struct Parser {
     items: VecDeque<Item>,
@@ -107,6 +107,17 @@ impl Parser {
             None => {
                 let r = CRange::pos(pos);
                 Err(crate::Error::ExpectedKw(kw, r))
+            }
+        }
+    }
+    
+    pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<CRange> {
+        match self.next() {
+            Some(Item::Op(o)) if o.typ == op => Ok(o.range),
+            Some(i) => Err(crate::Error::ExpectedOp(op, i.range())),
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedOp(op, r))
             }
         }
     }

@@ -53,6 +53,7 @@ pub enum AstT {
     ForLoop(ForLoop),
     FunDef(IdentRange, Vec<IdentRange>, Block),
     FunCall(IdentRange, Vec<Ast>),
+    VarDef(IdentRange, Box<Ast>, bool),
     Assign(IdentRange, Box<Ast>),
     AddAssign(IdentRange, Box<Ast>),
     SubAssign(IdentRange, Box<Ast>),
@@ -229,6 +230,7 @@ impl Context {
             AstT::ForLoop(a) => self.for_loop(a, r),
             AstT::FunDef(a, b, c) => self.fun_def(a, b, c, r),
             AstT::FunCall(a, b) => self.fun_call(a, b, r),
+            AstT::VarDef(a, b, c) => self.var_def(a, b, *c, r),
             AstT::Assign(a, b) => self.assign(a, b, r),
             AstT::AddAssign(a, b) => self.add_assign(a, b, r),
             AstT::SubAssign(a, b) => self.sub_assign(a, b, r),
@@ -327,7 +329,7 @@ impl Context {
 
         for i in iter.iter() {
             let mut scope = Scope::default();
-            scope.set_var(for_loop.ident.ident, Some(Val::Int(i)));
+            scope.def_var(for_loop.ident, Some(Val::Int(i)), false);
             self.scopes.push(scope);
             for c in for_loop.block.asts.iter() {
                 self.eval_ast(c)?;
@@ -345,7 +347,7 @@ impl Context {
         block: &Block,
         range: CRange,
     ) -> crate::Result<Return> {
-        self.def_fun(id, params, block)?;
+        self.def_fun(*id, params.to_owned(), block.to_owned())?;
         Ok(Return::Unit(range))
     }
 
@@ -377,7 +379,7 @@ impl Context {
         let mut scope = Scope::default();
         for (p, v) in fun.params.iter().zip(args) {
             let val = self.eval_to_val(v)?;
-            scope.set_var(p.ident, Some(val.val));
+            scope.def_var(*p, Some(val.val), false);
         }
         self.scopes.push(scope);
 
@@ -396,41 +398,57 @@ impl Context {
         r
     }
 
+    fn var_def(
+        &mut self,
+        id: &IdentRange,
+        b: &Ast,
+        mutable: bool,
+        range: CRange,
+    ) -> crate::Result<Return> {
+        let val = self.eval_to_val(b)?;
+        self.def_var(*id, Some(val.val), mutable);
+        Ok(Return::Unit(range))
+    }
+
     fn assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let v = self.eval_to_val(b)?;
-        self.set_var(id.ident, Some(v.val));
+        self.set_var(id, Some(v.val), v.range)?;
         Ok(Return::Unit(range))
     }
 
     fn add_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
+        let val_r = vb.range;
         let val = checked_add(va, vb)?;
-        self.set_var(id.ident, Some(val));
+        self.set_var(id, Some(val), val_r)?;
         Ok(Return::Unit(range))
     }
 
     fn sub_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
+        let val_r = vb.range;
         let val = checked_sub(va, vb)?;
-        self.set_var(id.ident, Some(val));
+        self.set_var(id, Some(val), val_r)?;
         Ok(Return::Unit(range))
     }
 
     fn mul_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
+        let val_r = vb.range;
         let val = checked_mul(va, vb)?;
-        self.set_var(id.ident, Some(val));
+        self.set_var(id, Some(val), val_r)?;
         Ok(Return::Unit(range))
     }
 
     fn div_assign(&mut self, id: &IdentRange, b: &Ast, range: CRange) -> crate::Result<Return> {
         let va = self.resolve_var(id)?;
         let vb = self.eval_to_val(b)?;
+        let val_r = vb.range;
         let val = checked_div(va, vb)?;
-        self.set_var(id.ident, Some(val));
+        self.set_var(id, Some(val), val_r)?;
         Ok(Return::Unit(range))
     }
 
@@ -886,7 +904,7 @@ fn checked_sub(va: ValRange, vb: ValRange) -> crate::Result<Val> {
     match (&va.val, &vb.val) {
         (Val::Int(a), &Val::Int(b)) => match a.checked_sub(b) {
             Some(v) => Ok(Val::Int(v)),
-            None => Err(crate::Error::SubOverflow(va.clone(), vb.clone())),
+            None => Err(crate::Error::SubOverflow(va, vb)),
         },
         _ => Ok(Val::Float(va.to_f64()? - vb.to_f64()?)),
     }
@@ -896,7 +914,7 @@ fn checked_mul(va: ValRange, vb: ValRange) -> crate::Result<Val> {
     match (&va.val, &vb.val) {
         (Val::Int(a), &Val::Int(b)) => match a.checked_mul(b) {
             Some(v) => Ok(Val::Int(v)),
-            None => Err(crate::Error::MulOverflow(va.clone(), vb.clone())),
+            None => Err(crate::Error::MulOverflow(va, vb)),
         },
         _ => Ok(Val::Float(va.to_f64()? * vb.to_f64()?)),
     }
@@ -906,7 +924,7 @@ fn checked_div(va: ValRange, vb: ValRange) -> crate::Result<Val> {
     match (&va.val, &vb.val) {
         (&Val::Int(a), &Val::Int(b)) => {
             if b == 0 {
-                Err(crate::Error::DivideByZero(va.clone(), vb.clone()))
+                Err(crate::Error::DivideByZero(va, vb))
             } else if a % b == 0 {
                 Ok(Val::Int(a / b))
             } else {
@@ -916,7 +934,7 @@ fn checked_div(va: ValRange, vb: ValRange) -> crate::Result<Val> {
         _ => {
             let divisor = vb.to_f64()?;
             if divisor == 0.0 {
-                Err(crate::Error::DivideByZero(va.clone(), vb.clone()))
+                Err(crate::Error::DivideByZero(va, vb))
             } else {
                 Ok(Val::Float(va.to_f64()? / divisor))
             }

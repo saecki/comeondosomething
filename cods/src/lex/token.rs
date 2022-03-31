@@ -279,6 +279,41 @@ pub enum OpT {
     Dot,
 }
 
+impl Display for OpT {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Assign => write!(f, "="),
+            Self::RangeEx => write!(f, ".."),
+            Self::RangeIn => write!(f, "..="),
+            Self::Add => write!(f, "+"),
+            Self::AddAssign => write!(f, "+="),
+            Self::Sub => write!(f, "-"),
+            Self::SubAssign => write!(f, "-="),
+            Self::Mul => write!(f, "*"),
+            Self::MulAssign => write!(f, "*="),
+            Self::Div => write!(f, "/"),
+            Self::DivAssign => write!(f, "/="),
+            Self::IntDiv => write!(f, "div"),
+            Self::Rem => write!(f, "mod"),
+            Self::Pow => write!(f, "^"),
+            Self::Eq => write!(f, "=="),
+            Self::Ne => write!(f, "!="),
+            Self::Lt => write!(f, "<"),
+            Self::Le => write!(f, "<="),
+            Self::Gt => write!(f, ">"),
+            Self::Ge => write!(f, ">="),
+            Self::Or => write!(f, "||"),
+            Self::And => write!(f, "&&"),
+            Self::BwOr => write!(f, "|"),
+            Self::BwAnd => write!(f, "&"),
+            Self::Bang => write!(f, "!"),
+            Self::Degree => write!(f, "deg"),
+            Self::Radian => write!(f, "rad"),
+            Self::Dot => write!(f, "."),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Par {
     pub typ: ParT,
@@ -453,6 +488,8 @@ pub enum KwT {
     For,
     In,
     Fun,
+    Val,
+    Var,
 }
 
 impl KwT {
@@ -464,6 +501,8 @@ impl KwT {
             KwT::For => "for",
             KwT::In => "in",
             KwT::Fun => "fun",
+            KwT::Val => "val",
+            KwT::Var => "var",
         }
     }
 }

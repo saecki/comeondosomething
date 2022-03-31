@@ -3,7 +3,7 @@ use std::cmp;
 use crate::util::array_of;
 use crate::{
     Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Group, IdentRange, IfExpr, Item, Kw,
-    KwT, ParKind, SepT,
+    KwT, OpT, ParKind, SepT,
 };
 
 use builtin::*;
@@ -584,7 +584,10 @@ impl Context {
 
                 let name = self.ident_name(ident.ident);
                 if Builtin::from(name).is_some() {
-                    return Err(crate::Error::RedefinedBuiltinFun(name.to_owned(), ident.range));
+                    return Err(crate::Error::RedefinedBuiltinFun(
+                        name.to_owned(),
+                        ident.range,
+                    ));
                 }
 
                 let group = parser.expect_params(ident.range.end)?;
@@ -613,6 +616,19 @@ impl Context {
 
                 let range = CRange::span(kw.range, block.range);
                 Ok(Ast::new(AstT::FunDef(ident, params, block), range))
+            }
+            KwT::Val | KwT::Var => {
+                let ident = parser.expect_ident(kw.range.end)?;
+
+                let assign_r = parser.expect_op(OpT::Assign, ident.range.end)?;
+
+                let r = CRange::of(assign_r.end, range.end);
+                let val = self.parse_bp(parser, 0, r, false)?;
+
+                let mutable = kw.typ == KwT::Var;
+
+                let range = CRange::span(kw.range, val.range);
+                Ok(Ast::new(AstT::VarDef(ident, Box::new(val), mutable), range))
             }
         }
     }

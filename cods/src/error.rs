@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{CRange, Item, Kw, KwT, Op, Par, SepT};
+use crate::{CRange, Item, Kw, KwT, Op, OpT, Par, SepT};
 use crate::{Sep, ValRange};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -55,6 +55,7 @@ pub enum Error {
     ExpectedBlock(CRange),
     ExpectedParams(CRange),
     ExpectedIdent(CRange),
+    ExpectedOp(OpT, CRange),
     ExpectedSep(SepT, CRange),
     ExpectedKw(KwT, CRange),
     WrongContext(Kw),
@@ -69,6 +70,7 @@ pub enum Error {
     ExpectedRange(ValRange),
     Parsing(CRange),
     UndefinedVar(String, CRange),
+    ImmutableAssign(String, CRange, CRange),
     UndefinedFun(String, CRange),
     RedefinedFun(String, CRange, CRange),
     RedefinedBuiltinFun(String, CRange),
@@ -171,6 +173,7 @@ impl Display for Error {
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
             Self::ExpectedParams(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
+            Self::ExpectedOp(o, _) => write!(f, "Expected '{o}'"),
             Self::ExpectedKw(k, _) => write!(f, "Expected '{}'", k.name()),
             Self::ExpectedSep(s, _) => write!(f, "Expected '{s}'"),
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
@@ -196,6 +199,9 @@ impl Display for Error {
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
+            Self::ImmutableAssign(name, _, _) => {
+                write!(f, "Cannot assign twice to immutable variable '{name}'")
+            }
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
@@ -318,6 +324,7 @@ impl UserFacing for Error {
             Self::ExpectedBlock(r) => vec![*r],
             Self::ExpectedParams(r) => vec![*r],
             Self::ExpectedIdent(r) => vec![*r],
+            Self::ExpectedOp(_, r) => vec![*r],
             Self::ExpectedKw(_, r) => vec![*r],
             Self::ExpectedSep(_, r) => vec![*r],
             Self::WrongContext(k) => vec![k.range],
@@ -332,6 +339,7 @@ impl UserFacing for Error {
             Self::ExpectedRange(v) => vec![v.range],
             Self::Parsing(r) => vec![*r],
             Self::UndefinedVar(_, r) => vec![*r],
+            Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::UndefinedFun(_, r) => vec![*r],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, r) => vec![*r],
