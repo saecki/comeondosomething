@@ -4,6 +4,10 @@ use crate::CRange;
 pub struct Idents(Vec<String>);
 
 impl Idents {
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
     pub fn push(&mut self, name: &str) -> Ident {
         for (id, n) in self.0.iter().enumerate() {
             if n == name {

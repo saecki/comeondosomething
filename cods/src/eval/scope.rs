@@ -133,6 +133,13 @@ impl Scopes {
         self.len -= 1;
     }
 
+    pub fn clear(&mut self) {
+        for s in self.iter_mut() {
+            s.clear();
+        }
+        self.len = 0;
+    }
+
     fn var(&self, id: Ident) -> Option<&Var> {
         for s in self.rev() {
             if let Some(v) = s.var(id) {

@@ -28,6 +28,13 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn clear(&mut self) {
+        self.scopes.clear();
+        self.idents.clear();
+        self.errors.clear();
+        self.warnings.clear();
+    }
+
     pub fn clear_errors(&mut self) {
         self.errors.clear();
         self.warnings.clear();
