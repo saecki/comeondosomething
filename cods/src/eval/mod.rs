@@ -258,8 +258,8 @@ impl Context {
             AstT::BwOr(a, b) => self.bw_or(a, b, r),
             AstT::BwAnd(a, b) => self.bw_and(a, b, r),
             AstT::Not(a) => self.not(a, r),
-            AstT::ToDeg(a) => self.to_deg(a, r),
-            AstT::ToRad(a) => self.to_rad(a, r),
+            AstT::ToDeg(a) => self.rad_to_deg(a, r),
+            AstT::ToRad(a) => self.deg_to_rad(a, r),
             AstT::Factorial(a) => self.factorial(a, r),
             AstT::Ln(a) => self.ln(a, r),
             AstT::Log(a, b) => self.log(a, b, r),
@@ -673,12 +673,12 @@ impl Context {
     }
 
     // TODO: make these methods
-    fn to_deg(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
+    fn rad_to_deg(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?.to_degrees();
         return_val(Val::Float(rad), range)
     }
 
-    fn to_rad(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
+    fn deg_to_rad(&mut self, n: &Ast, range: CRange) -> crate::Result<Return> {
         let rad = self.eval_to_f64(n)?.to_radians();
         return_val(Val::Float(rad), range)
     }

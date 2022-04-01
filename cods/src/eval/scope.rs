@@ -194,7 +194,7 @@ impl Scope {
     }
 
     pub fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
-        self.funs.get(&id).map(|f| Rc::clone(f))
+        self.funs.get(&id).map(Rc::clone)
     }
 }
 
