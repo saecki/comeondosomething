@@ -116,7 +116,7 @@ fn help() {
 {desc}
 
 {yellow}USAGE:{esc}
-    cods [FLAGS] [OPTIONS] [EXPRESSION]
+    cods [OPTIONS] [EXPRESSION]
 
 {yellow}EXPRESSION:{esc}
     An expression that will be evaluated

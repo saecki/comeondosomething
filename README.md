@@ -8,7 +8,7 @@ Saecki <tobiasschmitz2001@gmail.com>
 A cli calculator
 
 USAGE:
-    cods [FLAGS] [OPTIONS] [EXPRESSION]
+    cods [OPTIONS] [EXPRESSION]
 
 EXPRESSION:
     An expression that will be evaluated
