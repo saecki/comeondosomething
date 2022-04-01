@@ -1,9 +1,10 @@
 use std::cmp;
+use std::rc::Rc;
 
 use crate::util::array_of;
 use crate::{
-    Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Group, IdentRange, IfExpr, Item, Kw,
-    KwT, OpT, ParKind, PctT,
+    Ast, AstT, Block, CRange, CondBlock, Context, ForLoop, Fun, Group, IdentRange, IfExpr, Item,
+    Kw, KwT, OpT, ParKind, Param, PctT,
 };
 
 pub use builtin::*;
@@ -117,7 +118,7 @@ impl Context {
                 Ast::new(ast, ast_r)
             }
             Some(&Item::Pct(s)) => match s.typ {
-                PctT::Comma => {
+                PctT::Comma | PctT::Colon | PctT::Arrow => {
                     let i = parser.next().unwrap();
                     self.errors.push(crate::Error::UnexpectedItem(i));
                     return Ok(Ast::new(AstT::Error, range));
@@ -175,7 +176,7 @@ impl Context {
                 }
                 &Item::Op(o) => o,
                 &Item::Pct(s) => match s.typ {
-                    PctT::Comma => {
+                    PctT::Comma | PctT::Colon | PctT::Arrow => {
                         let i = parser.next().unwrap();
                         return Err(crate::Error::UnexpectedItem(i));
                     }
@@ -594,32 +595,51 @@ impl Context {
                     ));
                 }
 
-                let group = parser.expect_fun_pars(ident.range.end)?;
-                let mut params = Vec::new();
-                let mut group_items = group.items.into_iter();
-                while let Some(i) = group_items.next() {
-                    let r = i.range();
-                    let p = i
-                        .into_expr()
-                        .and_then(|e| e.as_ident())
-                        .ok_or(crate::Error::ExpectedIdent(r))?;
-                    params.push(p);
+                let param_group = parser.expect_fun_pars(ident.range.end)?;
+                let params = {
+                    let mut group_parser = Parser::new(param_group.items);
+                    let mut params = Vec::new();
+                    while let Some(i) = group_parser.next() {
+                        let r = i.range();
+                        let ident = i
+                            .into_expr()
+                            .and_then(|e| e.as_ident())
+                            .ok_or(crate::Error::ExpectedIdent(r))?;
 
-                    match group_items.next() {
-                        Some(i) if i.is_comma() => (),
-                        Some(i) => {
-                            let r = i.range().after();
-                            return Err(crate::Error::ExpectedPct(PctT::Comma, r));
+                        let colon_r = group_parser.expect_pct(PctT::Colon, ident.range.end)?;
+                        let typ = group_parser.expect_ident(colon_r.end)?;
+
+                        params.push(Param::new(ident, typ));
+
+                        match group_parser.next() {
+                            Some(i) if i.is_comma() => (),
+                            Some(i) => {
+                                let r = i.range().after();
+                                return Err(crate::Error::ExpectedPct(PctT::Comma, r));
+                            }
+                            None => break,
                         }
-                        None => break,
+                    }
+                    params
+                };
+
+                let mut last_r = param_group.range;
+                let mut return_type = None;
+                if let Some(Item::Pct(p)) = parser.peek() {
+                    if let PctT::Arrow = p.typ {
+                        last_r = p.range;
+                        parser.next();
+
+                        return_type = Some(parser.expect_ident(last_r.end)?);
                     }
                 }
 
-                let group = parser.expect_block(group.range.end)?;
-                let block = self.parse_block(group)?;
+                let block_group = parser.expect_block(last_r.end)?;
+                let block = self.parse_block(block_group)?;
 
                 let range = CRange::span(kw.range, block.range);
-                Ok(Ast::new(AstT::FunDef(ident, params, block), range))
+                let fun = Fun::new(ident, params, return_type, block);
+                Ok(Ast::new(AstT::FunDef(Rc::new(fun)), range))
             }
             KwT::Val | KwT::Var => {
                 let ident = parser.expect_ident(kw.range.end)?;

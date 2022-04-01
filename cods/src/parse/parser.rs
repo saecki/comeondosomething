@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{CRange, Group, IdentRange, Item, KwT, OpT};
+use crate::{CRange, Group, IdentRange, Item, KwT, OpT, PctT};
 
 pub struct Parser {
     items: VecDeque<Item>,
@@ -100,6 +100,17 @@ impl Parser {
         }
     }
 
+    pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<CRange> {
+        match self.next() {
+            Some(Item::Op(o)) if o.typ == op => Ok(o.range),
+            Some(i) => Err(crate::Error::ExpectedOp(op, i.range())),
+            None => {
+                let r = CRange::pos(pos);
+                Err(crate::Error::ExpectedOp(op, r))
+            }
+        }
+    }
+
     pub fn expect_kw(&mut self, kw: KwT, pos: usize) -> crate::Result<CRange> {
         match self.next() {
             Some(Item::Kw(k)) if k.typ == kw => Ok(k.range),
@@ -111,13 +122,13 @@ impl Parser {
         }
     }
 
-    pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<CRange> {
+    pub fn expect_pct(&mut self, pct: PctT, pos: usize) -> crate::Result<CRange> {
         match self.next() {
-            Some(Item::Op(o)) if o.typ == op => Ok(o.range),
-            Some(i) => Err(crate::Error::ExpectedOp(op, i.range())),
+            Some(Item::Pct(p)) if p.typ == pct => Ok(p.range),
+            Some(i) => Err(crate::Error::ExpectedPct(pct, i.range())),
             None => {
                 let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedOp(op, r))
+                Err(crate::Error::ExpectedPct(pct, r))
             }
         }
     }

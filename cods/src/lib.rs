@@ -5,7 +5,7 @@ pub use ident::*;
 pub use lex::*;
 pub use parse::*;
 pub use stdio::*;
-pub use types::*;
+pub use range::*;
 pub use util::*;
 
 mod error;
@@ -15,7 +15,7 @@ mod ident;
 mod lex;
 mod parse;
 mod stdio;
-mod types;
+mod range;
 mod util;
 
 #[derive(Debug, Default)]

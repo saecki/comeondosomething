@@ -51,11 +51,11 @@ fn cannot_assign_twice_to_immutable_var() {
 
 #[test]
 fn cannot_redefine_function() {
-    let input = "fun a(i) { }; fun a() { }";
+    let input = "fun a(i: int) { }; fun a() { }";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::RedefinedFun("a".into(), CRange::pos(4), CRange::pos(18)),
+        crate::Error::RedefinedFun("a".into(), CRange::pos(4), CRange::pos(23)),
     );
 }

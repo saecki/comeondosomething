@@ -62,7 +62,7 @@ impl Context {
         }
     }
 
-    pub fn def_fun(&mut self, fun: Fun) -> crate::Result<()> {
+    pub fn def_fun(&mut self, fun: Rc<Fun>) -> crate::Result<()> {
         let s = self.scopes.current_mut();
         let id = fun.ident;
         if let Some(f) = s.fun(id.ident) {
@@ -71,7 +71,7 @@ impl Context {
             return Err(crate::Error::RedefinedFun(name.to_owned(), i_r, id.range));
         }
 
-        s.funs.insert(id.ident, Rc::new(fun));
+        s.funs.insert(id.ident, fun);
 
         Ok(())
     }
@@ -225,16 +225,35 @@ impl Var {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fun {
     pub ident: IdentRange,
-    pub params: Vec<IdentRange>,
+    pub params: Vec<Param>,
+    pub return_type: Option<IdentRange>,
     pub block: Block,
 }
 
 impl Fun {
-    pub const fn new(ident: IdentRange, params: Vec<IdentRange>, block: Block) -> Self {
+    pub const fn new(
+        ident: IdentRange,
+        params: Vec<Param>,
+        return_type: Option<IdentRange>,
+        block: Block,
+    ) -> Self {
         Self {
             ident,
             params,
+            return_type,
             block,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Param {
+    pub ident: IdentRange,
+    pub typ: IdentRange,
+}
+
+impl Param {
+    pub const fn new(ident: IdentRange, typ: IdentRange) -> Self {
+        Self { ident, typ }
     }
 }

@@ -1,15 +1,18 @@
 use std::convert::TryFrom;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 use crate::{CRange, Context, Expr, ExprT, IdentRange, Range, Val};
 
 pub use scope::*;
+pub use types::*;
 pub use val::*;
 
 mod scope;
 #[cfg(test)]
 mod test;
+mod types;
 mod val;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,7 +55,7 @@ pub enum AstT {
     IfExpr(IfExpr),
     WhileLoop(Box<CondBlock>),
     ForLoop(ForLoop),
-    FunDef(IdentRange, Vec<IdentRange>, Block),
+    FunDef(Rc<Fun>),
     FunCall(IdentRange, Vec<Ast>),
     VarDef(IdentRange, Box<Ast>, bool),
     Assign(IdentRange, Box<Ast>),
@@ -229,7 +232,7 @@ impl Context {
             AstT::IfExpr(a) => self.if_expr(a, r),
             AstT::WhileLoop(a) => self.while_loop(a, r),
             AstT::ForLoop(a) => self.for_loop(a, r),
-            AstT::FunDef(a, b, c) => self.fun_def(a, b, c, r),
+            AstT::FunDef(a) => self.fun_def(a, r),
             AstT::FunCall(a, b) => self.fun_call(a, b, r),
             AstT::VarDef(a, b, c) => self.var_def(a, b, *c, r),
             AstT::Assign(a, b) => self.assign(a, b, r),
@@ -358,15 +361,23 @@ impl Context {
         Ok(Return::Unit(range))
     }
 
-    fn fun_def(
-        &mut self,
-        id: &IdentRange,
-        params: &[IdentRange],
-        block: &Block,
-        range: CRange,
-    ) -> crate::Result<Return> {
-        let fun = Fun::new(*id, params.to_owned(), block.to_owned());
-        self.def_fun(fun)?;
+    fn fun_def(&mut self, fun: &Rc<Fun>, range: CRange) -> crate::Result<Return> {
+        // TODO: store type information
+        for p in fun.params.iter() {
+            let type_name = self.idents.name(p.typ.ident);
+            if PrimitiveType::from(type_name).is_none() {
+                return Err(crate::Error::UnknownType(type_name.to_owned(), p.typ.range));
+            }
+        }
+
+        if let Some(r) = fun.return_type {
+            let type_name = self.idents.name(r.ident);
+            if PrimitiveType::from(type_name).is_none() {
+                return Err(crate::Error::UnknownType(type_name.to_owned(), r.range));
+            }
+        }
+
+        self.def_fun(Rc::clone(fun))?;
         Ok(Return::Unit(range))
     }
 
@@ -403,10 +414,12 @@ impl Context {
         self.scopes.push();
         let scope = self.scopes.current_mut();
         for (p, a) in fun.params.iter().zip(arg_vals) {
-            let var = Var::new(*p, Some(a.val), false);
+            // TODO: type checking
+            let var = Var::new(p.ident, Some(a.val), false);
             scope.def_var(var);
         }
 
+        // TODO: type checking
         let r = match fun.block.asts.split_last() {
             Some((last, others)) => {
                 for c in others {

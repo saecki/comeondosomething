@@ -203,18 +203,6 @@ impl Display for Val {
     }
 }
 
-impl Val {
-    pub const fn type_name(&self) -> &'static str {
-        match self {
-            Self::Int(_) => "int",
-            Self::Float(_) => "float",
-            Self::Bool(_) => "bool",
-            Self::Str(_) => "str",
-            Self::Range(_) => "range",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Op {
     pub typ: OpT,
@@ -418,6 +406,8 @@ impl Pct {
 pub enum PctT {
     Comma,
     Semi,
+    Colon,
+    Arrow,
     Newln,
 }
 
@@ -426,6 +416,8 @@ impl Display for PctT {
         match self {
             Self::Comma => write!(f, ","),
             Self::Semi => write!(f, ";"),
+            Self::Colon => write!(f, ":"),
+            Self::Arrow => write!(f, "->"),
             Self::Newln => write!(f, "\\n"),
         }
     }

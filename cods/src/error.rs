@@ -73,6 +73,7 @@ pub enum Error {
     UndefinedFun(String, CRange),
     RedefinedFun(String, CRange, CRange),
     RedefinedBuiltinFun(String, CRange),
+    UnknownType(String, CRange),
     AddOverflow(ValRange, ValRange),
     SubOverflow(ValRange, ValRange),
     MulOverflow(ValRange, ValRange),
@@ -178,19 +179,19 @@ impl Display for Error {
             Self::MissingExpr => write!(f, "Missing expression"),
             Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
             Self::ExpectedNumber(v) => {
-                write!(f, "Expected a number found '{v}' of type {}", v.type_name())
+                write!(f, "Expected a number found '{v}' of type {}", v.typ())
             }
             Self::ExpectedInt(v) => {
-                write!(f, "Expected an int found '{v}' of type {}", v.type_name())
+                write!(f, "Expected an int found '{v}' of type {}", v.typ())
             }
             Self::ExpectedBool(v) => {
-                write!(f, "Expected a bool found '{v}' of type {}", v.type_name())
+                write!(f, "Expected a bool found '{v}' of type {}", v.typ())
             }
             Self::ExpectedStr(v) => {
-                write!(f, "Expected a str found '{v}' of type {}", v.type_name())
+                write!(f, "Expected a str found '{v}' of type {}", v.typ())
             }
             Self::ExpectedRange(v) => {
-                write!(f, "Expected a range found '{v}' of type {}", v.type_name())
+                write!(f, "Expected a range found '{v}' of type {}", v.typ())
             }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
@@ -205,6 +206,7 @@ impl Display for Error {
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
+            Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
             Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
@@ -267,16 +269,16 @@ impl Display for Error {
                 write!(
                     f,
                     "A bitwise or can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
-                    a.type_name(),
-                    b.type_name(),
+                    a.typ(),
+                    b.typ(),
                 )
             }
             Self::InvalidBwAnd(a, b) => {
                 write!(
                     f,
                     "A bitwise and can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
-                    a.type_name(),
-                    b.type_name(),
+                    a.typ(),
+                    b.typ(),
                 )
             }
             Self::InvalidAssignment(_, _) => {
@@ -342,6 +344,7 @@ impl UserFacing for Error {
             Self::UndefinedFun(_, r) => vec![*r],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, r) => vec![*r],
+            Self::UnknownType(_, r) => vec![*r],
             Self::AddOverflow(a, b) => vec![a.range, b.range],
             Self::SubOverflow(a, b) => vec![a.range, b.range],
             Self::MulOverflow(a, b) => vec![a.range, b.range],

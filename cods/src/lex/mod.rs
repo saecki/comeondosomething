@@ -62,7 +62,21 @@ impl Context {
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
                 '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, range))?,
                 '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
-                '-' | '−' => self.two_char_op(&mut lexer, OpT::Sub, OpT::SubAssign, '=')?,
+                '-' | '−' => match lexer.peek() {
+                    Some('=') => {
+                        lexer.next();
+                        let r = CRange::of(range.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::op(OpT::SubAssign, r))?;
+                    }
+                    Some('>') => {
+                        lexer.next();
+                        let r = CRange::of(range.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::pct(PctT::Arrow, r))?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Sub, range))?;
+                    }
+                },
                 '*' | '×' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
                 '/' | '÷' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
                 '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, range))?,
@@ -94,6 +108,7 @@ impl Context {
                 '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, range))?,
                 ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, range))?,
                 ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, range))?,
+                ':' => self.new_atom(&mut lexer, Token::pct(PctT::Colon, range))?,
                 c => lexer.literal.push(c),
             }
         }

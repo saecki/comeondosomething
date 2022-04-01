@@ -475,7 +475,7 @@ fn for_loop() {
 fn function() {
     assert(
         r#"
-        fun factorial(n) {
+        fun factorial(n: int) -> int {
             var f = 1
             for i in 1..=n {
                 f *= i;
