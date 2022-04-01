@@ -80,14 +80,14 @@ impl Context {
 #[derive(Debug)]
 pub struct Scopes {
     scopes: Vec<Scope>,
-    idx: usize,
+    len: usize,
 }
 
 impl Default for Scopes {
     fn default() -> Self {
         Self {
             scopes: vec![Scope::default()],
-            idx: 0,
+            len: 1,
         }
     }
 }
@@ -95,42 +95,42 @@ impl Default for Scopes {
 impl Scopes {
     pub fn current(&self) -> &Scope {
         self.scopes
-            .get(self.idx)
+            .get(self.len - 1)
             .expect("Expected at least the global scope")
     }
 
     pub fn current_mut(&mut self) -> &mut Scope {
         self.scopes
-            .get_mut(self.idx)
+            .get_mut(self.len - 1)
             .expect("Expected at least the global scope")
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Scope> {
-        self.scopes[0..(self.idx + 1)].iter()
+        self.scopes[0..(self.len)].iter()
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
-        self.scopes[0..(self.idx + 1)].iter_mut()
+        self.scopes[0..(self.len)].iter_mut()
     }
 
     pub fn rev(&self) -> impl Iterator<Item = &Scope> {
-        self.scopes[0..(self.idx + 1)].iter().rev()
+        self.scopes[0..(self.len)].iter().rev()
     }
 
     pub fn rev_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
-        self.scopes[0..(self.idx + 1)].iter_mut().rev()
+        self.scopes[0..(self.len)].iter_mut().rev()
     }
 
     pub fn push(&mut self) {
-        self.idx += 1;
-        if self.idx >= self.scopes.len() {
+        if self.len >= self.scopes.len() {
             self.scopes.push(Scope::default())
         }
+        self.len += 1;
     }
 
     pub fn pop(&mut self) {
         self.current_mut().clear();
-        self.idx -= 1;
+        self.len -= 1;
     }
 
     fn var(&self, id: Ident) -> Option<&Var> {
