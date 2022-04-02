@@ -105,3 +105,26 @@ fn inner_par_limit() {
         ]
     )
 }
+
+#[test]
+fn par_stack_gets_popped() {
+    let mut ctx = Context::default();
+    let tokens = ctx.lex("{ ()()()() }").unwrap();
+    let items = ctx.group(tokens).unwrap();
+
+    assert_eq!(
+        items,
+        vec![Item::Group(Group::new(
+            vec![
+                Item::Group(Group::new(vec![], Span::of(2, 4), ParKind::Round,)),
+                Item::Group(Group::new(vec![], Span::of(4, 6), ParKind::Round,)),
+                Item::Group(Group::new(vec![], Span::of(6, 8), ParKind::Round,)),
+                Item::Group(Group::new(vec![], Span::of(8, 10), ParKind::Round,)),
+            ],
+            Span::of(0, 12),
+            ParKind::Curly,
+        ))],
+    );
+
+    assert_eq!(ctx.errors, vec![])
+}

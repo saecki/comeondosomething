@@ -54,10 +54,16 @@ impl Context {
                         .iter()
                         .rev()
                         .take(3)
-                        .find(|p| right_par.matches(p.typ));
+                        .enumerate()
+                        .find(|(_, p)| right_par.matches(p.typ));
 
                     match matching_par {
-                        Some(_) => break,
+                        Some((i, _)) => {
+                            for _ in 0..(i + 1) {
+                                stack.pop();
+                            }
+                            break;
+                        }
                         None => {
                             self.errors.push(crate::Error::UnexpectedPar(*right_par));
                             state.next();
