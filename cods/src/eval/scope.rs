@@ -1,26 +1,26 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::{Block, BuiltinConst, CRange, Context, Ident, IdentRange, Val, ValRange};
+use crate::{Block, BuiltinConst, Span, Context, Ident, IdentSpan, Val, ValSpan};
 
 impl Context {
-    pub fn resolve_var(&self, id: &IdentRange) -> crate::Result<ValRange> {
+    pub fn resolve_var(&self, id: &IdentSpan) -> crate::Result<ValSpan> {
         let name = self.idents.name(id.ident);
         if let Some(b) = BuiltinConst::from(name) {
-            return Ok(ValRange::new(b.val(), id.range));
+            return Ok(ValSpan::new(b.val(), id.span));
         }
 
         let var = match self.scopes.var(id.ident) {
             Some(v) => v,
-            None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.range)),
+            None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
         };
 
         match &var.value {
-            Some(v) => Ok(ValRange::new(v.clone(), id.range)),
+            Some(v) => Ok(ValSpan::new(v.clone(), id.span)),
             None => Err(crate::Error::UninitializedVar(
                 name.to_owned(),
-                var.ident.range,
-                id.range,
+                var.ident.span,
+                id.span,
             )),
         }
     }
@@ -32,32 +32,32 @@ impl Context {
 
     pub fn set_var(
         &mut self,
-        id: &IdentRange,
+        id: &IdentSpan,
         val: Option<Val>,
-        val_r: CRange,
+        val_s: Span,
     ) -> crate::Result<()> {
         match self.scopes.var_mut(id.ident) {
             Some(v) => {
                 if !v.mutable && v.value.is_some() {
                     let name = self.idents.name(id.ident);
-                    return Err(crate::Error::ImmutableAssign(name.into(), id.range, val_r));
+                    return Err(crate::Error::ImmutableAssign(name.into(), id.span, val_s));
                 }
                 v.value = val;
                 Ok(())
             }
             None => {
                 let name = self.idents.name(id.ident);
-                Err(crate::Error::UndefinedVar(name.to_owned(), id.range))
+                Err(crate::Error::UndefinedVar(name.to_owned(), id.span))
             }
         }
     }
 
-    pub fn resolve_fun(&self, id: &IdentRange) -> crate::Result<Rc<Fun>> {
+    pub fn resolve_fun(&self, id: &IdentSpan) -> crate::Result<Rc<Fun>> {
         match self.scopes.fun(id.ident) {
             Some(f) => Ok(f),
             None => {
                 let name = self.idents.name(id.ident);
-                Err(crate::Error::UndefinedFun(name.to_owned(), id.range))
+                Err(crate::Error::UndefinedFun(name.to_owned(), id.span))
             }
         }
     }
@@ -66,9 +66,9 @@ impl Context {
         let s = self.scopes.current_mut();
         let id = fun.ident;
         if let Some(f) = s.fun(id.ident) {
-            let i_r = f.ident.range;
+            let i_s = f.ident.span;
             let name = self.idents.name(id.ident);
-            return Err(crate::Error::RedefinedFun(name.to_owned(), i_r, id.range));
+            return Err(crate::Error::RedefinedFun(name.to_owned(), i_s, id.span));
         }
 
         s.funs.insert(id.ident, fun);
@@ -207,13 +207,13 @@ impl Scope {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Var {
-    pub ident: IdentRange,
+    pub ident: IdentSpan,
     pub value: Option<Val>,
     pub mutable: bool,
 }
 
 impl Var {
-    pub const fn new(ident: IdentRange, value: Option<Val>, mutable: bool) -> Self {
+    pub const fn new(ident: IdentSpan, value: Option<Val>, mutable: bool) -> Self {
         Self {
             ident,
             value,
@@ -224,17 +224,17 @@ impl Var {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fun {
-    pub ident: IdentRange,
+    pub ident: IdentSpan,
     pub params: Vec<Param>,
-    pub return_type: Option<IdentRange>,
+    pub return_type: Option<IdentSpan>,
     pub block: Block,
 }
 
 impl Fun {
     pub const fn new(
-        ident: IdentRange,
+        ident: IdentSpan,
         params: Vec<Param>,
-        return_type: Option<IdentRange>,
+        return_type: Option<IdentSpan>,
         block: Block,
     ) -> Self {
         Self {
@@ -248,12 +248,12 @@ impl Fun {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Param {
-    pub ident: IdentRange,
-    pub typ: IdentRange,
+    pub ident: IdentSpan,
+    pub typ: IdentSpan,
 }
 
 impl Param {
-    pub const fn new(ident: IdentRange, typ: IdentRange) -> Self {
+    pub const fn new(ident: IdentSpan, typ: IdentSpan) -> Self {
         Self { ident, typ }
     }
 }

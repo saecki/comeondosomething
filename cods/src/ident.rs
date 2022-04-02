@@ -1,4 +1,4 @@
-use crate::CRange;
+use crate::Span;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Idents(Vec<String>);
@@ -26,14 +26,14 @@ impl Idents {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct IdentRange {
+pub struct IdentSpan {
     pub ident: Ident,
-    pub range: CRange,
+    pub span: Span,
 }
 
-impl IdentRange {
-    pub const fn new(ident: Ident, range: CRange) -> Self {
-        Self { ident, range }
+impl IdentSpan {
+    pub const fn new(ident: Ident, span: Span) -> Self {
+        Self { ident, span }
     }
 }
 

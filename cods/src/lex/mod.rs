@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use crate::{CRange, Context};
+use crate::{Span, Context};
 
 pub use token::*;
 
@@ -56,31 +56,31 @@ impl Context {
         let mut lexer = Lexer::new(string);
 
         while let Some(c) = lexer.next() {
-            let range = CRange::pos(lexer.pos());
+            let span = Span::pos(lexer.pos());
             match c {
                 '"' => self.string_literal(&mut lexer)?,
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
-                '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, range))?,
+                '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?,
                 '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
                 '-' | '−' => match lexer.peek() {
                     Some('=') => {
                         lexer.next();
-                        let r = CRange::of(range.start, lexer.pos() + 1);
-                        self.new_atom(&mut lexer, Token::op(OpT::SubAssign, r))?;
+                        let s = Span::of(span.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::op(OpT::SubAssign, s))?;
                     }
                     Some('>') => {
                         lexer.next();
-                        let r = CRange::of(range.start, lexer.pos() + 1);
-                        self.new_atom(&mut lexer, Token::pct(PctT::Arrow, r))?;
+                        let s = Span::of(span.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::pct(PctT::Arrow, s))?;
                     }
                     _ => {
-                        self.new_atom(&mut lexer, Token::op(OpT::Sub, range))?;
+                        self.new_atom(&mut lexer, Token::op(OpT::Sub, span))?;
                     }
                 },
                 '*' | '×' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
                 '/' | '÷' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
-                '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, range))?,
-                '^' => self.new_atom(&mut lexer, Token::op(OpT::Pow, range))?,
+                '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, span))?,
+                '^' => self.new_atom(&mut lexer, Token::op(OpT::Pow, span))?,
                 '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
                 '.' => match lexer.peek() {
                     Some('.') => {
@@ -89,26 +89,26 @@ impl Context {
                             Some(_) => OpT::RangeIn,
                             None => OpT::RangeEx,
                         };
-                        let r = CRange::of(range.start, lexer.pos() + 1);
-                        self.new_atom(&mut lexer, Token::op(op, r))?;
+                        let s = Span::of(span.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::op(op, s))?;
                     }
                     Some(c) if c.is_digit(10) => lexer.literal.push('.'),
-                    _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, range))?,
+                    _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?,
                 },
                 '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,
                 '>' => self.two_char_op(&mut lexer, OpT::Gt, OpT::Ge, '=')?,
                 '|' => self.two_char_op(&mut lexer, OpT::BwOr, OpT::Or, '|')?,
                 '&' => self.two_char_op(&mut lexer, OpT::BwAnd, OpT::And, '&')?,
                 '!' => self.two_char_op(&mut lexer, OpT::Bang, OpT::Ne, '=')?,
-                '(' => self.new_atom(&mut lexer, Token::par(ParT::RoundOpen, range))?,
-                '[' => self.new_atom(&mut lexer, Token::par(ParT::SquareOpen, range))?,
-                '{' => self.new_atom(&mut lexer, Token::par(ParT::CurlyOpen, range))?,
-                ')' => self.new_atom(&mut lexer, Token::par(ParT::RoundClose, range))?,
-                ']' => self.new_atom(&mut lexer, Token::par(ParT::SquareClose, range))?,
-                '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, range))?,
-                ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, range))?,
-                ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, range))?,
-                ':' => self.new_atom(&mut lexer, Token::pct(PctT::Colon, range))?,
+                '(' => self.new_atom(&mut lexer, Token::par(ParT::RoundOpen, span))?,
+                '[' => self.new_atom(&mut lexer, Token::par(ParT::SquareOpen, span))?,
+                '{' => self.new_atom(&mut lexer, Token::par(ParT::CurlyOpen, span))?,
+                ')' => self.new_atom(&mut lexer, Token::par(ParT::RoundClose, span))?,
+                ']' => self.new_atom(&mut lexer, Token::par(ParT::SquareClose, span))?,
+                '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, span))?,
+                ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, span))?,
+                ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, span))?,
+                ':' => self.new_atom(&mut lexer, Token::pct(PctT::Colon, span))?,
                 c => lexer.literal.push(c),
             }
         }
@@ -133,12 +133,12 @@ impl Context {
     ) -> crate::Result<()> {
         match lexer.next_if(expected) {
             Some(_) => {
-                let r = CRange::of(lexer.pos() - 1, lexer.pos() + 1);
-                self.new_atom(lexer, Token::op(two, r))
+                let s = Span::of(lexer.pos() - 1, lexer.pos() + 1);
+                self.new_atom(lexer, Token::op(two, s))
             }
             None => {
-                let r = CRange::pos(lexer.pos());
-                self.new_atom(lexer, Token::op(one, r))
+                let s = Span::pos(lexer.pos());
+                self.new_atom(lexer, Token::op(one, s))
             }
         }
     }
@@ -149,22 +149,22 @@ impl Context {
         }
 
         let start = lexer.pos() - lexer.literal.chars().count();
-        let range = CRange::of(start, lexer.pos());
+        let span = Span::of(start, lexer.pos());
 
         let literal = lexer.literal.as_str();
         let token = match literal {
-            "true" => Token::expr(ExprT::bool(true), range),
-            "false" => Token::expr(ExprT::bool(false), range),
-            "div" => Token::op(OpT::IntDiv, range),
-            "mod" => Token::op(OpT::Rem, range),
-            "if" => Token::kw(KwT::If, range),
-            "else" => Token::kw(KwT::Else, range),
-            "while" => Token::kw(KwT::While, range),
-            "for" => Token::kw(KwT::For, range),
-            "in" => Token::kw(KwT::In, range),
-            "fun" => Token::kw(KwT::Fun, range),
-            "val" => Token::kw(KwT::Val, range),
-            "var" => Token::kw(KwT::Var, range),
+            "true" => Token::expr(ExprT::bool(true), span),
+            "false" => Token::expr(ExprT::bool(false), span),
+            "div" => Token::op(OpT::IntDiv, span),
+            "mod" => Token::op(OpT::Rem, span),
+            "if" => Token::kw(KwT::If, span),
+            "else" => Token::kw(KwT::Else, span),
+            "while" => Token::kw(KwT::While, span),
+            "for" => Token::kw(KwT::For, span),
+            "in" => Token::kw(KwT::In, span),
+            "fun" => Token::kw(KwT::Fun, span),
+            "val" => Token::kw(KwT::Val, span),
+            "var" => Token::kw(KwT::Var, span),
             _ => {
                 if literal.chars().next().unwrap().is_digit(10) {
                     let num = if let Ok(i) = literal.parse::<i128>() {
@@ -172,9 +172,9 @@ impl Context {
                     } else if let Ok(f) = literal.parse::<f64>() {
                         ExprT::float(f)
                     } else {
-                        return Err(crate::Error::InvalidNumberFormat(range));
+                        return Err(crate::Error::InvalidNumberFormat(span));
                     };
-                    Token::expr(num, range)
+                    Token::expr(num, span)
                 } else {
                     for (i, c) in literal.char_indices() {
                         match c {
@@ -183,13 +183,13 @@ impl Context {
                             'A'..='Z' => (),
                             '_' => (),
                             _ => {
-                                return Err(crate::Error::InvalidChar(CRange::pos(range.start + i)))
+                                return Err(crate::Error::InvalidChar(Span::pos(span.start + i)))
                             }
                         }
                     }
 
                     let id = self.idents.push(literal);
-                    Token::expr(ExprT::Ident(id), range)
+                    Token::expr(ExprT::Ident(id), span)
                 }
             }
         };
@@ -242,14 +242,14 @@ impl Context {
             }
         }
 
-        let r = CRange::pos(start);
-        Err(crate::Error::MissingClosingQuote(r))
+        let s = Span::pos(start);
+        Err(crate::Error::MissingClosingQuote(s))
     }
 
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
-        let range = CRange::of(start, lexer.pos() + 1);
-        lexer.tokens.push(Token::expr(ExprT::Val(str), range));
+        let span = Span::of(start, lexer.pos() + 1);
+        lexer.tokens.push(Token::expr(ExprT::Val(str), span));
         lexer.literal.clear();
         Ok(())
     }

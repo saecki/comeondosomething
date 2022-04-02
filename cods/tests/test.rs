@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use cods::{CRange, Error, Par, ParT, Val, ValRange};
+use cods::{Span, Error, Par, ParT, Val, ValSpan};
 
 fn assert(input: &str, expected: Val) {
     match cods::eval(input) {
@@ -158,7 +158,7 @@ fn factorial() {
 fn factorial_overflow() {
     assert_err(
         "34!",
-        Error::FactorialOverflow(ValRange::new(Val::Int(34), CRange::of(0, 2))),
+        Error::FactorialOverflow(ValSpan::new(Val::Int(34), Span::of(0, 2))),
     );
 }
 
@@ -166,7 +166,7 @@ fn factorial_overflow() {
 fn factorial_fraction() {
     assert_err(
         "4.1!",
-        Error::FractionFactorial(ValRange::new(Val::Float(4.1), CRange::of(0, 3))),
+        Error::FractionFactorial(ValSpan::new(Val::Float(4.1), Span::of(0, 3))),
     );
 }
 
@@ -174,7 +174,7 @@ fn factorial_fraction() {
 fn factorial_negative() {
     assert_err(
         "(-3)!",
-        Error::NegativeFactorial(ValRange::new(Val::Int(-3), CRange::of(0, 4))),
+        Error::NegativeFactorial(ValSpan::new(Val::Int(-3), Span::of(0, 4))),
     );
 }
 
@@ -194,8 +194,8 @@ fn binomial_coefficient_invalid() {
     assert_err(
         "ncr(3, 4)",
         Error::InvalidNcr(
-            ValRange::new(Val::Int(3), CRange::pos(4)),
-            ValRange::new(Val::Int(4), CRange::pos(7)),
+            ValSpan::new(Val::Int(3), Span::pos(4)),
+            ValSpan::new(Val::Int(4), Span::pos(7)),
         ),
     );
 }
@@ -204,7 +204,7 @@ fn binomial_coefficient_invalid() {
 fn binomial_coefficient_negative() {
     assert_err(
         "ncr(5, -3)",
-        Error::NegativeNcr(ValRange::new(Val::Int(-3), CRange::of(7, 9))),
+        Error::NegativeNcr(ValSpan::new(Val::Int(-3), Span::of(7, 9))),
     );
 }
 
@@ -245,8 +245,8 @@ fn clamp_bounds() {
     assert_err(
         "clamp(0, 5, 4)",
         Error::InvalidClampBounds(
-            ValRange::new(Val::Int(5), CRange::pos(9)),
-            ValRange::new(Val::Int(4), CRange::pos(12)),
+            ValSpan::new(Val::Int(5), Span::pos(9)),
+            ValSpan::new(Val::Int(4), Span::pos(12)),
         ),
     );
 }
@@ -256,8 +256,8 @@ fn clamp_bounds_float() {
     assert_err(
         "clamp(0, 5.3, 4.5)",
         Error::InvalidClampBounds(
-            ValRange::new(Val::Float(5.3), CRange::of(9, 12)),
-            ValRange::new(Val::Float(4.5), CRange::of(14, 17)),
+            ValSpan::new(Val::Float(5.3), Span::of(9, 12)),
+            ValSpan::new(Val::Float(4.5), Span::of(14, 17)),
         ),
     );
 }
@@ -348,7 +348,7 @@ fn not() {
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
-        Error::UnexpectedPar(Par::new(ParT::RoundClose, CRange::pos(2))),
+        Error::UnexpectedPar(Par::new(ParT::RoundClose, Span::pos(2))),
     );
 }
 
@@ -374,7 +374,7 @@ fn assertion() {
 
 #[test]
 fn assertion_failed() {
-    assert_err("assert(4 == 5)", Error::AssertFailed(CRange::of(7, 13)));
+    assert_err("assert(4 == 5)", Error::AssertFailed(Span::of(7, 13)));
 }
 
 #[test]
@@ -387,8 +387,8 @@ fn assertion_eq_failed() {
     assert_err(
         "assert_eq(false, 5 == 5)",
         Error::AssertEqFailed(
-            ValRange::new(Val::Bool(false), CRange::of(10, 15)),
-            ValRange::new(Val::Bool(true), CRange::of(17, 23)),
+            ValSpan::new(Val::Bool(false), Span::of(10, 15)),
+            ValSpan::new(Val::Bool(true), Span::of(17, 23)),
         ),
     );
 }

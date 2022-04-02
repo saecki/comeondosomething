@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::marker::PhantomData;
 
-use cods::{CRange, UserFacing};
+use cods::{Span, UserFacing};
 use unicode_width::UnicodeWidthChar;
 
 use crate::style::{LRed, LYellow};
@@ -29,18 +29,18 @@ pub struct FmtUserFacing<'a, U: DisplayUserFacing<C>, C: Color> {
 
 impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ranges = self.error.ranges();
-        let lines = range_lines(self.input);
+        let spans = self.error.spans();
+        let lines = spanned_lines(self.input);
 
         let mut hl_lines = Vec::new();
         for (nr, (lr, l)) in lines.iter().enumerate() {
-            let intersecting: Vec<_> = ranges
+            let intersecting: Vec<_> = spans
                 .iter()
                 .filter(|r| r.intersects(lr))
                 .map(|r| {
                     let ms = r.start.saturating_sub(lr.start);
                     let me = min(r.end.saturating_sub(lr.start), lr.len());
-                    CRange::of(ms, me)
+                    Span::of(ms, me)
                 })
                 .collect();
 
@@ -53,8 +53,8 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
             .last()
             .map_or(2, |(nr, _, _)| (*nr as f32).log10() as usize + 1);
 
-        for (nr, l, ranges) in hl_lines {
-            mark_ranges::<C>(f, nr, nr_width, l, &ranges)?;
+        for (nr, l, spans) in hl_lines {
+            mark_spans::<C>(f, nr, nr_width, l, &spans)?;
         }
 
         write!(
@@ -71,12 +71,12 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
 }
 
 #[allow(clippy::mut_range_bound)]
-fn mark_ranges<C: Color>(
+fn mark_spans<C: Color>(
     f: &mut fmt::Formatter<'_>,
     line_nr: usize,
     nr_width: usize,
     line: &str,
-    ranges: &[CRange],
+    spans: &[Span],
 ) -> fmt::Result {
     write!(
         f,
@@ -93,9 +93,9 @@ fn mark_ranges<C: Color>(
     let mut pos = 0;
     let mut peeked = 0;
 
-    for r in ranges {
+    for s in spans {
         let mut offset = 0;
-        for _ in pos..(r.start) {
+        for _ in pos..(s.start) {
             if let Some(c) = chars.next() {
                 pos += 1;
                 offset += c.width().unwrap_or(0);
@@ -109,7 +109,7 @@ fn mark_ranges<C: Color>(
         }
 
         let mut width = 0;
-        for _ in pos..(r.end) {
+        for _ in pos..(s.end) {
             if let Some(c) = chars.next() {
                 pos += 1;
                 width += c.width().unwrap_or(0);
@@ -140,7 +140,7 @@ fn mark_ranges<C: Color>(
     Ok(())
 }
 
-fn range_lines(string: &str) -> Vec<(CRange, &str)> {
+fn spanned_lines(string: &str) -> Vec<(Span, &str)> {
     let mut lines = Vec::new();
     let mut line_start = (0, 0);
     let mut pos = (0, 0);
@@ -150,16 +150,16 @@ fn range_lines(string: &str) -> Vec<(CRange, &str)> {
     while let Some(c) = chars.next() {
         match c {
             '\r' => {
-                let range = CRange::of(line_start.0, pos.0 + 1);
+                let span = Span::of(line_start.0, pos.0 + 1);
                 let line = &string[line_start.1..pos.1];
-                lines.push((range, line));
+                lines.push((span, line));
                 pushed_line = true;
             }
             '\n' => {
                 if !pushed_line {
-                    let range = CRange::of(line_start.0, pos.0 + 1);
+                    let span = Span::of(line_start.0, pos.0 + 1);
                     let line = &string[line_start.1..pos.1];
-                    lines.push((range, line));
+                    lines.push((span, line));
                 }
 
                 // We know this char is 1 byte wide
@@ -175,9 +175,9 @@ fn range_lines(string: &str) -> Vec<(CRange, &str)> {
     }
 
     if !pushed_line {
-        let range = CRange::of(line_start.0, pos.0 + 1);
+        let span = Span::of(line_start.0, pos.0 + 1);
         let line = &string[line_start.1..pos.1];
-        lines.push((range, line));
+        lines.push((span, line));
     }
 
     lines

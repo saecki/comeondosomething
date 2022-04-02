@@ -1,4 +1,4 @@
-use crate::{CRange, Expr, Kw, Op, ParKind, Pct, Token};
+use crate::{Span, Expr, Kw, Op, ParKind, Pct, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -82,13 +82,13 @@ impl Item {
         }
     }
 
-    pub fn range(&self) -> CRange {
+    pub fn span(&self) -> Span {
         match self {
-            Self::Group(g) => g.range,
-            Self::Expr(n) => n.range,
-            Self::Op(o) => o.range,
-            Self::Pct(p) => p.range,
-            Self::Kw(k) => k.range,
+            Self::Group(g) => g.span,
+            Self::Expr(n) => n.span,
+            Self::Op(o) => o.span,
+            Self::Pct(p) => p.span,
+            Self::Kw(k) => k.span,
         }
     }
 }
@@ -96,15 +96,15 @@ impl Item {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Group {
     pub items: Vec<Item>,
-    pub range: CRange,
+    pub span: Span,
     pub par_kind: ParKind,
 }
 
 impl Group {
-    pub fn new(items: Vec<Item>, range: CRange, par: ParKind) -> Self {
+    pub fn new(items: Vec<Item>, span: Span, par: ParKind) -> Self {
         Self {
             items,
-            range,
+            span,
             par_kind: par,
         }
     }

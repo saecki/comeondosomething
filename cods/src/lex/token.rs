@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{CRange, Ident, IdentRange};
+use crate::{Ident, IdentSpan, Span};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -13,24 +13,24 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn expr(val: ExprT, range: CRange) -> Self {
-        Self::Expr(Expr::new(val, range))
+    pub fn expr(val: ExprT, span: Span) -> Self {
+        Self::Expr(Expr::new(val, span))
     }
 
-    pub fn op(typ: OpT, range: CRange) -> Self {
-        Self::Op(Op::new(typ, range))
+    pub fn op(typ: OpT, span: Span) -> Self {
+        Self::Op(Op::new(typ, span))
     }
 
-    pub fn par(typ: ParT, range: CRange) -> Self {
-        Self::Par(Par::new(typ, range))
+    pub fn par(typ: ParT, span: Span) -> Self {
+        Self::Par(Par::new(typ, span))
     }
 
-    pub fn pct(typ: PctT, range: CRange) -> Self {
-        Self::Pct(Pct::new(typ, range))
+    pub fn pct(typ: PctT, span: Span) -> Self {
+        Self::Pct(Pct::new(typ, span))
     }
 
-    pub fn kw(typ: KwT, range: CRange) -> Self {
-        Self::Kw(Kw::new(typ, range))
+    pub fn kw(typ: KwT, span: Span) -> Self {
+        Self::Kw(Kw::new(typ, span))
     }
 
     pub fn is_val(&self) -> bool {
@@ -67,13 +67,13 @@ impl Token {
         }
     }
 
-    pub fn range(&self) -> CRange {
+    pub fn span(&self) -> Span {
         match self {
-            Self::Expr(n) => n.range,
-            Self::Op(o) => o.range,
-            Self::Par(p) => p.range,
-            Self::Pct(s) => s.range,
-            Self::Kw(k) => k.range,
+            Self::Expr(n) => n.span,
+            Self::Op(o) => o.span,
+            Self::Par(p) => p.span,
+            Self::Pct(s) => s.span,
+            Self::Kw(k) => k.span,
         }
     }
 }
@@ -81,7 +81,7 @@ impl Token {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Expr {
     pub typ: ExprT,
-    pub range: CRange,
+    pub span: Span,
 }
 
 impl Deref for Expr {
@@ -93,13 +93,13 @@ impl Deref for Expr {
 }
 
 impl Expr {
-    pub fn new(expr: ExprT, range: CRange) -> Self {
-        Self { typ: expr, range }
+    pub fn new(typ: ExprT, span: Span) -> Self {
+        Self { typ, span }
     }
 
-    pub fn as_ident(&self) -> Option<IdentRange> {
+    pub fn as_ident(&self) -> Option<IdentSpan> {
         match self.typ {
-            ExprT::Ident(i) => Some(IdentRange::new(i, self.range)),
+            ExprT::Ident(i) => Some(IdentSpan::new(i, self.span)),
             _ => None,
         }
     }
@@ -206,12 +206,12 @@ impl Display for Val {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Op {
     pub typ: OpT,
-    pub range: CRange,
+    pub span: Span,
 }
 
 impl Op {
-    pub const fn new(typ: OpT, range: CRange) -> Self {
-        Op { typ, range }
+    pub const fn new(typ: OpT, span: Span) -> Self {
+        Op { typ, span }
     }
 }
 
@@ -296,7 +296,7 @@ impl Display for OpT {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Par {
     pub typ: ParT,
-    pub range: CRange,
+    pub span: Span,
 }
 
 impl Deref for Par {
@@ -314,8 +314,8 @@ impl DerefMut for Par {
 }
 
 impl Par {
-    pub const fn new(typ: ParT, range: CRange) -> Self {
-        Self { typ, range }
+    pub const fn new(typ: ParT, span: Span) -> Self {
+        Self { typ, span }
     }
 }
 
@@ -385,7 +385,7 @@ impl ParKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pct {
     pub typ: PctT,
-    pub range: CRange,
+    pub span: Span,
 }
 
 impl Deref for Pct {
@@ -397,8 +397,8 @@ impl Deref for Pct {
 }
 
 impl Pct {
-    pub const fn new(typ: PctT, range: CRange) -> Self {
-        Self { typ, range }
+    pub const fn new(typ: PctT, span: Span) -> Self {
+        Self { typ, span }
     }
 }
 
@@ -440,7 +440,7 @@ impl PctT {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Kw {
     pub typ: KwT,
-    pub range: CRange,
+    pub span: Span,
 }
 
 impl Deref for Kw {
@@ -458,8 +458,8 @@ impl DerefMut for Kw {
 }
 
 impl Kw {
-    pub const fn new(typ: KwT, range: CRange) -> Self {
-        Self { typ, range }
+    pub const fn new(typ: KwT, span: Span) -> Self {
+        Self { typ, span }
     }
 }
 

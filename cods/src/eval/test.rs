@@ -1,4 +1,4 @@
-use crate::{CRange, Context, Val};
+use crate::{Span, Context, Val};
 
 #[test]
 fn undefined_var() {
@@ -7,7 +7,7 @@ fn undefined_var() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::UndefinedVar("x".into(), CRange::pos(6))
+        crate::Error::UndefinedVar("x".into(), Span::pos(6))
     );
 }
 
@@ -18,7 +18,7 @@ fn undefined_outside_scope() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::UndefinedVar("x".into(), CRange::pos(23))
+        crate::Error::UndefinedVar("x".into(), Span::pos(23))
     );
 }
 
@@ -45,7 +45,7 @@ fn cannot_assign_twice_to_immutable_var() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::ImmutableAssign("x".into(), CRange::pos(11), CRange::pos(15)),
+        crate::Error::ImmutableAssign("x".into(), Span::pos(11), Span::pos(15)),
     );
 }
 
@@ -56,6 +56,6 @@ fn cannot_redefine_function() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::RedefinedFun("a".into(), CRange::pos(4), CRange::pos(23)),
+        crate::Error::RedefinedFun("a".into(), Span::pos(4), Span::pos(23)),
     );
 }

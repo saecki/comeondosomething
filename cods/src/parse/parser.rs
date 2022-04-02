@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{CRange, Group, IdentRange, Item, KwT, OpT, PctT};
+use crate::{Group, IdentSpan, Item, KwT, OpT, PctT, Span};
 
 pub struct Parser {
     items: VecDeque<Item>,
@@ -66,10 +66,10 @@ impl Parser {
     pub fn expect_block(&mut self, pos: usize) -> crate::Result<Group> {
         match self.next() {
             Some(Item::Group(g)) if g.par_kind.is_curly() => Ok(g),
-            Some(i) => Err(crate::Error::ExpectedBlock(i.range())),
+            Some(i) => Err(crate::Error::ExpectedBlock(i.span())),
             None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedBlock(r))
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedBlock(s))
             }
         }
     }
@@ -77,58 +77,58 @@ impl Parser {
     pub fn expect_fun_pars(&mut self, pos: usize) -> crate::Result<Group> {
         match self.next() {
             Some(Item::Group(g)) if g.par_kind.is_round() => Ok(g),
-            Some(i) => Err(crate::Error::ExpectedFunPars(i.range())),
+            Some(i) => Err(crate::Error::ExpectedFunPars(i.span())),
             None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedFunPars(r))
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedFunPars(s))
             }
         }
     }
 
-    pub fn expect_ident(&mut self, pos: usize) -> crate::Result<IdentRange> {
+    pub fn expect_ident(&mut self, pos: usize) -> crate::Result<IdentSpan> {
         match self.next() {
             Some(i) => {
-                let r = i.range();
+                let s = i.span();
                 i.into_expr()
                     .and_then(|e| e.as_ident())
-                    .ok_or(crate::Error::ExpectedIdent(r))
+                    .ok_or(crate::Error::ExpectedIdent(s))
             }
             None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedIdent(r))
-            }
-        }
-    }
-
-    pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<CRange> {
-        match self.next() {
-            Some(Item::Op(o)) if o.typ == op => Ok(o.range),
-            Some(i) => Err(crate::Error::ExpectedOp(op, i.range())),
-            None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedOp(op, r))
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedIdent(s))
             }
         }
     }
 
-    pub fn expect_kw(&mut self, kw: KwT, pos: usize) -> crate::Result<CRange> {
+    pub fn expect_op(&mut self, op: OpT, pos: usize) -> crate::Result<Span> {
         match self.next() {
-            Some(Item::Kw(k)) if k.typ == kw => Ok(k.range),
-            Some(i) => Err(crate::Error::ExpectedKw(kw, i.range())),
+            Some(Item::Op(o)) if o.typ == op => Ok(o.span),
+            Some(i) => Err(crate::Error::ExpectedOp(op, i.span())),
             None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedKw(kw, r))
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedOp(op, s))
             }
         }
     }
 
-    pub fn expect_pct(&mut self, pct: PctT, pos: usize) -> crate::Result<CRange> {
+    pub fn expect_kw(&mut self, kw: KwT, pos: usize) -> crate::Result<Span> {
         match self.next() {
-            Some(Item::Pct(p)) if p.typ == pct => Ok(p.range),
-            Some(i) => Err(crate::Error::ExpectedPct(pct, i.range())),
+            Some(Item::Kw(k)) if k.typ == kw => Ok(k.span),
+            Some(i) => Err(crate::Error::ExpectedKw(kw, i.span())),
             None => {
-                let r = CRange::pos(pos);
-                Err(crate::Error::ExpectedPct(pct, r))
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedKw(kw, s))
+            }
+        }
+    }
+
+    pub fn expect_pct(&mut self, pct: PctT, pos: usize) -> crate::Result<Span> {
+        match self.next() {
+            Some(Item::Pct(p)) if p.typ == pct => Ok(p.span),
+            Some(i) => Err(crate::Error::ExpectedPct(pct, i.span())),
+            None => {
+                let s = Span::pos(pos);
+                Err(crate::Error::ExpectedPct(pct, s))
             }
         }
     }

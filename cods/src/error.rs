@@ -1,100 +1,100 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::ValRange;
-use crate::{CRange, Item, Kw, KwT, Op, OpT, Par, PctT};
+use crate::ValSpan;
+use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait UserFacing: Sized + Debug + Display {
-    fn ranges(&self) -> Vec<CRange>;
+    fn spans(&self) -> Vec<Span>;
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    NotImplemented(&'static str, CRange),
+    NotImplemented(&'static str, Span),
 
     // Lex
-    InvalidChar(CRange),
-    InvalidNumberFormat(CRange),
-    InvalidEscapeChar(char, CRange),
-    MissingEscapeChar(CRange),
-    InvalidUnicodeEscapeChar(char, CRange),
+    InvalidChar(Span),
+    InvalidNumberFormat(Span),
+    InvalidEscapeChar(char, Span),
+    MissingEscapeChar(Span),
+    InvalidUnicodeEscapeChar(char, Span),
     MissingUnicodeEscapeChar {
-        range: CRange,
+        span: Span,
         expected: usize,
         found: usize,
     },
-    MissingClosingUnicodeEscapePar(CRange, CRange),
-    OverlongUnicodeEscape(CRange),
-    InvalidUnicodeScalar(u32, CRange),
-    MissingClosingQuote(CRange),
+    MissingClosingUnicodeEscapePar(Span, Span),
+    OverlongUnicodeEscape(Span),
+    InvalidUnicodeScalar(u32, Span),
+    MissingClosingQuote(Span),
 
     // Group
     MissingClosingPar(Par),
     UnexpectedPar(Par),
 
     // Parse
-    MissingOperand(CRange),
-    MissingOperator(CRange),
+    MissingOperand(Span),
+    MissingOperator(Span),
     MissingFunArgs {
-        range: CRange,
+        span: Span,
         expected: usize,
         found: usize,
     },
     UnexpectedFunArgs {
-        ranges: Vec<CRange>,
+        spans: Vec<Span>,
         expected: usize,
         found: usize,
     },
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
-    ExpectedBlock(CRange),
-    ExpectedFunPars(CRange),
-    ExpectedIdent(CRange),
-    ExpectedOp(OpT, CRange),
-    ExpectedPct(PctT, CRange),
-    ExpectedKw(KwT, CRange),
+    ExpectedBlock(Span),
+    ExpectedFunPars(Span),
+    ExpectedIdent(Span),
+    ExpectedOp(OpT, Span),
+    ExpectedPct(PctT, Span),
+    ExpectedKw(KwT, Span),
     WrongContext(Kw),
 
     // Eval
     MissingExpr,
-    ExpectedValue(CRange),
-    ExpectedNumber(ValRange),
-    ExpectedInt(ValRange),
-    ExpectedBool(ValRange),
-    ExpectedStr(ValRange),
-    ExpectedRange(ValRange),
-    Parsing(CRange),
-    UndefinedVar(String, CRange),
-    UninitializedVar(String, CRange, CRange),
-    RedefinedBuiltinConst(String, CRange),
-    ImmutableAssign(String, CRange, CRange),
-    UndefinedFun(String, CRange),
-    RedefinedFun(String, CRange, CRange),
-    RedefinedBuiltinFun(String, CRange),
-    UnknownType(String, CRange),
-    AddOverflow(ValRange, ValRange),
-    SubOverflow(ValRange, ValRange),
-    MulOverflow(ValRange, ValRange),
-    PowOverflow(ValRange, ValRange),
-    DivideByZero(ValRange, ValRange),
-    FractionEuclidDiv(ValRange, ValRange),
-    RemainderByZero(ValRange, ValRange),
-    FractionRemainder(ValRange, ValRange),
-    FractionGcd(ValRange, ValRange),
-    NegativeNcr(ValRange),
-    InvalidNcr(ValRange, ValRange),
-    FractionNcr(ValRange, ValRange),
-    FactorialOverflow(ValRange),
-    NegativeFactorial(ValRange),
-    FractionFactorial(ValRange),
-    InvalidClampBounds(ValRange, ValRange),
-    InvalidBwOr(ValRange, ValRange),
-    InvalidBwAnd(ValRange, ValRange),
-    InvalidAssignment(CRange, CRange),
-    AssertFailed(CRange),
-    AssertEqFailed(ValRange, ValRange),
+    ExpectedValue(Span),
+    ExpectedNumber(ValSpan),
+    ExpectedInt(ValSpan),
+    ExpectedBool(ValSpan),
+    ExpectedStr(ValSpan),
+    ExpectedRange(ValSpan),
+    Parsing(Span),
+    UndefinedVar(String, Span),
+    UninitializedVar(String, Span, Span),
+    RedefinedBuiltinConst(String, Span),
+    ImmutableAssign(String, Span, Span),
+    UndefinedFun(String, Span),
+    RedefinedFun(String, Span, Span),
+    RedefinedBuiltinFun(String, Span),
+    UnknownType(String, Span),
+    AddOverflow(ValSpan, ValSpan),
+    SubOverflow(ValSpan, ValSpan),
+    MulOverflow(ValSpan, ValSpan),
+    PowOverflow(ValSpan, ValSpan),
+    DivideByZero(ValSpan, ValSpan),
+    FractionEuclidDiv(ValSpan, ValSpan),
+    RemainderByZero(ValSpan, ValSpan),
+    FractionRemainder(ValSpan, ValSpan),
+    FractionGcd(ValSpan, ValSpan),
+    NegativeNcr(ValSpan),
+    InvalidNcr(ValSpan, ValSpan),
+    FractionNcr(ValSpan, ValSpan),
+    FactorialOverflow(ValSpan),
+    NegativeFactorial(ValSpan),
+    FractionFactorial(ValSpan),
+    InvalidClampBounds(ValSpan, ValSpan),
+    InvalidBwOr(ValSpan, ValSpan),
+    InvalidBwAnd(ValSpan, ValSpan),
+    InvalidAssignment(Span, Span),
+    AssertFailed(Span),
+    AssertEqFailed(ValSpan, ValSpan),
 }
 
 impl error::Error for Error {}
@@ -295,88 +295,84 @@ impl Display for Error {
 }
 
 impl UserFacing for Error {
-    fn ranges(&self) -> Vec<CRange> {
+    fn spans(&self) -> Vec<Span> {
         match self {
             // Lex
-            Self::InvalidChar(r) => vec![*r],
-            Self::InvalidNumberFormat(r) => vec![*r],
-            Self::InvalidEscapeChar(_, r) => vec![*r],
-            Self::MissingEscapeChar(r) => vec![*r],
-            Self::MissingUnicodeEscapeChar { range, .. } => vec![*range],
+            Self::InvalidChar(s) => vec![*s],
+            Self::InvalidNumberFormat(s) => vec![*s],
+            Self::InvalidEscapeChar(_, s) => vec![*s],
+            Self::MissingEscapeChar(s) => vec![*s],
+            Self::MissingUnicodeEscapeChar { span, .. } => vec![*span],
             Self::MissingClosingUnicodeEscapePar(s, e) => vec![*s, *e],
-            Self::InvalidUnicodeEscapeChar(_, r) => vec![*r],
-            Self::OverlongUnicodeEscape(r) => vec![*r],
-            Self::InvalidUnicodeScalar(_, r) => vec![*r],
-            Self::MissingClosingQuote(r) => vec![*r],
+            Self::InvalidUnicodeEscapeChar(_, s) => vec![*s],
+            Self::OverlongUnicodeEscape(s) => vec![*s],
+            Self::InvalidUnicodeScalar(_, s) => vec![*s],
+            Self::MissingClosingQuote(s) => vec![*s],
 
             // Group
-            Self::MissingClosingPar(p) => vec![p.range],
-            Self::UnexpectedPar(p) => vec![p.range],
+            Self::MissingClosingPar(p) => vec![p.span],
+            Self::UnexpectedPar(p) => vec![p.span],
 
             // Parse
-            Self::MissingOperand(r) => vec![*r],
-            Self::MissingOperator(r) => vec![*r],
-            Self::MissingFunArgs { range: pos, .. } => vec![*pos],
-            Self::UnexpectedItem(i) => vec![i.range()],
-            Self::UnexpectedFunArgs { ranges, .. } => ranges.clone(),
-            Self::UnexpectedOperator(o) => vec![o.range],
-            Self::ExpectedBlock(r) => vec![*r],
-            Self::ExpectedFunPars(r) => vec![*r],
-            Self::ExpectedIdent(r) => vec![*r],
-            Self::ExpectedOp(_, r) => vec![*r],
-            Self::ExpectedKw(_, r) => vec![*r],
-            Self::ExpectedPct(_, r) => vec![*r],
-            Self::WrongContext(k) => vec![k.range],
+            Self::MissingOperand(s) => vec![*s],
+            Self::MissingOperator(s) => vec![*s],
+            Self::MissingFunArgs { span: pos, .. } => vec![*pos],
+            Self::UnexpectedItem(i) => vec![i.span()],
+            Self::UnexpectedFunArgs { spans, .. } => spans.clone(),
+            Self::UnexpectedOperator(o) => vec![o.span],
+            Self::ExpectedBlock(s) => vec![*s],
+            Self::ExpectedFunPars(s) => vec![*s],
+            Self::ExpectedIdent(s) => vec![*s],
+            Self::ExpectedOp(_, s) => vec![*s],
+            Self::ExpectedKw(_, s) => vec![*s],
+            Self::ExpectedPct(_, s) => vec![*s],
+            Self::WrongContext(k) => vec![k.span],
 
             // Eval
             Self::MissingExpr => vec![],
-            Self::ExpectedValue(r) => vec![*r],
-            Self::ExpectedNumber(v) => vec![v.range],
-            Self::ExpectedInt(v) => vec![v.range],
-            Self::ExpectedBool(v) => vec![v.range],
-            Self::ExpectedStr(v) => vec![v.range],
-            Self::ExpectedRange(v) => vec![v.range],
-            Self::Parsing(r) => vec![*r],
-            Self::UndefinedVar(_, r) => vec![*r],
+            Self::ExpectedValue(s) => vec![*s],
+            Self::ExpectedNumber(v) => vec![v.span],
+            Self::ExpectedInt(v) => vec![v.span],
+            Self::ExpectedBool(v) => vec![v.span],
+            Self::ExpectedStr(v) => vec![v.span],
+            Self::ExpectedRange(v) => vec![v.span],
+            Self::Parsing(s) => vec![*s],
+            Self::UndefinedVar(_, s) => vec![*s],
             Self::UninitializedVar(_, a, b) => vec![*a, *b],
-            Self::RedefinedBuiltinConst(_, r) => vec![*r],
+            Self::RedefinedBuiltinConst(_, s) => vec![*s],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
-            Self::UndefinedFun(_, r) => vec![*r],
+            Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
-            Self::RedefinedBuiltinFun(_, r) => vec![*r],
-            Self::UnknownType(_, r) => vec![*r],
-            Self::AddOverflow(a, b) => vec![a.range, b.range],
-            Self::SubOverflow(a, b) => vec![a.range, b.range],
-            Self::MulOverflow(a, b) => vec![a.range, b.range],
-            Self::PowOverflow(a, b) => vec![a.range, b.range],
-            Self::DivideByZero(a, b) => vec![a.range, b.range],
-            Self::FractionEuclidDiv(a, b) => vec![a.range, b.range],
-            Self::RemainderByZero(a, b) => vec![a.range, b.range],
-            Self::FractionRemainder(a, b) => vec![a.range, b.range],
-            Self::FractionGcd(a, b) => vec![a.range, b.range],
-            Self::FractionNcr(a, b) => vec![a.range, b.range],
-            Self::NegativeNcr(a) => vec![a.range],
-            Self::InvalidNcr(a, b) => vec![a.range, b.range],
-            Self::FactorialOverflow(v) => vec![v.range],
-            Self::NegativeFactorial(v) => vec![v.range],
-            Self::FractionFactorial(v) => vec![v.range],
-            Self::InvalidClampBounds(min, max) => vec![min.range, max.range],
-            Self::InvalidBwOr(a, b) => vec![a.range, b.range],
-            Self::InvalidBwAnd(a, b) => vec![a.range, b.range],
+            Self::RedefinedBuiltinFun(_, s) => vec![*s],
+            Self::UnknownType(_, s) => vec![*s],
+            Self::AddOverflow(a, b) => vec![a.span, b.span],
+            Self::SubOverflow(a, b) => vec![a.span, b.span],
+            Self::MulOverflow(a, b) => vec![a.span, b.span],
+            Self::PowOverflow(a, b) => vec![a.span, b.span],
+            Self::DivideByZero(a, b) => vec![a.span, b.span],
+            Self::FractionEuclidDiv(a, b) => vec![a.span, b.span],
+            Self::RemainderByZero(a, b) => vec![a.span, b.span],
+            Self::FractionRemainder(a, b) => vec![a.span, b.span],
+            Self::FractionGcd(a, b) => vec![a.span, b.span],
+            Self::FractionNcr(a, b) => vec![a.span, b.span],
+            Self::NegativeNcr(a) => vec![a.span],
+            Self::InvalidNcr(a, b) => vec![a.span, b.span],
+            Self::FactorialOverflow(v) => vec![v.span],
+            Self::NegativeFactorial(v) => vec![v.span],
+            Self::FractionFactorial(v) => vec![v.span],
+            Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
+            Self::InvalidBwOr(a, b) => vec![a.span, b.span],
+            Self::InvalidBwAnd(a, b) => vec![a.span, b.span],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
-            Self::AssertFailed(r) => vec![*r],
-            Self::AssertEqFailed(a, b) => vec![a.range, b.range],
-            Self::NotImplemented(_, r) => vec![*r],
+            Self::AssertFailed(s) => vec![*s],
+            Self::AssertEqFailed(a, b) => vec![a.span, b.span],
+            Self::NotImplemented(_, s) => vec![*s],
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Warning {
-    // SignFollowingAddition(Range, Range, Sign, usize),
-// SignFollowingSubtraction(Range, Range, Sign, usize),
-// MultipleSigns(Range, Sign),
-}
+pub enum Warning {}
 
 impl Display for Warning {
     fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -385,7 +381,7 @@ impl Display for Warning {
 }
 
 impl UserFacing for Warning {
-    fn ranges(&self) -> Vec<CRange> {
+    fn spans(&self) -> Vec<Span> {
         todo!()
     }
 }

@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-use crate::{CRange, Context, Par, Token};
+use crate::{Span, Context, Par, Token};
 
 pub use item::*;
 
@@ -47,15 +47,15 @@ impl Context {
         let mut items = Vec::new();
 
         while state.peek().is_some() {
-            if let Some(Token::Par(r_par)) = state.peek() {
-                if r_par.is_closing() {
+            if let Some(Token::Par(right_par)) = state.peek() {
+                if right_par.is_closing() {
                     // Only check for a match in the first 3 parenthesis on the stack
-                    let matching_par = stack.iter().rev().take(3).find(|p| r_par.matches(p.typ));
+                    let matching_par = stack.iter().rev().take(3).find(|p| right_par.matches(p.typ));
 
                     match matching_par {
                         Some(_) => break,
                         None => {
-                            self.errors.push(crate::Error::UnexpectedPar(*r_par));
+                            self.errors.push(crate::Error::UnexpectedPar(*right_par));
                             state.next();
                             continue;
                         }
@@ -64,20 +64,20 @@ impl Context {
             }
 
             let i = match state.next() {
-                Some(Token::Par(l_par)) => {
-                    stack.push(l_par);
+                Some(Token::Par(left_par)) => {
+                    stack.push(left_par);
                     let inner = self.group_tokens(state, stack)?;
 
                     match state.peek() {
-                        Some(Token::Par(r_par)) if l_par.matches(r_par.typ) => {
-                            let kind = l_par.kind();
-                            let r = CRange::span(l_par.range, r_par.range);
-                            let g = Group::new(inner, r, kind);
+                        Some(Token::Par(right_par)) if left_par.matches(right_par.typ) => {
+                            let kind = left_par.kind();
+                            let s = Span::span(left_par.span, right_par.span);
+                            let g = Group::new(inner, s, kind);
                             state.next();
                             Item::Group(g)
                         }
                         _ => {
-                            self.errors.push(crate::Error::MissingClosingPar(l_par));
+                            self.errors.push(crate::Error::MissingClosingPar(left_par));
                             items.extend(inner);
                             break;
                         }

@@ -1,4 +1,4 @@
-use crate::{CRange, Expr, ExprT, Op, OpT, ParKind, ParT};
+use crate::{Span, Expr, ExprT, Op, OpT, ParKind, ParT};
 
 use super::*;
 
@@ -11,9 +11,9 @@ fn no_parenthesis() {
     assert_eq!(
         items,
         vec![
-            Item::Expr(Expr::new(ExprT::float(423.42), CRange::of(0, 6))),
-            Item::Op(Op::new(OpT::Mul, CRange::pos(7))),
-            Item::Expr(Expr::new(ExprT::float(64.52), CRange::of(9, 14))),
+            Item::Expr(Expr::new(ExprT::float(423.42), Span::of(0, 6))),
+            Item::Op(Op::new(OpT::Mul, Span::pos(7))),
+            Item::Expr(Expr::new(ExprT::float(64.52), Span::of(9, 14))),
         ]
     );
 }
@@ -29,15 +29,15 @@ fn add_parenthesis() {
         vec![
             Item::Group(Group::new(
                 vec![
-                    Item::Expr(Expr::new(ExprT::float(23.13), CRange::of(1, 6))),
-                    Item::Op(Op::new(OpT::Add, CRange::pos(7))),
-                    Item::Expr(Expr::new(ExprT::float(543.23), CRange::of(9, 15)))
+                    Item::Expr(Expr::new(ExprT::float(23.13), Span::of(1, 6))),
+                    Item::Op(Op::new(OpT::Add, Span::pos(7))),
+                    Item::Expr(Expr::new(ExprT::float(543.23), Span::of(9, 15)))
                 ],
-                CRange::of(0, 16),
+                Span::of(0, 16),
                 ParKind::Round,
             )),
-            Item::Op(Op::new(OpT::Mul, CRange::pos(17))),
-            Item::Expr(Expr::new(ExprT::int(34), CRange::of(19, 21))),
+            Item::Op(Op::new(OpT::Mul, Span::pos(17))),
+            Item::Expr(Expr::new(ExprT::int(34), Span::of(19, 21))),
         ]
     );
 }
@@ -52,11 +52,11 @@ fn ignore_inner_par() {
         items,
         vec![Item::Group(Group::new(
             vec![
-                Item::Expr(Expr::new(ExprT::int(3), CRange::pos(3))),
-                Item::Op(Op::new(OpT::Add, CRange::pos(5))),
-                Item::Expr(Expr::new(ExprT::int(5), CRange::pos(7))),
+                Item::Expr(Expr::new(ExprT::int(3), Span::pos(3))),
+                Item::Op(Op::new(OpT::Add, Span::pos(5))),
+                Item::Expr(Expr::new(ExprT::int(5), Span::pos(7))),
             ],
-            CRange::of(0, 10),
+            Span::of(0, 10),
             ParKind::Curly
         ))]
     );
@@ -65,7 +65,7 @@ fn ignore_inner_par() {
         ctx.errors,
         vec![crate::Error::MissingClosingPar(Par::new(
             ParT::RoundOpen,
-            CRange::pos(2),
+            Span::pos(2),
         ))]
     )
 }
@@ -82,17 +82,17 @@ fn inner_par_limit() {
             vec![Item::Group(Group::new(
                 vec![Item::Group(Group::new(
                     vec![
-                        Item::Expr(Expr::new(ExprT::int(3), CRange::pos(5))),
-                        Item::Op(Op::new(OpT::Add, CRange::pos(7))),
-                        Item::Expr(Expr::new(ExprT::int(5), CRange::pos(9))),
+                        Item::Expr(Expr::new(ExprT::int(3), Span::pos(5))),
+                        Item::Op(Op::new(OpT::Add, Span::pos(7))),
+                        Item::Expr(Expr::new(ExprT::int(5), Span::pos(9))),
                     ],
-                    CRange::of(4, 13),
+                    Span::of(4, 13),
                     ParKind::Round,
                 ))],
-                CRange::of(3, 14),
+                Span::of(3, 14),
                 ParKind::Round,
             ))],
-            CRange::of(2, 15),
+            Span::of(2, 15),
             ParKind::Round,
         ))],
     );
@@ -100,8 +100,8 @@ fn inner_par_limit() {
     assert_eq!(
         ctx.errors,
         vec![
-            crate::Error::UnexpectedPar(Par::new(ParT::CurlyClose, CRange::pos(11),)),
-            crate::Error::MissingClosingPar(Par::new(ParT::CurlyOpen, CRange::pos(0),)),
+            crate::Error::UnexpectedPar(Par::new(ParT::CurlyClose, Span::pos(11),)),
+            crate::Error::MissingClosingPar(Par::new(ParT::CurlyOpen, Span::pos(0),)),
         ]
     )
 }

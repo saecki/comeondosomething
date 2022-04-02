@@ -1,12 +1,12 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::{CRange, Range, Val};
+use crate::{Span, Range, Val};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {
-    Val(ValRange),
-    Unit(CRange),
+    Val(ValSpan),
+    Unit(Span),
 }
 
 impl Display for Return {
@@ -19,21 +19,21 @@ impl Display for Return {
 }
 
 impl Return {
-    pub fn range(&self) -> CRange {
+    pub fn span(&self) -> Span {
         match self {
-            Self::Val(v) => v.range,
+            Self::Val(v) => v.span,
             Self::Unit(r) => *r,
         }
     }
 
-    pub fn to_val(&self) -> crate::Result<&ValRange> {
+    pub fn to_val(&self) -> crate::Result<&ValSpan> {
         match self {
             Self::Val(v) => Ok(v),
             Self::Unit(r) => Err(crate::Error::ExpectedValue(*r)),
         }
     }
 
-    pub fn into_val(self) -> crate::Result<ValRange> {
+    pub fn into_val(self) -> crate::Result<ValSpan> {
         match self {
             Self::Val(v) => Ok(v),
             Self::Unit(r) => Err(crate::Error::ExpectedValue(r)),
@@ -66,12 +66,12 @@ impl Return {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ValRange {
+pub struct ValSpan {
     pub val: Val,
-    pub range: CRange,
+    pub span: Span,
 }
 
-impl Deref for ValRange {
+impl Deref for ValSpan {
     type Target = Val;
 
     fn deref(&self) -> &Self::Target {
@@ -79,21 +79,21 @@ impl Deref for ValRange {
     }
 }
 
-impl std::ops::DerefMut for ValRange {
+impl std::ops::DerefMut for ValSpan {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.val
     }
 }
 
-impl Display for ValRange {
+impl Display for ValSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.val)
     }
 }
 
-impl ValRange {
-    pub const fn new(val: Val, range: CRange) -> Self {
-        Self { val, range }
+impl ValSpan {
+    pub const fn new(val: Val, span: Span) -> Self {
+        Self { val, span }
     }
 
     pub fn to_int(&self) -> crate::Result<i128> {
