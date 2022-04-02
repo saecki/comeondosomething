@@ -3,7 +3,7 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::{Context, Expr, ExprT, IdentSpan, Range, Span, Val};
+use crate::{Context, IdentSpan, Range, Span, Val};
 
 pub use scope::*;
 pub use types::*;
@@ -39,18 +39,14 @@ impl Ast {
     pub fn new(typ: AstT, span: Span) -> Self {
         Self { typ, span }
     }
-
-    pub fn expr(val: Expr) -> Self {
-        let s = val.span;
-        Self::new(AstT::Expr(val), s)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstT {
     Empty,
     Error,
-    Expr(Expr),
+    Val(ValSpan),
+    Ident(IdentSpan),
     Block(Vec<Ast>),
     IfExpr(IfExpr),
     WhileLoop(Box<CondBlock>),
@@ -106,15 +102,6 @@ pub enum AstT {
     Spill,
     Assert(Box<Ast>),
     AssertEq(Box<Ast>, Box<Ast>),
-}
-
-impl AstT {
-    pub fn as_ident(&self) -> Option<IdentSpan> {
-        match self {
-            Self::Expr(e) => e.as_ident(),
-            _ => None,
-        }
-    }
 }
 
 impl AstT {
@@ -227,7 +214,8 @@ impl Context {
         match &ast.typ {
             AstT::Empty => Ok(Return::Unit(s)),
             AstT::Error => Err(crate::Error::Parsing(s)),
-            AstT::Expr(e) => self.expr(e, s),
+            AstT::Val(a) => self.val(a),
+            AstT::Ident(a) => self.ident(a),
             AstT::Block(a) => self.block(a, s),
             AstT::IfExpr(a) => self.if_expr(a, s),
             AstT::WhileLoop(a) => self.while_loop(a, s),
@@ -294,14 +282,12 @@ impl Context {
         })
     }
 
-    fn expr(&mut self, expr: &Expr, span: Span) -> crate::Result<Return> {
-        match &expr.typ {
-            ExprT::Val(v) => return_val(v.clone(), span),
-            &ExprT::Ident(id) => {
-                let ident = IdentSpan::new(id, expr.span);
-                Ok(Return::Val(self.resolve_var(&ident)?))
-            }
-        }
+    fn val(&mut self, val: &ValSpan) -> crate::Result<Return> {
+        Ok(Return::Val(val.clone()))
+    }
+
+    fn ident(&mut self, ident: &IdentSpan) -> crate::Result<Return> {
+        Ok(Return::Val(self.resolve_var(ident)?))
     }
 
     fn block(&mut self, asts: &[Ast], span: Span) -> crate::Result<Return> {

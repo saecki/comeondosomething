@@ -4,8 +4,8 @@ pub use group::*;
 pub use ident::*;
 pub use lex::*;
 pub use parse::*;
-pub use stdio::*;
 pub use span::*;
+pub use stdio::*;
 pub use util::*;
 
 mod error;
@@ -14,8 +14,8 @@ mod group;
 mod ident;
 mod lex;
 mod parse;
-mod stdio;
 mod span;
+mod stdio;
 mod util;
 
 #[derive(Debug, Default)]

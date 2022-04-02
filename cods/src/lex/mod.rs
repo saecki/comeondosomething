@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use crate::{Span, Context};
+use crate::{Context, Span};
 
 pub use token::*;
 
@@ -153,8 +153,8 @@ impl Context {
 
         let literal = lexer.literal.as_str();
         let token = match literal {
-            "true" => Token::expr(ExprT::bool(true), span),
-            "false" => Token::expr(ExprT::bool(false), span),
+            "true" => Token::val(Val::Bool(true), span),
+            "false" => Token::val(Val::Bool(false), span),
             "div" => Token::op(OpT::IntDiv, span),
             "mod" => Token::op(OpT::Rem, span),
             "if" => Token::kw(KwT::If, span),
@@ -168,13 +168,13 @@ impl Context {
             _ => {
                 if literal.chars().next().unwrap().is_digit(10) {
                     let num = if let Ok(i) = literal.parse::<i128>() {
-                        ExprT::int(i)
+                        Val::Int(i)
                     } else if let Ok(f) = literal.parse::<f64>() {
-                        ExprT::float(f)
+                        Val::Float(f)
                     } else {
                         return Err(crate::Error::InvalidNumberFormat(span));
                     };
-                    Token::expr(num, span)
+                    Token::val(num, span)
                 } else {
                     for (i, c) in literal.char_indices() {
                         match c {
@@ -182,14 +182,12 @@ impl Context {
                             'a'..='z' => (),
                             'A'..='Z' => (),
                             '_' => (),
-                            _ => {
-                                return Err(crate::Error::InvalidChar(Span::pos(span.start + i)))
-                            }
+                            _ => return Err(crate::Error::InvalidChar(Span::pos(span.start + i))),
                         }
                     }
 
                     let id = self.idents.push(literal);
-                    Token::expr(ExprT::Ident(id), span)
+                    Token::ident(id, span)
                 }
             }
         };
@@ -249,7 +247,7 @@ impl Context {
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
         let span = Span::of(start, lexer.pos() + 1);
-        lexer.tokens.push(Token::expr(ExprT::Val(str), span));
+        lexer.tokens.push(Token::val(str, span));
         lexer.literal.clear();
         Ok(())
     }

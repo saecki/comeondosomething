@@ -1,14 +1,11 @@
-use crate::{Span, Context, Val};
+use crate::{Context, Span, Val};
 
 #[test]
 fn undefined_var() {
     let input = "print(x)";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(
-        error,
-        crate::Error::UndefinedVar("x".into(), Span::pos(6))
-    );
+    assert_eq!(error, crate::Error::UndefinedVar("x".into(), Span::pos(6)));
 }
 
 #[test]
@@ -16,10 +13,7 @@ fn undefined_outside_scope() {
     let input = "{ val x = 7 }; println(x);";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(
-        error,
-        crate::Error::UndefinedVar("x".into(), Span::pos(23))
-    );
+    assert_eq!(error, crate::Error::UndefinedVar("x".into(), Span::pos(23)));
 }
 
 #[test]

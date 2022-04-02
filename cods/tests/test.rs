@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use cods::{Span, Error, Par, ParT, Val, ValSpan};
+use cods::{Error, Par, ParT, Span, Val, ValSpan};
 
 fn assert(input: &str, expected: Val) {
     match cods::eval(input) {

@@ -1,4 +1,4 @@
-use crate::{Span, Context};
+use crate::{Context, Span};
 
 use super::Lexer;
 

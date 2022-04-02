@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::{Block, BuiltinConst, Span, Context, Ident, IdentSpan, Val, ValSpan};
+use crate::{Block, BuiltinConst, Context, Ident, IdentSpan, Span, Val, ValSpan};
 
 impl Context {
     pub fn resolve_var(&self, id: &IdentSpan) -> crate::Result<ValSpan> {
@@ -30,12 +30,7 @@ impl Context {
         s.def_var(var);
     }
 
-    pub fn set_var(
-        &mut self,
-        id: &IdentSpan,
-        val: Option<Val>,
-        val_s: Span,
-    ) -> crate::Result<()> {
+    pub fn set_var(&mut self, id: &IdentSpan, val: Option<Val>, val_s: Span) -> crate::Result<()> {
         match self.scopes.var_mut(id.ident) {
             Some(v) => {
                 if !v.mutable && v.value.is_some() {

@@ -1,4 +1,4 @@
-use crate::{Span, Expr, ExprT, Op, OpT, ParKind, ParT};
+use crate::{OpT, ParKind, ParT, Span, Val};
 
 use super::*;
 
@@ -11,9 +11,9 @@ fn no_parenthesis() {
     assert_eq!(
         items,
         vec![
-            Item::Expr(Expr::new(ExprT::float(423.42), Span::of(0, 6))),
-            Item::Op(Op::new(OpT::Mul, Span::pos(7))),
-            Item::Expr(Expr::new(ExprT::float(64.52), Span::of(9, 14))),
+            Item::val(Val::Float(423.42), Span::of(0, 6)),
+            Item::op(OpT::Mul, Span::pos(7)),
+            Item::val(Val::Float(64.52), Span::of(9, 14)),
         ]
     );
 }
@@ -29,15 +29,15 @@ fn add_parenthesis() {
         vec![
             Item::Group(Group::new(
                 vec![
-                    Item::Expr(Expr::new(ExprT::float(23.13), Span::of(1, 6))),
-                    Item::Op(Op::new(OpT::Add, Span::pos(7))),
-                    Item::Expr(Expr::new(ExprT::float(543.23), Span::of(9, 15)))
+                    Item::val(Val::Float(23.13), Span::of(1, 6)),
+                    Item::op(OpT::Add, Span::pos(7)),
+                    Item::val(Val::Float(543.23), Span::of(9, 15))
                 ],
                 Span::of(0, 16),
                 ParKind::Round,
             )),
-            Item::Op(Op::new(OpT::Mul, Span::pos(17))),
-            Item::Expr(Expr::new(ExprT::int(34), Span::of(19, 21))),
+            Item::op(OpT::Mul, Span::pos(17)),
+            Item::val(Val::Int(34), Span::of(19, 21)),
         ]
     );
 }
@@ -52,9 +52,9 @@ fn ignore_inner_par() {
         items,
         vec![Item::Group(Group::new(
             vec![
-                Item::Expr(Expr::new(ExprT::int(3), Span::pos(3))),
-                Item::Op(Op::new(OpT::Add, Span::pos(5))),
-                Item::Expr(Expr::new(ExprT::int(5), Span::pos(7))),
+                Item::val(Val::Int(3), Span::pos(3)),
+                Item::op(OpT::Add, Span::pos(5)),
+                Item::val(Val::Int(5), Span::pos(7)),
             ],
             Span::of(0, 10),
             ParKind::Curly
@@ -82,9 +82,9 @@ fn inner_par_limit() {
             vec![Item::Group(Group::new(
                 vec![Item::Group(Group::new(
                     vec![
-                        Item::Expr(Expr::new(ExprT::int(3), Span::pos(5))),
-                        Item::Op(Op::new(OpT::Add, Span::pos(7))),
-                        Item::Expr(Expr::new(ExprT::int(5), Span::pos(9))),
+                        Item::val(Val::Int(3), Span::pos(5)),
+                        Item::op(OpT::Add, Span::pos(7)),
+                        Item::val(Val::Int(5), Span::pos(9)),
                     ],
                     Span::of(4, 13),
                     ParKind::Round,

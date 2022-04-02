@@ -1,9 +1,10 @@
-use crate::{Span, Expr, Kw, Op, ParKind, Pct, Token};
+use crate::{Ident, IdentSpan, Kw, KwT, Op, OpT, ParKind, Pct, PctT, Span, Val, ValSpan};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Group(Group),
-    Expr(Expr),
+    Val(ValSpan),
+    Ident(IdentSpan),
 
     Op(Op),
     Pct(Pct),
@@ -11,14 +12,24 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn try_from(token: Token) -> Option<Self> {
-        match token {
-            Token::Expr(n) => Some(Self::Expr(n)),
-            Token::Op(o) => Some(Self::Op(o)),
-            Token::Par(_) => None,
-            Token::Pct(s) => Some(Self::Pct(s)),
-            Token::Kw(k) => Some(Self::Kw(k)),
-        }
+    pub fn val(val: Val, span: Span) -> Self {
+        Self::Val(ValSpan::new(val, span))
+    }
+
+    pub fn ident(ident: Ident, span: Span) -> Self {
+        Self::Ident(IdentSpan::new(ident, span))
+    }
+
+    pub fn op(typ: OpT, span: Span) -> Self {
+        Self::Op(Op::new(typ, span))
+    }
+
+    pub fn pct(typ: PctT, span: Span) -> Self {
+        Self::Pct(Pct::new(typ, span))
+    }
+
+    pub fn kw(typ: KwT, span: Span) -> Self {
+        Self::Kw(Kw::new(typ, span))
     }
 
     pub fn into_group(self) -> Option<Group> {
@@ -28,9 +39,16 @@ impl Item {
         }
     }
 
-    pub fn into_expr(self) -> Option<Expr> {
+    pub fn into_val(self) -> Option<ValSpan> {
         match self {
-            Self::Expr(e) => Some(e),
+            Self::Val(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_ident(self) -> Option<IdentSpan> {
+        match self {
+            Self::Ident(i) => Some(i),
             _ => None,
         }
     }
@@ -85,7 +103,8 @@ impl Item {
     pub fn span(&self) -> Span {
         match self {
             Self::Group(g) => g.span,
-            Self::Expr(n) => n.span,
+            Self::Val(v) => v.span,
+            Self::Ident(i) => i.span,
             Self::Op(o) => o.span,
             Self::Pct(p) => p.span,
             Self::Kw(k) => k.span,

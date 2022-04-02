@@ -1,4 +1,4 @@
-use crate::{Ast, AstT, Span, Context, Expr, ExprT, Ident, IdentSpan, Val};
+use crate::{Ast, AstT, Context, Ident, IdentSpan, Span, Val, ValSpan};
 
 #[test]
 fn semicolon() {
@@ -9,14 +9,14 @@ fn semicolon() {
             AstT::Assign(
                 IdentSpan::new(Ident(0), Span::pos(0)),
                 Box::new(Ast::new(
-                    AstT::Expr(Expr::new(ExprT::Val(Val::Int(34)), Span::of(4, 6))),
+                    AstT::Val(ValSpan::new(Val::Int(34), Span::of(4, 6))),
                     Span::of(4, 6),
                 )),
             ),
             Span::of(0, 6),
         ),
         Ast::new(
-            AstT::Expr(Expr::new(ExprT::Ident(Ident(0)), Span::of(8, 9))),
+            AstT::Ident(IdentSpan::new(Ident(0), Span::of(8, 9))),
             Span::of(8, 9),
         ),
     ];

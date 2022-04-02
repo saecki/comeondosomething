@@ -83,10 +83,15 @@ impl Context {
                     }
                 }
             }
-            Some(Item::Expr(_)) => {
-                let e = parser.next().unwrap().into_expr().unwrap();
-                let s = e.span;
-                Ast::new(AstT::Expr(e), s)
+            Some(Item::Val(_)) => {
+                let v = parser.next().unwrap().into_val().unwrap();
+                let s = v.span;
+                Ast::new(AstT::Val(v), s)
+            }
+            Some(Item::Ident(_)) => {
+                let i = parser.next().unwrap().into_ident().unwrap();
+                let s = i.span;
+                Ast::new(AstT::Ident(i), s)
             }
             Some(&Item::Op(o)) => {
                 parser.next();
@@ -151,7 +156,7 @@ impl Context {
                     }
 
                     if g.par_kind.is_round() {
-                        if let Some(id) = lhs.as_ident() {
+                        if let AstT::Ident(id) = lhs.typ {
                             let g = parser.next().unwrap().into_group().unwrap();
                             lhs = self.parse_fun_call(id, g)?;
                             continue;
@@ -161,22 +166,34 @@ impl Context {
                     let s = Span::between(lhs.span, g.span);
                     return Err(crate::Error::MissingOperator(s));
                 }
-                Item::Expr(e) => {
+                Item::Val(v) => {
                     if newln {
                         break;
                     }
 
-                    let s = Span::between(lhs.span, e.span);
+                    let s = Span::between(lhs.span, v.span);
+                    return Err(crate::Error::MissingOperator(s));
+                }
+                Item::Ident(i) => {
+                    if newln {
+                        break;
+                    }
+
+                    let s = Span::between(lhs.span, i.span);
                     return Err(crate::Error::MissingOperator(s));
                 }
                 &Item::Op(o) => o,
-                &Item::Pct(s) => match s.typ {
-                    PctT::Comma | PctT::Colon | PctT::Arrow => {
-                        let i = parser.next().unwrap();
-                        return Err(crate::Error::UnexpectedItem(i));
+                &Item::Pct(s) => {
+                    if newln {
+                        break;
                     }
-                    PctT::Semi | PctT::Newln => break,
-                },
+                    if let PctT::Semi = s.typ {
+                        break;
+                    }
+
+                    let i = parser.next().unwrap();
+                    return Err(crate::Error::UnexpectedItem(i));
+                }
                 Item::Kw(k) => {
                     if newln {
                         break;
@@ -225,25 +242,25 @@ impl Context {
 
             let val_s = Span::span(lhs.span, rhs.span);
             let val = match infix {
-                Infix::Assign => match lhs.as_ident() {
-                    Some(id) => AstT::Assign(id, Box::new(rhs)),
-                    None => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
+                Infix::Assign => match lhs.typ {
+                    AstT::Ident(id) => AstT::Assign(id, Box::new(rhs)),
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
                 },
-                Infix::AddAssign => match lhs.as_ident() {
-                    Some(id) => AstT::AddAssign(id, Box::new(rhs)),
-                    None => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
+                Infix::AddAssign => match lhs.typ {
+                    AstT::Ident(id) => AstT::AddAssign(id, Box::new(rhs)),
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
                 },
-                Infix::SubAssign => match lhs.as_ident() {
-                    Some(id) => AstT::SubAssign(id, Box::new(rhs)),
-                    None => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
+                Infix::SubAssign => match lhs.typ {
+                    AstT::Ident(id) => AstT::SubAssign(id, Box::new(rhs)),
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
                 },
-                Infix::MulAssign => match lhs.as_ident() {
-                    Some(id) => AstT::MulAssign(id, Box::new(rhs)),
-                    None => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
+                Infix::MulAssign => match lhs.typ {
+                    AstT::Ident(id) => AstT::MulAssign(id, Box::new(rhs)),
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
                 },
-                Infix::DivAssign => match lhs.as_ident() {
-                    Some(id) => AstT::DivAssign(id, Box::new(rhs)),
-                    None => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
+                Infix::DivAssign => match lhs.typ {
+                    AstT::Ident(id) => AstT::DivAssign(id, Box::new(rhs)),
+                    _ => return Err(crate::Error::InvalidAssignment(lhs.span, op.span)),
                 },
                 Infix::RangeEx => AstT::RangeEx(Box::new(lhs), Box::new(rhs)),
                 Infix::RangeIn => AstT::RangeIn(Box::new(lhs), Box::new(rhs)),
@@ -596,10 +613,11 @@ impl Context {
                     let mut params = Vec::new();
                     while let Some(i) = group_parser.next() {
                         let s = i.span();
-                        let ident = i
-                            .into_expr()
-                            .and_then(|e| e.as_ident())
-                            .ok_or(crate::Error::ExpectedIdent(s))?;
+
+                        let ident = match i {
+                            Item::Ident(id) => id,
+                            _ => return Err(crate::Error::ExpectedIdent(s)),
+                        };
 
                         let colon_s = group_parser.expect_pct(PctT::Colon, ident.span.end)?;
                         let typ = group_parser.expect_ident(colon_s.end)?;

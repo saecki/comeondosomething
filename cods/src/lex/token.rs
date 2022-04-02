@@ -1,11 +1,12 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{Ident, IdentSpan, Span};
+use crate::{Ident, IdentSpan, Span, ValSpan};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
-    Expr(Expr),
+    Val(ValSpan),
+    Ident(IdentSpan),
     Op(Op),
     Par(Par),
     Pct(Pct),
@@ -13,8 +14,12 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn expr(val: ExprT, span: Span) -> Self {
-        Self::Expr(Expr::new(val, span))
+    pub fn val(val: Val, span: Span) -> Self {
+        Self::Val(ValSpan::new(val, span))
+    }
+
+    pub fn ident(ident: Ident, span: Span) -> Self {
+        Self::Ident(IdentSpan::new(ident, span))
     }
 
     pub fn op(typ: OpT, span: Span) -> Self {
@@ -34,7 +39,11 @@ impl Token {
     }
 
     pub fn is_val(&self) -> bool {
-        matches!(self, Self::Expr(_))
+        matches!(self, Self::Val(_))
+    }
+
+    pub fn is_ident(&self) -> bool {
+        matches!(self, Self::Ident(_))
     }
 
     pub fn is_op(&self) -> bool {
@@ -69,59 +78,13 @@ impl Token {
 
     pub fn span(&self) -> Span {
         match self {
-            Self::Expr(n) => n.span,
+            Self::Val(v) => v.span,
+            Self::Ident(i) => i.span,
             Self::Op(o) => o.span,
             Self::Par(p) => p.span,
             Self::Pct(s) => s.span,
             Self::Kw(k) => k.span,
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Expr {
-    pub typ: ExprT,
-    pub span: Span,
-}
-
-impl Deref for Expr {
-    type Target = ExprT;
-
-    fn deref(&self) -> &Self::Target {
-        &self.typ
-    }
-}
-
-impl Expr {
-    pub fn new(typ: ExprT, span: Span) -> Self {
-        Self { typ, span }
-    }
-
-    pub fn as_ident(&self) -> Option<IdentSpan> {
-        match self.typ {
-            ExprT::Ident(i) => Some(IdentSpan::new(i, self.span)),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum ExprT {
-    Val(Val),
-    Ident(Ident),
-}
-
-impl ExprT {
-    pub fn int(i: i128) -> Self {
-        Self::Val(Val::Int(i))
-    }
-
-    pub fn float(f: f64) -> Self {
-        Self::Val(Val::Float(f))
-    }
-
-    pub fn bool(b: bool) -> Self {
-        Self::Val(Val::Bool(b))
     }
 }
 

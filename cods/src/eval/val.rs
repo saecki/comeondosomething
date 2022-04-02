@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::{Span, Range, Val};
+use crate::{Range, Span, Val};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {

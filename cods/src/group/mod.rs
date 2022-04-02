@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-use crate::{Span, Context, Par, Token};
+use crate::{Context, Par, Span, Token};
 
 pub use item::*;
 
@@ -50,7 +50,11 @@ impl Context {
             if let Some(Token::Par(right_par)) = state.peek() {
                 if right_par.is_closing() {
                     // Only check for a match in the first 3 parenthesis on the stack
-                    let matching_par = stack.iter().rev().take(3).find(|p| right_par.matches(p.typ));
+                    let matching_par = stack
+                        .iter()
+                        .rev()
+                        .take(3)
+                        .find(|p| right_par.matches(p.typ));
 
                     match matching_par {
                         Some(_) => break,
@@ -83,7 +87,8 @@ impl Context {
                         }
                     }
                 }
-                Some(Token::Expr(e)) => Item::Expr(e),
+                Some(Token::Val(v)) => Item::Val(v),
+                Some(Token::Ident(i)) => Item::Ident(i),
                 Some(Token::Op(o)) => Item::Op(o),
                 Some(Token::Pct(s)) => Item::Pct(s),
                 Some(Token::Kw(k)) => Item::Kw(k),
