@@ -7,6 +7,12 @@ use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait UserFacing: Sized + Debug + Display {
+    fn description(
+        &self,
+        f: &mut fmt::Formatter,
+        line_prefix: &str,
+        line_suffix: &str,
+    ) -> fmt::Result;
     fn spans(&self) -> Vec<Span>;
 }
 
@@ -101,6 +107,18 @@ impl error::Error for Error {}
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.description(f, "", "")
+    }
+}
+
+impl UserFacing for Error {
+    fn description(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        line_prefix: &str,
+        line_suffix: &str,
+    ) -> fmt::Result {
+        f.write_str(line_prefix)?;
         match self {
             Self::NotImplemented(m, _) => write!(f, "{m}"),
 
@@ -288,13 +306,19 @@ impl Display for Error {
                 write!(f, "Assertion failed")
             }
             Self::AssertEqFailed(a, b) => {
-                write!(f, "Assertion failed, values are not equal\n left: '{a}'\nright: '{b}'")
+                write!(
+                    f,
+                    "Assertion failed, values are not equal{ls}\n\
+                    {lp} left: '{a}'{ls}\n\
+                    {lp}right: '{b}'",
+                    lp = line_prefix,
+                    ls = line_suffix,
+                )
             }
-        }
+        }?;
+        f.write_str(line_suffix)
     }
-}
 
-impl UserFacing for Error {
     fn spans(&self) -> Vec<Span> {
         match self {
             // Lex
@@ -375,12 +399,21 @@ impl UserFacing for Error {
 pub enum Warning {}
 
 impl Display for Warning {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.description(f, "", "")
     }
 }
 
 impl UserFacing for Warning {
+    fn description(
+        &self,
+        _f: &mut fmt::Formatter<'_>,
+        _line_prefix: &str,
+        _line_suffix: &str,
+    ) -> fmt::Result {
+        todo!()
+    }
+
     fn spans(&self) -> Vec<Span> {
         todo!()
     }

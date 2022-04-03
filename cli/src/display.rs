@@ -57,15 +57,15 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
             mark_spans::<C>(f, nr, nr_width, l, &spans)?;
         }
 
-        write!(
-            f,
-            "{spc:nr_width$} {blue}│{esc} {col}{desc}{esc}",
+        let prefix = format!(
+            "{spc:nr_width$} {blue}│{esc} {col}",
             spc = ' ',
-            desc = self.error,
             col = C::bold(),
             blue = LBlue::bold(),
             esc = ANSI_ESC,
-        )?;
+        );
+        self.error.description(f, &prefix, ANSI_ESC)?;
+        f.write_str(ANSI_ESC)?;
         Ok(())
     }
 }
