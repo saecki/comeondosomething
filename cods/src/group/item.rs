@@ -1,4 +1,4 @@
-use crate::{Ident, IdentSpan, Kw, KwT, Op, OpT, ParKind, Pct, PctT, Span, Val, ValSpan};
+use crate::{Ident, IdentSpan, Kw, KwT, Op, OpT, Par, ParKind, Pct, PctT, Span, Val, ValSpan};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -102,7 +102,7 @@ impl Item {
 
     pub fn span(&self) -> Span {
         match self {
-            Self::Group(g) => g.span,
+            Self::Group(g) => g.span(),
             Self::Val(v) => v.span,
             Self::Ident(i) => i.span,
             Self::Op(o) => o.span,
@@ -114,17 +114,29 @@ impl Item {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Group {
+    pub l_par: Par,
+    pub r_par: Par,
     pub items: Vec<Item>,
-    pub span: Span,
-    pub par_kind: ParKind,
 }
 
 impl Group {
-    pub fn new(items: Vec<Item>, span: Span, par: ParKind) -> Self {
+    pub const fn new(l_par: Par, r_par: Par, items: Vec<Item>) -> Self {
         Self {
+            l_par,
+            r_par,
             items,
-            span,
-            par_kind: par,
         }
+    }
+
+    pub fn span(&self) -> Span {
+        Span::across(self.l_par.span, self.r_par.span)
+    }
+
+    pub fn inner_span(&self) -> Span {
+        Span::between(self.l_par.span, self.r_par.span)
+    }
+
+    pub fn par_kind(&self) -> ParKind {
+        self.l_par.kind()
     }
 }

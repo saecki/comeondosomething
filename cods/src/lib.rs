@@ -1,3 +1,4 @@
+pub use check::Cst;
 pub use error::*;
 pub use eval::*;
 pub use group::*;
@@ -8,6 +9,7 @@ pub use span::*;
 pub use stdio::*;
 pub use util::*;
 
+mod check;
 mod error;
 mod eval;
 mod group;

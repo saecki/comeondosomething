@@ -1,6 +1,11 @@
-use crate::OpT;
+use crate::{OpT, Span};
 
-pub enum Infix {
+pub struct Infix {
+    pub typ: InfixT,
+    pub span: Span,
+}
+
+pub enum InfixT {
     Assign,
     AddAssign,
     SubAssign,
@@ -28,51 +33,61 @@ pub enum Infix {
     Dot,
 }
 
-pub enum Prefix {
+pub struct Prefix {
+    pub typ: PrefixT,
+    pub span: Span,
+}
+
+pub enum PrefixT {
     UnaryPlus,
     UnaryMinus,
     Not,
 }
 
-pub enum Postfix {
+pub struct Postfix {
+    pub typ: PostfixT,
+    pub span: Span,
+}
+
+pub enum PostfixT {
     Factorial,
 }
 
 impl OpT {
-    pub fn infix_bp(&self) -> Option<(u8, Infix, u8)> {
+    pub fn infix_bp(&self) -> Option<(u8, InfixT, u8)> {
         match self {
-            Self::Dot => Some((23, Infix::Pow, 24)),
-            Self::Pow => Some((19, Infix::Pow, 20)),
-            Self::Mul => Some((17, Infix::Mul, 18)),
-            Self::Div => Some((17, Infix::Div, 18)),
-            Self::IntDiv => Some((17, Infix::IntDiv, 18)),
-            Self::Rem => Some((17, Infix::Rem, 18)),
-            Self::Add => Some((15, Infix::Add, 16)),
-            Self::Sub => Some((15, Infix::Sub, 16)),
-            Self::BwAnd => Some((13, Infix::BwAnd, 14)),
-            Self::BwOr => Some((11, Infix::BwOr, 12)),
-            Self::Eq => Some((9, Infix::Eq, 10)),
-            Self::Ne => Some((9, Infix::Ne, 10)),
-            Self::Lt => Some((9, Infix::Lt, 10)),
-            Self::Le => Some((9, Infix::Le, 10)),
-            Self::Gt => Some((9, Infix::Gt, 10)),
-            Self::Ge => Some((9, Infix::Ge, 10)),
-            Self::And => Some((7, Infix::And, 8)),
-            Self::Or => Some((5, Infix::Or, 6)),
-            Self::RangeEx => Some((3, Infix::RangeEx, 4)),
-            Self::RangeIn => Some((3, Infix::RangeIn, 4)),
-            Self::Assign => Some((1, Infix::Assign, 2)),
-            Self::AddAssign => Some((1, Infix::AddAssign, 2)),
-            Self::SubAssign => Some((1, Infix::SubAssign, 2)),
-            Self::MulAssign => Some((1, Infix::MulAssign, 2)),
-            Self::DivAssign => Some((1, Infix::DivAssign, 2)),
+            Self::Dot => Some((23, InfixT::Pow, 24)),
+            Self::Pow => Some((19, InfixT::Pow, 20)),
+            Self::Mul => Some((17, InfixT::Mul, 18)),
+            Self::Div => Some((17, InfixT::Div, 18)),
+            Self::IntDiv => Some((17, InfixT::IntDiv, 18)),
+            Self::Rem => Some((17, InfixT::Rem, 18)),
+            Self::Add => Some((15, InfixT::Add, 16)),
+            Self::Sub => Some((15, InfixT::Sub, 16)),
+            Self::BwAnd => Some((13, InfixT::BwAnd, 14)),
+            Self::BwOr => Some((11, InfixT::BwOr, 12)),
+            Self::Eq => Some((9, InfixT::Eq, 10)),
+            Self::Ne => Some((9, InfixT::Ne, 10)),
+            Self::Lt => Some((9, InfixT::Lt, 10)),
+            Self::Le => Some((9, InfixT::Le, 10)),
+            Self::Gt => Some((9, InfixT::Gt, 10)),
+            Self::Ge => Some((9, InfixT::Ge, 10)),
+            Self::And => Some((7, InfixT::And, 8)),
+            Self::Or => Some((5, InfixT::Or, 6)),
+            Self::RangeEx => Some((3, InfixT::RangeEx, 4)),
+            Self::RangeIn => Some((3, InfixT::RangeIn, 4)),
+            Self::Assign => Some((1, InfixT::Assign, 2)),
+            Self::AddAssign => Some((1, InfixT::AddAssign, 2)),
+            Self::SubAssign => Some((1, InfixT::SubAssign, 2)),
+            Self::MulAssign => Some((1, InfixT::MulAssign, 2)),
+            Self::DivAssign => Some((1, InfixT::DivAssign, 2)),
             Self::Bang => None,
         }
     }
 
-    pub fn postfix_bp(&self) -> Option<(u8, Postfix)> {
+    pub fn postfix_bp(&self) -> Option<(u8, PostfixT)> {
         match self {
-            Self::Bang => Some((21, Postfix::Factorial)),
+            Self::Bang => Some((21, PostfixT::Factorial)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -101,11 +116,11 @@ impl OpT {
         }
     }
 
-    pub fn prefix_bp(&self) -> Option<(Prefix, u8)> {
+    pub fn prefix_bp(&self) -> Option<(PrefixT, u8)> {
         match self {
-            Self::Bang => Some((Prefix::Not, 22)),
-            Self::Add => Some((Prefix::UnaryPlus, 22)),
-            Self::Sub => Some((Prefix::UnaryMinus, 22)),
+            Self::Bang => Some((PrefixT::Not, 22)),
+            Self::Add => Some((PrefixT::UnaryPlus, 22)),
+            Self::Sub => Some((PrefixT::UnaryMinus, 22)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign

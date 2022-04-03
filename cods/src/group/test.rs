@@ -1,4 +1,4 @@
-use crate::{OpT, ParKind, ParT, Span, Val};
+use crate::{OpT, ParT, Span, Val};
 
 use super::*;
 
@@ -28,13 +28,13 @@ fn add_parenthesis() {
         items,
         vec![
             Item::Group(Group::new(
+                Par::new(ParT::RoundOpen, Span::pos(0)),
+                Par::new(ParT::RoundClose, Span::pos(15)),
                 vec![
                     Item::val(Val::Float(23.13), Span::of(1, 6)),
                     Item::op(OpT::Add, Span::pos(7)),
                     Item::val(Val::Float(543.23), Span::of(9, 15))
                 ],
-                Span::of(0, 16),
-                ParKind::Round,
             )),
             Item::op(OpT::Mul, Span::pos(17)),
             Item::val(Val::Int(34), Span::of(19, 21)),
@@ -51,13 +51,13 @@ fn ignore_inner_par() {
     assert_eq!(
         items,
         vec![Item::Group(Group::new(
+            Par::new(ParT::CurlyOpen, Span::pos(0)),
+            Par::new(ParT::CurlyClose, Span::pos(9)),
             vec![
                 Item::val(Val::Int(3), Span::pos(3)),
                 Item::op(OpT::Add, Span::pos(5)),
                 Item::val(Val::Int(5), Span::pos(7)),
             ],
-            Span::of(0, 10),
-            ParKind::Curly
         ))]
     );
 
@@ -79,21 +79,21 @@ fn inner_par_limit() {
     assert_eq!(
         items,
         vec![Item::Group(Group::new(
+            Par::new(ParT::RoundOpen, Span::pos(2)),
+            Par::new(ParT::RoundClose, Span::pos(14)),
             vec![Item::Group(Group::new(
+                Par::new(ParT::RoundOpen, Span::pos(3)),
+                Par::new(ParT::RoundClose, Span::pos(13)),
                 vec![Item::Group(Group::new(
+                    Par::new(ParT::RoundOpen, Span::pos(4)),
+                    Par::new(ParT::RoundClose, Span::pos(12)),
                     vec![
                         Item::val(Val::Int(3), Span::pos(5)),
                         Item::op(OpT::Add, Span::pos(7)),
                         Item::val(Val::Int(5), Span::pos(9)),
                     ],
-                    Span::of(4, 13),
-                    ParKind::Round,
                 ))],
-                Span::of(3, 14),
-                ParKind::Round,
             ))],
-            Span::of(2, 15),
-            ParKind::Round,
         ))],
     );
 
@@ -115,14 +115,30 @@ fn par_stack_gets_popped() {
     assert_eq!(
         items,
         vec![Item::Group(Group::new(
+            Par::new(ParT::CurlyOpen, Span::pos(0)),
+            Par::new(ParT::CurlyClose, Span::pos(11)),
             vec![
-                Item::Group(Group::new(vec![], Span::of(2, 4), ParKind::Round,)),
-                Item::Group(Group::new(vec![], Span::of(4, 6), ParKind::Round,)),
-                Item::Group(Group::new(vec![], Span::of(6, 8), ParKind::Round,)),
-                Item::Group(Group::new(vec![], Span::of(8, 10), ParKind::Round,)),
+                Item::Group(Group::new(
+                    Par::new(ParT::RoundOpen, Span::pos(2)),
+                    Par::new(ParT::RoundClose, Span::pos(3)),
+                    vec![],
+                )),
+                Item::Group(Group::new(
+                    Par::new(ParT::RoundOpen, Span::pos(4)),
+                    Par::new(ParT::RoundClose, Span::pos(5)),
+                    vec![],
+                )),
+                Item::Group(Group::new(
+                    Par::new(ParT::RoundOpen, Span::pos(6)),
+                    Par::new(ParT::RoundClose, Span::pos(7)),
+                    vec![],
+                )),
+                Item::Group(Group::new(
+                    Par::new(ParT::RoundOpen, Span::pos(8)),
+                    Par::new(ParT::RoundClose, Span::pos(9)),
+                    vec![],
+                )),
             ],
-            Span::of(0, 12),
-            ParKind::Curly,
         ))],
     );
 

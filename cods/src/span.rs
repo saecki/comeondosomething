@@ -10,16 +10,16 @@ impl Span {
         Self { start, end }
     }
 
-    pub const fn span(a: Self, b: Self) -> Self {
+    pub const fn pos(pos: usize) -> Self {
+        Self::of(pos, pos + 1)
+    }
+
+    pub const fn across(a: Self, b: Self) -> Self {
         Self::of(a.start, b.end)
     }
 
     pub const fn between(a: Self, b: Self) -> Self {
         Self::of(a.end, b.start)
-    }
-
-    pub const fn pos(pos: usize) -> Self {
-        Self::of(pos, pos + 1)
     }
 
     pub const fn after(&self) -> Self {

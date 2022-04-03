@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-use crate::{Context, Par, Span, Token};
+use crate::{Context, Par, Token};
 
 pub use item::*;
 
@@ -79,12 +79,9 @@ impl Context {
                     let inner = self.group_tokens(state, stack)?;
 
                     match state.peek() {
-                        Some(Token::Par(right_par)) if left_par.matches(right_par.typ) => {
-                            let kind = left_par.kind();
-                            let s = Span::span(left_par.span, right_par.span);
-                            let g = Group::new(inner, s, kind);
+                        Some(&Token::Par(right_par)) if left_par.matches(right_par.typ) => {
                             state.next();
-                            Item::Group(g)
+                            Item::Group(Group::new(left_par, right_par, inner))
                         }
                         _ => {
                             self.errors.push(crate::Error::MissingClosingPar(left_par));
