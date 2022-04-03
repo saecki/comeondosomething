@@ -288,7 +288,7 @@ impl Display for Error {
                 write!(f, "Assertion failed")
             }
             Self::AssertEqFailed(a, b) => {
-                write!(f, "Assertion failed: '{a}' == '{b}'")
+                write!(f, "Assertion failed, values are not equal\n left: '{a}'\nright: '{b}'")
             }
         }
     }
