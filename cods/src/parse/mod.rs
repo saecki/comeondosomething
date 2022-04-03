@@ -36,7 +36,11 @@ impl Context {
             }
         }
 
-        Ok(asts)
+        if asts.is_empty() {
+            Ok(vec![Ast::new(AstT::Empty, span)])
+        } else {
+            Ok(asts)
+        }
     }
 
     fn parse_one_bp(&mut self, parser: &mut Parser, min_bp: u8) -> crate::Result<Ast> {
