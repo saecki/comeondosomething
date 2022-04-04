@@ -1,8 +1,19 @@
 use std::f64::consts;
 
-use crate::Val;
+use crate::{Span, Val};
 
-pub enum BuiltinFun {
+pub struct BuiltinFun {
+    pub typ: BuiltinFunT,
+    pub span: Span,
+}
+
+impl BuiltinFun {
+    pub fn new(typ: BuiltinFunT, span: Span) -> Self {
+        Self { typ, span }
+    }
+}
+
+pub enum BuiltinFunT {
     Pow,
     Ln,
     Log,
@@ -27,7 +38,7 @@ pub enum BuiltinFun {
     AssertEq,
 }
 
-impl BuiltinFun {
+impl BuiltinFunT {
     pub fn from(name: &str) -> Option<Self> {
         let b = match name {
             "pow" => Self::Pow,

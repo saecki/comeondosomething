@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{Group, IdentSpan, Item, KwT, OpT, PctT, Span};
+use crate::{Group, IdentSpan, Item, Kw, KwT, OpT, Pct, PctT, Span, Op};
 
 pub struct Parser {
     items: VecDeque<Item>,
@@ -90,25 +90,25 @@ impl Parser {
         }
     }
 
-    pub fn expect_op(&mut self, op: OpT) -> crate::Result<Span> {
+    pub fn expect_op(&mut self, op: OpT) -> crate::Result<Op> {
         match self.next() {
-            Some(Item::Op(o)) if o.typ == op => Ok(o.span),
+            Some(Item::Op(o)) if o.typ == op => Ok(o),
             Some(i) => Err(crate::Error::ExpectedOp(op, i.span())),
             None => Err(crate::Error::ExpectedOp(op, Span::pos(self.pos))),
         }
     }
 
-    pub fn expect_kw(&mut self, kw: KwT) -> crate::Result<Span> {
+    pub fn expect_kw(&mut self, kw: KwT) -> crate::Result<Kw> {
         match self.next() {
-            Some(Item::Kw(k)) if k.typ == kw => Ok(k.span),
+            Some(Item::Kw(k)) if k.typ == kw => Ok(k),
             Some(i) => Err(crate::Error::ExpectedKw(kw, i.span())),
             None => Err(crate::Error::ExpectedKw(kw, Span::pos(self.pos))),
         }
     }
 
-    pub fn expect_pct(&mut self, pct: PctT) -> crate::Result<Span> {
+    pub fn expect_pct(&mut self, pct: PctT) -> crate::Result<Pct> {
         match self.next() {
-            Some(Item::Pct(p)) if p.typ == pct => Ok(p.span),
+            Some(Item::Pct(p)) if p.typ == pct => Ok(p),
             Some(i) => Err(crate::Error::ExpectedPct(pct, i.span())),
             None => Err(crate::Error::ExpectedPct(pct, Span::pos(self.pos))),
         }

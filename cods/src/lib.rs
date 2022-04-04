@@ -55,8 +55,8 @@ impl Context {
     pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<Ast>> {
         let tokens = self.lex(input.as_ref())?;
         let items = self.group(tokens)?;
-        let asts = self.parse(items)?;
-        Ok(asts)
+        let csts = self.parse(items)?;
+        todo!("type check {csts:?} and build asts");
     }
 }
 

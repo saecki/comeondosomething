@@ -22,6 +22,10 @@ impl Span {
         Self::of(a.end, b.start)
     }
 
+    pub const fn before(&self) -> Self {
+        Self::pos(self.start.saturating_sub(1))
+    }
+
     pub const fn after(&self) -> Self {
         Self::pos(self.end)
     }

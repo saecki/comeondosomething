@@ -1,10 +1,18 @@
 use crate::{OpT, Span};
 
+#[derive(Clone, Debug)]
 pub struct Infix {
     pub typ: InfixT,
     pub span: Span,
 }
 
+impl Infix {
+    pub const fn new(typ: InfixT, span: Span) -> Self {
+        Self { typ, span }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum InfixT {
     Assign,
     AddAssign,
@@ -33,22 +41,38 @@ pub enum InfixT {
     Dot,
 }
 
+#[derive(Clone, Debug)]
 pub struct Prefix {
     pub typ: PrefixT,
     pub span: Span,
 }
 
+impl Prefix {
+    pub const fn new(typ: PrefixT, span: Span) -> Self {
+        Self { typ, span }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum PrefixT {
     UnaryPlus,
     UnaryMinus,
     Not,
 }
 
+#[derive(Clone, Debug)]
 pub struct Postfix {
     pub typ: PostfixT,
     pub span: Span,
 }
 
+impl Postfix {
+    pub const fn new(typ: PostfixT, span: Span) -> Self {
+        Self { typ, span }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum PostfixT {
     Factorial,
 }
