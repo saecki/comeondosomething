@@ -4,14 +4,14 @@ use std::rc::Rc;
 use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan};
 
 impl Context {
-    pub fn resolve_fun(&self, id: &IdentSpan) -> crate::Result<Rc<ast::Fun>> {
+    pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<Rc<Fun>> {
         let name = self.idents.name(id.ident);
         match BuiltinFun::from(name) {
             Some(_) => todo!(),
             None => (),
         }
 
-        match self.scopes.fun(id.ident) {
+        match scopes.fun(id.ident) {
             Some(f) => Ok(f),
             None => {
                 let name = self.idents.name(id.ident);
@@ -20,8 +20,8 @@ impl Context {
         }
     }
 
-    pub fn def_fun(&mut self, fun: Rc<ast::Fun>) -> crate::Result<()> {
-        let s = self.scopes.current_mut();
+    pub fn def_fun(&mut self, scopes: &mut Scopes, fun: Fun) -> crate::Result<()> {
+        let s = scopes.current_mut();
         let id = fun.ident;
         if let Some(f) = s.fun(id.ident) {
             let i_s = f.ident.span;
@@ -29,18 +29,18 @@ impl Context {
             return Err(crate::Error::RedefinedFun(name.to_owned(), i_s, id.span));
         }
 
-        s.funs.insert(id.ident, fun);
+        s.funs.insert(id.ident, Rc::new(fun));
 
         Ok(())
     }
 
-    pub fn resolve_var(&self, id: &IdentSpan) -> crate::Result<DataType> {
+    pub fn resolve_var<'a>(&self, scopes: &'a Scopes, id: &IdentSpan) -> crate::Result<&'a Var> {
         let name = self.idents.name(id.ident);
-        if let Some(b) = BuiltinConst::from(name) {
-            return Ok(b.data_type());
+        if let Some(_) = BuiltinConst::from(name) {
+            todo!()
         }
 
-        let var = match self.scopes.var(id.ident) {
+        let var = match scopes.var(id.ident) {
             Some(v) => v,
             None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
         };
@@ -54,16 +54,16 @@ impl Context {
             ));
         }
 
-        Ok(var.data_type)
+        Ok(var)
     }
 
-    pub fn def_var(&mut self, var: ast::Var) {
-        let s = self.scopes.current_mut();
+    pub fn def_var(&self, scopes: &mut Scopes, var: Var) {
+        let s = scopes.current_mut();
         s.def_var(var);
     }
 
-    pub fn set_var(&mut self, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
-        match self.scopes.var_mut(id.ident) {
+    pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
+        match scopes.var_mut(id.ident) {
             Some(v) => {
                 if val.data_type != v.data_type {
                     todo!("error")
@@ -154,7 +154,7 @@ impl Scopes {
         self.len = 0;
     }
 
-    fn fun(&self, id: Ident) -> Option<Rc<ast::Fun>> {
+    fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
         for s in self.rev() {
             if let Some(f) = s.fun(id) {
                 return Some(f);
@@ -163,7 +163,7 @@ impl Scopes {
         None
     }
 
-    fn var(&self, id: Ident) -> Option<&ast::Var> {
+    fn var(&self, id: Ident) -> Option<&Var> {
         for s in self.rev() {
             if let Some(v) = s.var(id) {
                 return Some(v);
@@ -172,7 +172,7 @@ impl Scopes {
         None
     }
 
-    fn var_mut(&mut self, id: Ident) -> Option<&mut ast::Var> {
+    fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
         for s in self.rev_mut() {
             if let Some(v) = s.var_mut(id) {
                 return Some(v);
@@ -184,8 +184,8 @@ impl Scopes {
 
 #[derive(Debug, Default)]
 pub struct Scope {
-    funs: HashMap<Ident, Rc<ast::Fun>>,
-    vars: HashMap<Ident, ast::Var>,
+    funs: HashMap<Ident, Rc<Fun>>,
+    vars: HashMap<Ident, Var>,
 }
 
 impl Scope {
@@ -194,27 +194,83 @@ impl Scope {
         self.funs.clear();
     }
 
-    pub fn fun(&self, id: Ident) -> Option<Rc<ast::Fun>> {
+    pub fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
         self.funs.get(&id).map(Rc::clone)
     }
 
-    pub fn vars(&self) -> impl Iterator<Item = &ast::Var> {
-        self.vars.values()
-    }
-
-    pub fn funs(&self) -> impl Iterator<Item = &Rc<ast::Fun>> {
-        self.funs.values()
-    }
-
-    pub fn var(&self, id: Ident) -> Option<&ast::Var> {
+    pub fn var(&self, id: Ident) -> Option<&Var> {
         self.vars.get(&id)
     }
 
-    pub fn var_mut(&mut self, id: Ident) -> Option<&mut ast::Var> {
+    pub fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
         self.vars.get_mut(&id)
     }
 
-    pub fn def_var(&mut self, var: ast::Var) {
+    pub fn def_var(&mut self, var: Var) {
         self.vars.insert(var.ident.ident, var);
+    }
+}
+
+// TODO: define fun before parsing body to support recursive calls
+#[derive(Clone, Debug, PartialEq)]
+pub struct Fun {
+    pub ident: IdentSpan,
+    pub params: Vec<FunParam>,
+    pub return_type: Option<DataType>,
+    pub inner: Rc<ast::Fun>,
+}
+
+impl Fun {
+    pub const fn new(
+        ident: IdentSpan,
+        params: Vec<FunParam>,
+        return_type: Option<DataType>,
+        inner: Rc<ast::Fun>,
+    ) -> Self {
+        Self {
+            ident,
+            params,
+            return_type,
+            inner,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FunParam {
+    pub ident: IdentSpan,
+    pub typ: DataType,
+}
+
+impl FunParam {
+    pub const fn new(ident: IdentSpan, typ: DataType) -> Self {
+        Self { ident, typ }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Var {
+    pub ident: IdentSpan,
+    pub data_type: DataType,
+    pub assigned: bool,
+    pub mutable: bool,
+    pub inner: Rc<ast::Var>,
+}
+
+impl Var {
+    pub fn new(
+        ident: IdentSpan,
+        data_type: DataType,
+        assigned: bool,
+        mutable: bool,
+        inner: Rc<ast::Var>,
+    ) -> Self {
+        Self {
+            ident,
+            data_type,
+            assigned,
+            mutable,
+            inner,
+        }
     }
 }

@@ -127,6 +127,7 @@ pub enum Val {
     Bool(bool),
     Str(String),
     Range(Range),
+    Unit,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -194,6 +195,7 @@ impl Display for Val {
             Self::Bool(v) => write!(f, "{v}"),
             Self::Str(v) => write!(f, "{v}"),
             Self::Range(v) => write!(f, "{v}"),
+            Self::Unit => write!(f, "()"),
         }
     }
 }

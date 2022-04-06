@@ -23,7 +23,6 @@ mod util;
 #[derive(Debug, Default)]
 pub struct Context {
     pub idents: Idents,
-    pub scopes: Scopes,
     pub stdio: Stdio,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
@@ -31,7 +30,6 @@ pub struct Context {
 
 impl Context {
     pub fn clear(&mut self) {
-        self.scopes.clear();
         self.idents.clear();
         self.errors.clear();
         self.warnings.clear();

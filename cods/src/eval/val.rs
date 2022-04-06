@@ -92,7 +92,7 @@ impl ValSpan {
     pub fn into_str(self) -> crate::Result<String> {
         match self.val {
             Val::Str(s) => Ok(s),
-            Val::Int(_) | Val::Float(_) | Val::Bool(_) | Val::Range(_) => {
+            _ => {
                 Err(crate::Error::ExpectedStr(self))
             }
         }
@@ -106,22 +106,6 @@ impl ValSpan {
 }
 
 impl Val {
-    pub fn convert_to_int(&self) -> Option<i128> {
-        match self {
-            Self::Int(i) => Some(*i),
-            Self::Float(f) => {
-                let i = *f as i128;
-                #[allow(clippy::float_cmp)]
-                if i as f64 == *f {
-                    Some(i)
-                } else {
-                    None
-                }
-            }
-            Self::Bool(_) | Self::Str(_) | Self::Range(_) => None,
-        }
-    }
-
     pub fn to_int(&self) -> Option<i128> {
         match self {
             Self::Int(i) => Some(*i),
@@ -131,7 +115,6 @@ impl Val {
 
     pub fn to_f64(&self) -> Option<f64> {
         match self {
-            Self::Int(i) => Some(*i as f64),
             Self::Float(f) => Some(*f),
             _ => None,
         }

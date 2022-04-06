@@ -17,6 +17,7 @@ impl Val {
             Self::Bool(_) => DataType::Bool,
             Self::Str(_) => DataType::Str,
             Self::Range(_) => DataType::Range,
+            Self::Unit => DataType::Unit,
         }
     }
 }
