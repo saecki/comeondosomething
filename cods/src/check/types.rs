@@ -7,29 +7,31 @@ pub const TYPE_FLOAT: &str = "float";
 pub const TYPE_BOOL: &str = "bool";
 pub const TYPE_STR: &str = "str";
 pub const TYPE_RANGE: &str = "range";
+pub const TYPE_UNIT: &str = "()";
 
 impl Val {
-    pub const fn typ(&self) -> PrimitiveType {
+    pub const fn data_type(&self) -> DataType {
         match self {
-            Self::Int(_) => PrimitiveType::Int,
-            Self::Float(_) => PrimitiveType::Float,
-            Self::Bool(_) => PrimitiveType::Bool,
-            Self::Str(_) => PrimitiveType::Str,
-            Self::Range(_) => PrimitiveType::Range,
+            Self::Int(_) => DataType::Int,
+            Self::Float(_) => DataType::Float,
+            Self::Bool(_) => DataType::Bool,
+            Self::Str(_) => DataType::Str,
+            Self::Range(_) => DataType::Range,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PrimitiveType {
+pub enum DataType {
     Int,
     Float,
     Range,
     Bool,
     Str,
+    Unit,
 }
 
-impl Display for PrimitiveType {
+impl Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Int => f.write_str(TYPE_INT),
@@ -37,11 +39,12 @@ impl Display for PrimitiveType {
             Self::Bool => f.write_str(TYPE_BOOL),
             Self::Str => f.write_str(TYPE_STR),
             Self::Range => f.write_str(TYPE_RANGE),
+            Self::Unit => f.write_str("()"), // TODO
         }
     }
 }
 
-impl PrimitiveType {
+impl DataType {
     pub fn from(name: &str) -> Option<Self> {
         let t = match name {
             TYPE_INT => Self::Int,

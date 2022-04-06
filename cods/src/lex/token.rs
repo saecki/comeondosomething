@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use crate::{Ident, IdentSpan, Span, ValSpan};
+use crate::{Ident, IdentSpan, Span};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -85,6 +85,38 @@ impl Token {
             Self::Pct(s) => s.span,
             Self::Kw(k) => k.span,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValSpan {
+    pub val: Val,
+    pub span: Span,
+}
+
+impl Deref for ValSpan {
+    type Target = Val;
+
+    fn deref(&self) -> &Self::Target {
+        &self.val
+    }
+}
+
+impl DerefMut for ValSpan {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.val
+    }
+}
+
+impl Display for ValSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.val)
+    }
+}
+
+impl ValSpan {
+    pub const fn new(val: Val, span: Span) -> Self {
+        Self { val, span }
     }
 }
 

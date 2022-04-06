@@ -1,164 +1,13 @@
-use std::convert::TryFrom;
-use std::io::Write;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::{Context, IdentSpan, Range, Span, Val};
+use crate::ast::{Ast, AstT, ForLoop, Fun, IfExpr, WhileLoop};
+use crate::{Context, IdentSpan, Infix, Postfix, Prefix, Range, Span, Val, ValSpan};
 
-pub use scope::*;
-pub use types::*;
 pub use val::*;
 
-mod scope;
 #[cfg(test)]
 mod test;
-mod types;
 mod val;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ast {
-    pub typ: AstT,
-    pub span: Span,
-}
-
-impl Deref for Ast {
-    type Target = AstT;
-
-    fn deref(&self) -> &Self::Target {
-        &self.typ
-    }
-}
-
-impl DerefMut for Ast {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.typ
-    }
-}
-
-impl Ast {
-    pub fn new(typ: AstT, span: Span) -> Self {
-        Self { typ, span }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AstT {
-    Empty,
-    Error,
-    Val(ValSpan),
-    Ident(IdentSpan),
-    Block(Vec<Ast>),
-    IfExpr(IfExpr),
-    WhileLoop(Box<CondBlock>),
-    ForLoop(ForLoop),
-    FunDef(Rc<Fun>),
-    FunCall(IdentSpan, Vec<Ast>),
-    VarDef(IdentSpan, Box<Ast>, bool),
-    Assign(IdentSpan, Box<Ast>),
-    AddAssign(IdentSpan, Box<Ast>),
-    SubAssign(IdentSpan, Box<Ast>),
-    MulAssign(IdentSpan, Box<Ast>),
-    DivAssign(IdentSpan, Box<Ast>),
-    RangeEx(Box<Ast>, Box<Ast>),
-    RangeIn(Box<Ast>, Box<Ast>),
-    Neg(Box<Ast>),
-    Add(Box<Ast>, Box<Ast>),
-    Sub(Box<Ast>, Box<Ast>),
-    Mul(Box<Ast>, Box<Ast>),
-    Div(Box<Ast>, Box<Ast>),
-    IntDiv(Box<Ast>, Box<Ast>),
-    Rem(Box<Ast>, Box<Ast>),
-    Pow(Box<Ast>, Box<Ast>),
-    Eq(Box<Ast>, Box<Ast>),
-    Ne(Box<Ast>, Box<Ast>),
-    Lt(Box<Ast>, Box<Ast>),
-    Le(Box<Ast>, Box<Ast>),
-    Gt(Box<Ast>, Box<Ast>),
-    Ge(Box<Ast>, Box<Ast>),
-    Or(Box<Ast>, Box<Ast>),
-    And(Box<Ast>, Box<Ast>),
-    BwOr(Box<Ast>, Box<Ast>),
-    BwAnd(Box<Ast>, Box<Ast>),
-    Not(Box<Ast>),
-    ToDeg(Box<Ast>),
-    ToRad(Box<Ast>),
-    Factorial(Box<Ast>),
-    Ln(Box<Ast>),
-    Log(Box<Ast>, Box<Ast>),
-    Sqrt(Box<Ast>),
-    Ncr(Box<Ast>, Box<Ast>),
-    Sin(Box<Ast>),
-    Cos(Box<Ast>),
-    Tan(Box<Ast>),
-    Asin(Box<Ast>),
-    Acos(Box<Ast>),
-    Atan(Box<Ast>),
-    Gcd(Box<Ast>, Box<Ast>),
-    Min(Vec<Ast>),
-    Max(Vec<Ast>),
-    Clamp(Box<Ast>, Box<Ast>, Box<Ast>),
-    Print(Vec<Ast>),
-    Println(Vec<Ast>),
-    Spill,
-    Assert(Box<Ast>),
-    AssertEq(Box<Ast>, Box<Ast>),
-}
-
-impl AstT {
-    pub fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct IfExpr {
-    pub cases: Vec<CondBlock>,
-    pub else_block: Option<Block>,
-}
-
-impl IfExpr {
-    pub const fn new(cases: Vec<CondBlock>, else_block: Option<Block>) -> Self {
-        Self { cases, else_block }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CondBlock {
-    pub cond: Ast,
-    pub block: Vec<Ast>,
-    pub span: Span,
-}
-
-impl CondBlock {
-    pub const fn new(cond: Ast, block: Vec<Ast>, span: Span) -> Self {
-        Self { cond, block, span }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ForLoop {
-    pub ident: IdentSpan,
-    pub iter: Box<Ast>,
-    pub block: Block,
-}
-
-impl ForLoop {
-    pub const fn new(ident: IdentSpan, iter: Box<Ast>, block: Block) -> Self {
-        Self { ident, iter, block }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Block {
-    pub asts: Vec<Ast>,
-    pub span: Span,
-}
-
-impl Block {
-    pub const fn new(asts: Vec<Ast>, span: Span) -> Self {
-        Self { asts, span }
-    }
-}
 
 impl Context {
     /// Evaluate all ast's and return the last value.
@@ -214,63 +63,20 @@ impl Context {
         match &ast.typ {
             AstT::Empty => Ok(Return::Unit(s)),
             AstT::Error => Err(crate::Error::Parsing(s)),
-            AstT::Val(a) => self.val(a),
-            AstT::Ident(a) => self.ident(a),
-            AstT::Block(a) => self.block(a, s),
-            AstT::IfExpr(a) => self.if_expr(a, s),
-            AstT::WhileLoop(a) => self.while_loop(a, s),
-            AstT::ForLoop(a) => self.for_loop(a, s),
-            AstT::FunDef(a) => self.fun_def(a, s),
-            AstT::FunCall(a, b) => self.fun_call(a, b, s),
-            AstT::VarDef(a, b, c) => self.var_def(a, b, *c, s),
-            AstT::Assign(a, b) => self.assign(a, b, s),
-            AstT::AddAssign(a, b) => self.add_assign(a, b, s),
-            AstT::SubAssign(a, b) => self.sub_assign(a, b, s),
-            AstT::MulAssign(a, b) => self.mul_assign(a, b, s),
-            AstT::DivAssign(a, b) => self.div_assign(a, b, s),
-            AstT::RangeEx(a, b) => self.range_ex(a, b, s),
-            AstT::RangeIn(a, b) => self.range_in(a, b, s),
-            AstT::Neg(a) => self.neg(a, s),
-            AstT::Add(a, b) => self.add(a, b, s),
-            AstT::Sub(a, b) => self.sub(a, b, s),
-            AstT::Mul(a, b) => self.mul(a, b, s),
-            AstT::Div(a, b) => self.div(a, b, s),
-            AstT::IntDiv(a, b) => self.int_div(a, b, s),
-            AstT::Rem(a, b) => self.rem(a, b, s),
-            AstT::Pow(a, b) => self.pow(a, b, s),
-            AstT::Eq(a, b) => self.eq(a, b, s),
-            AstT::Ne(a, b) => self.ne(a, b, s),
-            AstT::Lt(a, b) => self.lt(a, b, s),
-            AstT::Le(a, b) => self.le(a, b, s),
-            AstT::Gt(a, b) => self.gt(a, b, s),
-            AstT::Ge(a, b) => self.ge(a, b, s),
-            AstT::Or(a, b) => self.or(a, b, s),
-            AstT::And(a, b) => self.and(a, b, s),
-            AstT::BwOr(a, b) => self.bw_or(a, b, s),
-            AstT::BwAnd(a, b) => self.bw_and(a, b, s),
-            AstT::Not(a) => self.not(a, s),
-            AstT::ToDeg(a) => self.rad_to_deg(a, s),
-            AstT::ToRad(a) => self.deg_to_rad(a, s),
-            AstT::Factorial(a) => self.factorial(a, s),
-            AstT::Ln(a) => self.ln(a, s),
-            AstT::Log(a, b) => self.log(a, b, s),
-            AstT::Sqrt(a) => self.sqrt(a, s),
-            AstT::Ncr(a, b) => self.ncr(a, b, s),
-            AstT::Sin(a) => self.sin(a, s),
-            AstT::Cos(a) => self.cos(a, s),
-            AstT::Tan(a) => self.tan(a, s),
-            AstT::Asin(a) => self.asin(a, s),
-            AstT::Acos(a) => self.acos(a, s),
-            AstT::Atan(a) => self.atan(a, s),
-            AstT::Gcd(a, b) => self.gcd(a, b, s),
-            AstT::Min(args) => self.min(args, s),
-            AstT::Max(args) => self.max(args, s),
-            AstT::Clamp(num, min, max) => self.clamp(num, min, max, s),
-            AstT::Print(args) => self.print(args, s),
-            AstT::Println(args) => self.println(args, s),
-            AstT::Spill => self.spill(s),
-            AstT::Assert(a) => self.assert(a, s),
-            AstT::AssertEq(a, b) => self.assert_eq(a, b, s),
+            AstT::Val(v) => Ok(Return::Val(v.clone())),
+            AstT::Ident(i) => todo!(),
+            AstT::Block(a) => self.eval_block(a, s),
+            AstT::IfExpr(a) => self.eval_if_expr(a, s),
+            AstT::WhileLoop(a) => self.eval_while_loop(a, s),
+            AstT::ForLoop(a) => self.eval_for_loop(a, s),
+            AstT::FunDef(a) => self.eval_fun_def(a, s),
+            AstT::FunCall(a, b) => self.eval_fun_call(a, b, s),
+            AstT::VarDef(a, b, c) => self.eval_var_def(a, b, *c, s),
+            AstT::Prefix(p, a) => self.eval_prefix(p, a, s),
+            AstT::Postfix(a, p) => self.eval_postfix(a, p, s),
+            AstT::Infix(a, i, b) => self.eval_infix(a, i, b, s),
+            AstT::InfixAssign(a, i, b) => self.eval_infix_assign(a, i, b, s),
+            AstT::Assign(a, i, b) => self.eval_assign(a, i, b, s),
         }
         .map(|mut r| {
             if let Return::Val(v) = &mut r {
@@ -282,15 +88,7 @@ impl Context {
         })
     }
 
-    fn val(&mut self, val: &ValSpan) -> crate::Result<Return> {
-        Ok(Return::Val(val.clone()))
-    }
-
-    fn ident(&mut self, ident: &IdentSpan) -> crate::Result<Return> {
-        Ok(Return::Val(self.resolve_var(ident)?))
-    }
-
-    fn block(&mut self, asts: &[Ast], span: Span) -> crate::Result<Return> {
+    fn eval_block(&mut self, asts: &[Ast], span: Span) -> crate::Result<Return> {
         self.scopes.push();
         let r = match asts.split_last() {
             Some((last, others)) => {
@@ -305,19 +103,19 @@ impl Context {
         r
     }
 
-    fn if_expr(&mut self, if_expr: &IfExpr, span: Span) -> crate::Result<Return> {
+    fn eval_if_expr(&mut self, if_expr: &IfExpr, span: Span) -> crate::Result<Return> {
         for c in if_expr.cases.iter() {
             if self.eval_to_bool(&c.cond)? {
-                return self.block(&c.block, span);
+                return self.eval_block(&c.block, span);
             }
         }
         if let Some(b) = &if_expr.else_block {
-            return self.block(&b.asts, b.span);
+            return self.eval_block(&b.asts, b.span);
         }
         Ok(Return::Unit(span))
     }
 
-    fn while_loop(&mut self, whl_loop: &CondBlock, span: Span) -> crate::Result<Return> {
+    fn eval_while_loop(&mut self, whl_loop: &WhileLoop, span: Span) -> crate::Result<Return> {
         while self.eval_to_bool(&whl_loop.cond)? {
             self.scopes.push();
             for a in whl_loop.block.iter() {
@@ -329,15 +127,14 @@ impl Context {
         Ok(Return::Unit(span))
     }
 
-    fn for_loop(&mut self, for_loop: &ForLoop, span: Span) -> crate::Result<Return> {
+    fn eval_for_loop(&mut self, for_loop: &ForLoop, span: Span) -> crate::Result<Return> {
         let iter = self.eval_to_range(&for_loop.iter)?;
 
         for i in iter.iter() {
             self.scopes.push();
-            let var = Var::new(for_loop.ident, Some(Val::Int(i)), false);
-            self.scopes.current_mut().def_var(var);
+            todo!("define var");
 
-            for c in for_loop.block.asts.iter() {
+            for c in for_loop.block.iter() {
                 self.eval_ast(c)?;
             }
 
@@ -347,43 +144,26 @@ impl Context {
         Ok(Return::Unit(span))
     }
 
-    fn fun_def(&mut self, fun: &Rc<Fun>, span: Span) -> crate::Result<Return> {
-        // TODO: store type information
-        for p in fun.params.iter() {
-            let type_name = self.idents.name(p.typ.ident);
-            if PrimitiveType::from(type_name).is_none() {
-                return Err(crate::Error::UnknownType(type_name.to_owned(), p.typ.span));
-            }
-        }
-
-        if let Some(r) = fun.return_type {
-            let type_name = self.idents.name(r.ident);
-            if PrimitiveType::from(type_name).is_none() {
-                return Err(crate::Error::UnknownType(type_name.to_owned(), r.span));
-            }
-        }
-
-        self.def_fun(Rc::clone(fun))?;
+    fn eval_fun_def(&mut self, fun: &Rc<Fun>, span: Span) -> crate::Result<Return> {
+        // TODO: consider removing this
         Ok(Return::Unit(span))
     }
 
-    fn fun_call(&mut self, id: &IdentSpan, args: &[Ast], span: Span) -> crate::Result<Return> {
-        let fun = self.resolve_fun(id)?;
-
+    fn eval_fun_call(&mut self, fun: &Rc<Fun>, args: &[Ast], span: Span) -> crate::Result<Return> {
         if args.len() < fun.params.len() {
             return Err(crate::Error::MissingFunArgs {
-                span: Span::pos(span.end - 1),
                 expected: fun.params.len(),
                 found: args.len(),
+                span: Span::pos(span.end - 1),
             });
         }
 
         if args.len() > fun.params.len() {
             let spans = args.iter().skip(fun.params.len()).map(|a| a.span).collect();
             return Err(crate::Error::UnexpectedFunArgs {
-                spans,
                 expected: fun.params.len(),
                 found: args.len(),
+                spans,
             });
         }
 
@@ -396,13 +176,11 @@ impl Context {
         self.scopes.push();
         let scope = self.scopes.current_mut();
         for (p, a) in fun.params.iter().zip(arg_vals) {
-            // TODO: type checking
-            let var = Var::new(p.ident, Some(a.val), false);
-            scope.def_var(var);
+            todo!("define var")
         }
 
         // TODO: type checking
-        let r = match fun.block.asts.split_last() {
+        let r = match fun.block.split_last() {
             Some((last, others)) => {
                 for c in others {
                     self.eval_ast(c)?;
@@ -417,550 +195,45 @@ impl Context {
         r
     }
 
-    fn var_def(
+    fn eval_var_def(
         &mut self,
-        id: &IdentSpan,
-        b: &Ast,
-        mutable: bool,
-        span: Span,
+        _id: &IdentSpan,
+        _b: &Ast,
+        _mutable: bool,
+        _span: Span,
     ) -> crate::Result<Return> {
-        let val = self.eval_to_val(b)?;
-        let var = Var::new(*id, Some(val.val), mutable);
-        self.def_var(var);
-        Ok(Return::Unit(span))
+        todo!()
     }
 
-    fn assign(&mut self, id: &IdentSpan, b: &Ast, span: Span) -> crate::Result<Return> {
-        let v = self.eval_to_val(b)?;
-        self.set_var(id, Some(v.val), v.span)?;
-        Ok(Return::Unit(span))
+    fn eval_prefix(&mut self, _p: &Prefix, _a: &Ast, _span: Span) -> crate::Result<Return> {
+        todo!()
     }
 
-    fn add_assign(&mut self, id: &IdentSpan, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.resolve_var(id)?;
-        let vb = self.eval_to_val(b)?;
-        let val_s = vb.span;
-        let val = checked_add(va, vb)?;
-        self.set_var(id, Some(val), val_s)?;
-        Ok(Return::Unit(span))
+    fn eval_postfix(&mut self, _a: &Ast, _p: &Postfix, _span: Span) -> crate::Result<Return> {
+        todo!()
     }
 
-    fn sub_assign(&mut self, id: &IdentSpan, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.resolve_var(id)?;
-        let vb = self.eval_to_val(b)?;
-        let val_s = vb.span;
-        let val = checked_sub(va, vb)?;
-        self.set_var(id, Some(val), val_s)?;
-        Ok(Return::Unit(span))
+    fn eval_infix(&mut self, _a: &Ast, _i: &Infix, _b: &Ast, _span: Span) -> crate::Result<Return> {
+        todo!()
     }
 
-    fn mul_assign(&mut self, id: &IdentSpan, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.resolve_var(id)?;
-        let vb = self.eval_to_val(b)?;
-        let val_s = vb.span;
-        let val = checked_mul(va, vb)?;
-        self.set_var(id, Some(val), val_s)?;
-        Ok(Return::Unit(span))
+    fn eval_infix_assign(
+        &mut self,
+        _id: &IdentSpan,
+        _i: &Infix,
+        _b: &Ast,
+        _span: Span,
+    ) -> crate::Result<Return> {
+        todo!()
     }
 
-    fn div_assign(&mut self, id: &IdentSpan, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.resolve_var(id)?;
-        let vb = self.eval_to_val(b)?;
-        let val_s = vb.span;
-        let val = checked_div(va, vb)?;
-        self.set_var(id, Some(val), val_s)?;
-        Ok(Return::Unit(span))
+    fn eval_assign(
+        &mut self,
+        _id: &IdentSpan,
+        _i: &Infix,
+        _b: &Ast,
+        _span: Span,
+    ) -> crate::Result<Return> {
+        todo!("set var");
     }
-
-    fn range_ex(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_int(a)?;
-        let vb = self.eval_to_int(b)?;
-        let val = Val::Range(Range::Exclusive(va, vb));
-        return_val(val, span)
-    }
-
-    fn range_in(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_int(a)?;
-        let vb = self.eval_to_int(b)?;
-        let val = Val::Range(Range::Inclusive(va, vb));
-        return_val(val, span)
-    }
-
-    fn neg(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let v = self.eval_to_val(n)?;
-        let val = match v.val {
-            Val::Int(i) => Val::Int(-i),
-            _ => Val::Float(-v.to_f64()?),
-        };
-        return_val(val, span)
-    }
-
-    fn add(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-        let val = checked_add(va, vb)?;
-        return_val(val, span)
-    }
-
-    fn sub(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-        let val = checked_sub(va, vb)?;
-        return_val(val, span)
-    }
-
-    fn mul(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-        let val = checked_mul(va, vb)?;
-        return_val(val, span)
-    }
-
-    fn div(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-        let val = checked_div(va, vb)?;
-        return_val(val, span)
-    }
-
-    fn int_div(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(a), &Val::Int(b)) => {
-                if b == 0 {
-                    return Err(crate::Error::DivideByZero(va.clone(), vb.clone()));
-                }
-                Val::Int(a / b)
-            }
-            _ => return Err(crate::Error::FractionEuclidDiv(va.clone(), vb.clone())),
-        };
-        return_val(val, span)
-    }
-
-    fn rem(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(a), &Val::Int(b)) => {
-                if b == 0 {
-                    return Err(crate::Error::RemainderByZero(va.clone(), vb.clone()));
-                }
-
-                let r = a % b;
-                if (r > 0 && b < 0) || (r < 0 && b > 0) {
-                    Val::Int(r + b)
-                } else {
-                    Val::Int(r)
-                }
-            }
-            _ => return Err(crate::Error::FractionRemainder(va.clone(), vb.clone())),
-        };
-        return_val(val, span)
-    }
-
-    fn pow(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(base), &Val::Int(exp)) => {
-                if let Ok(e) = u32::try_from(exp) {
-                    Val::Int(base.pow(e))
-                } else if let Ok(e) = i32::try_from(exp) {
-                    Val::Float((base as f64).powi(e))
-                } else {
-                    return Err(crate::Error::PowOverflow(va.clone(), vb.clone()));
-                }
-            }
-            _ => Val::Float(va.to_f64()?.powf(vb.to_f64()?)),
-        };
-        return_val(val, span)
-    }
-
-    fn eq(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_val(a)?;
-        let b = self.eval_to_val(b)?;
-
-        return_val(Val::Bool(a.val == b.val), span)
-    }
-
-    fn ne(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_val(a)?;
-        let b = self.eval_to_val(b)?;
-
-        return_val(Val::Bool(a.val != b.val), span)
-    }
-
-    fn lt(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_f64(a)?;
-        let vb = self.eval_to_f64(b)?;
-
-        return_val(Val::Bool(va < vb), span)
-    }
-
-    fn le(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_f64(a)?;
-        let vb = self.eval_to_f64(b)?;
-
-        return_val(Val::Bool(va <= vb), span)
-    }
-
-    fn gt(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_f64(a)?;
-        let vb = self.eval_to_f64(b)?;
-
-        return_val(Val::Bool(va > vb), span)
-    }
-
-    fn ge(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_f64(a)?;
-        let vb = self.eval_to_f64(b)?;
-
-        return_val(Val::Bool(va >= vb), span)
-    }
-
-    fn or(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_bool(a)?;
-        let b = self.eval_to_bool(b)?;
-
-        return_val(Val::Bool(a || b), span)
-    }
-
-    fn and(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_bool(a)?;
-        let b = self.eval_to_bool(b)?;
-
-        return_val(Val::Bool(a && b), span)
-    }
-
-    fn bw_or(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-
-        let val = match (&va.val, &vb.val) {
-            (Val::Int(a), Val::Int(b)) => Val::Int(a | b),
-            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a | b),
-            _ => return Err(crate::Error::InvalidBwOr(va, vb)),
-        };
-
-        return_val(val, span)
-    }
-
-    fn bw_and(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-
-        let val = match (&va.val, &vb.val) {
-            (Val::Int(a), Val::Int(b)) => Val::Int(a & b),
-            (Val::Bool(a), Val::Bool(b)) => Val::Bool(a & b),
-            _ => return Err(crate::Error::InvalidBwAnd(va, vb)),
-        };
-
-        return_val(val, span)
-    }
-
-    fn not(&mut self, a: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_bool(a)?;
-        return_val(Val::Bool(!va), span)
-    }
-
-    // TODO: make these methods
-    fn rad_to_deg(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?.to_degrees();
-        return_val(Val::Float(rad), span)
-    }
-
-    fn deg_to_rad(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let rad = self.eval_to_f64(n)?.to_radians();
-        return_val(Val::Float(rad), span)
-    }
-
-    fn factorial(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let v = self.eval_to_val(n)?;
-        match v.val {
-            Val::Int(i) => {
-                if i < 0 {
-                    Err(crate::Error::NegativeFactorial(v))
-                } else {
-                    let mut f: i128 = 1;
-                    for i in 1..=i {
-                        match f.checked_mul(i) {
-                            Some(v) => f = v,
-                            None => return Err(crate::Error::FactorialOverflow(v)),
-                        }
-                    }
-
-                    return_val(Val::Int(f), span)
-                }
-            }
-            _ => Err(crate::Error::FractionFactorial(v)),
-        }
-    }
-
-    fn ln(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let val = self.eval_to_f64(n)?.ln();
-        return_val(Val::Float(val), span)
-    }
-
-    fn log(&mut self, base: &Ast, num: &Ast, span: Span) -> crate::Result<Return> {
-        let b = self.eval_to_f64(base)?;
-        let n = self.eval_to_f64(num)?;
-        let val = Val::Float(n.log(b));
-        return_val(val, span)
-    }
-
-    fn sqrt(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let val = self.eval_to_f64(n)?.sqrt();
-        return_val(Val::Float(val), span)
-    }
-
-    fn ncr(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-        let val = match (&va.val, &vb.val) {
-            (&Val::Int(n), &Val::Int(mut r)) => {
-                if r < 0 {
-                    return Err(crate::Error::NegativeNcr(vb));
-                }
-                if n < r {
-                    return Err(crate::Error::InvalidNcr(va, vb));
-                }
-
-                // symmetrical: nCr(9, 2) == nCr(9, 7)
-                if r > n - r {
-                    r = n - r;
-                }
-
-                let mut val = 1;
-                for i in 1..=r {
-                    val *= n - r + i;
-                    val /= i;
-                }
-
-                Val::Int(val)
-            }
-            _ => return Err(crate::Error::FractionNcr(va, vb)),
-        };
-        return_val(val, span)
-    }
-
-    fn sin(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.sin();
-        return_val(Val::Float(a), span)
-    }
-
-    fn cos(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.cos();
-        return_val(Val::Float(a), span)
-    }
-
-    fn tan(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.tan();
-        return_val(Val::Float(a), span)
-    }
-
-    fn asin(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.asin();
-        return_val(Val::Float(a), span)
-    }
-
-    fn acos(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.acos();
-        return_val(Val::Float(a), span)
-    }
-
-    fn atan(&mut self, n: &Ast, span: Span) -> crate::Result<Return> {
-        let a = self.eval_to_f64(n)?.atan();
-        return_val(Val::Float(a), span)
-    }
-
-    fn gcd(&mut self, n1: &Ast, n2: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(n1)?;
-        let vb = self.eval_to_val(n2)?;
-        match (&va.val, &vb.val) {
-            (Val::Int(mut a), Val::Int(mut b)) => {
-                let mut _t = 0;
-                while b != 0 {
-                    _t = b;
-                    b = a % b;
-                    a = _t;
-                }
-                return_val(Val::Int(a), span)
-            }
-            _ => Err(crate::Error::FractionGcd(va, vb)),
-        }
-    }
-
-    fn min(&mut self, args: &[Ast], span: Span) -> crate::Result<Return> {
-        let mut min = None;
-        for a in args {
-            let val = self.eval_to_val(a)?.to_f64()?;
-            match min {
-                None => min = Some(val),
-                Some(m) => {
-                    if val < m {
-                        min = Some(val);
-                    }
-                }
-            }
-        }
-
-        let max = min.expect("Iterator should at least contain 1 element");
-        return_val(Val::Float(max), span)
-    }
-
-    fn max(&mut self, args: &[Ast], span: Span) -> crate::Result<Return> {
-        let mut max = None;
-        for a in args {
-            let val = self.eval_to_f64(a)?;
-            match max {
-                None => max = Some(val),
-                Some(m) => {
-                    if val > m {
-                        max = Some(val);
-                    }
-                }
-            }
-        }
-
-        let max = max.expect("Iterator should at least contain 1 element");
-        return_val(Val::Float(max), span)
-    }
-
-    fn clamp(&mut self, num: &Ast, min: &Ast, max: &Ast, span: Span) -> crate::Result<Return> {
-        let vnum = self.eval_to_val(num)?;
-        let vmin = self.eval_to_val(min)?;
-        let vmax = self.eval_to_val(max)?;
-
-        let val = match (&vnum.val, &vmin.val, &vmax.val) {
-            (&Val::Int(num), &Val::Int(min), &Val::Int(max)) => {
-                if min > max {
-                    return Err(crate::Error::InvalidClampBounds(vmin, vmax));
-                }
-                Val::Int(num.clamp(min, max))
-            }
-            _ => {
-                let num = vnum.to_f64()?;
-                let min = vmin.to_f64()?;
-                let max = vmax.to_f64()?;
-                // floating point weirdness, negated assertion of stdlib
-                #[allow(clippy::neg_cmp_op_on_partial_ord)]
-                if !(min <= max) {
-                    return Err(crate::Error::InvalidClampBounds(vmin, vmax));
-                }
-                Val::Float(num.clamp(min, max))
-            }
-        };
-        return_val(val, span)
-    }
-
-    fn print(&mut self, args: &[Ast], span: Span) -> crate::Result<Return> {
-        let vals = self.eval_to_vals(args)?;
-        if let Some((first, others)) = vals.split_first() {
-            self.stdio.print(format_args!("{first}"));
-            for v in others {
-                self.stdio.print(format_args!(" {v}"));
-            }
-        }
-        Ok(Return::Unit(span))
-    }
-
-    fn println(&mut self, args: &[Ast], span: Span) -> crate::Result<Return> {
-        self.print(args, span)?;
-        let _ = self.stdio.stdout.write_all(&*b"\n");
-        Ok(Return::Unit(span))
-    }
-
-    fn spill(&mut self, span: Span) -> crate::Result<Return> {
-        for s in self.scopes.iter() {
-            for var in s.vars() {
-                if let Some(val) = &var.value {
-                    let name = self.idents.name(var.ident.ident);
-                    self.stdio.print(format_args!("{name} = {val}\n"));
-                }
-            }
-        }
-        Ok(Return::Unit(span))
-    }
-
-    fn assert(&mut self, a: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_bool(a)?;
-
-        if !va {
-            return Err(crate::Error::AssertFailed(a.span));
-        }
-
-        Ok(Return::Unit(span))
-    }
-
-    fn assert_eq(&mut self, a: &Ast, b: &Ast, span: Span) -> crate::Result<Return> {
-        let va = self.eval_to_val(a)?;
-        let vb = self.eval_to_val(b)?;
-
-        if va.val != vb.val {
-            return Err(crate::Error::AssertEqFailed(va, vb));
-        }
-
-        Ok(Return::Unit(span))
-    }
-}
-
-fn checked_add(va: ValSpan, vb: ValSpan) -> crate::Result<Val> {
-    let val = match (&va.val, &vb.val) {
-        (Val::Int(a), &Val::Int(b)) => match a.checked_add(b) {
-            Some(v) => Val::Int(v),
-            None => return Err(crate::Error::AddOverflow(va, vb)),
-        },
-        _ => Val::Float(va.to_f64()? + vb.to_f64()?),
-    };
-    Ok(val)
-}
-
-fn checked_sub(va: ValSpan, vb: ValSpan) -> crate::Result<Val> {
-    match (&va.val, &vb.val) {
-        (Val::Int(a), &Val::Int(b)) => match a.checked_sub(b) {
-            Some(v) => Ok(Val::Int(v)),
-            None => Err(crate::Error::SubOverflow(va, vb)),
-        },
-        _ => Ok(Val::Float(va.to_f64()? - vb.to_f64()?)),
-    }
-}
-
-fn checked_mul(va: ValSpan, vb: ValSpan) -> crate::Result<Val> {
-    match (&va.val, &vb.val) {
-        (Val::Int(a), &Val::Int(b)) => match a.checked_mul(b) {
-            Some(v) => Ok(Val::Int(v)),
-            None => Err(crate::Error::MulOverflow(va, vb)),
-        },
-        _ => Ok(Val::Float(va.to_f64()? * vb.to_f64()?)),
-    }
-}
-
-fn checked_div(va: ValSpan, vb: ValSpan) -> crate::Result<Val> {
-    match (&va.val, &vb.val) {
-        (&Val::Int(a), &Val::Int(b)) => {
-            if b == 0 {
-                Err(crate::Error::DivideByZero(va, vb))
-            } else if a % b == 0 {
-                Ok(Val::Int(a / b))
-            } else {
-                Ok(Val::Float(a as f64 / b as f64))
-            }
-        }
-        _ => {
-            let divisor = vb.to_f64()?;
-            if divisor == 0.0 {
-                Err(crate::Error::DivideByZero(va, vb))
-            } else {
-                Ok(Val::Float(va.to_f64()? / divisor))
-            }
-        }
-    }
-}
-
-fn return_val(val: Val, span: Span) -> crate::Result<Return> {
-    Ok(Return::Val(ValSpan::new(val, span)))
 }

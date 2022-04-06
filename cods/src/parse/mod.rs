@@ -1,13 +1,14 @@
 use std::cmp;
 
-use crate::check::{Block, ForLoop, FunCall, FunDef, IfExpr, VarDef, WhileLoop};
-use crate::{Context, Cst, Group, IdentSpan, Item, Kw, KwT, OpT, Par, ParKind, PctT, Span};
+use crate::{Context, Group, IdentSpan, Item, Kw, KwT, OpT, ParKind, PctT, Span};
 
 pub use builtin::*;
+pub use cst::Cst;
 pub use op::*;
 use parser::*;
 
 mod builtin;
+pub mod cst;
 mod op;
 mod parser;
 #[cfg(test)]
@@ -224,14 +225,16 @@ impl Context {
             let i = Infix::new(infix, op.span);
             // TODO: is_assign() method
             lhs = match infix {
-                InfixT::Assign
-                | InfixT::AddAssign
-                | InfixT::SubAssign
-                | InfixT::MulAssign
-                | InfixT::DivAssign => match lhs {
-                    Cst::Ident(id) => Cst::AssignInfix(id, i, Box::new(rhs)),
+                InfixT::Assign => match lhs {
+                    Cst::Ident(id) => Cst::Assign(id, i, Box::new(rhs)),
                     _ => return Err(crate::Error::InvalidAssignment(lhs.span(), op.span)),
                 },
+                InfixT::AddAssign | InfixT::SubAssign | InfixT::MulAssign | InfixT::DivAssign => {
+                    match lhs {
+                        Cst::Ident(id) => Cst::InfixAssign(id, i, Box::new(rhs)),
+                        _ => return Err(crate::Error::InvalidAssignment(lhs.span(), op.span)),
+                    }
+                }
                 InfixT::RangeEx
                 | InfixT::RangeIn
                 | InfixT::Add
@@ -263,20 +266,20 @@ impl Context {
         Ok(lhs)
     }
 
-    fn parse_block(&mut self, g: Group) -> crate::Result<Block> {
+    fn parse_block(&mut self, g: Group) -> crate::Result<cst::Block> {
         let s = g.span();
         match self.parse_items(g.items, s) {
-            Ok(csts) => Ok(Block::new(g.l_par, g.r_par, csts)),
+            Ok(csts) => Ok(cst::Block::new(g.l_par, g.r_par, csts)),
             Err(e) => {
                 self.errors.push(e);
-                Ok(Block::new(g.l_par, g.r_par, vec![Cst::Error(s)]))
+                Ok(cst::Block::new(g.l_par, g.r_par, vec![Cst::Error(s)]))
             }
         }
     }
 
     fn parse_fun_call(&mut self, id: IdentSpan, g: Group) -> crate::Result<Cst> {
         let args = self.parse_fun_args(0, usize::MAX, g)?;
-        let f = FunCall::new(id, args);
+        let f = cst::FunCall::new(id, args);
         Ok(Cst::FunCall(f))
     }
 
@@ -285,7 +288,7 @@ impl Context {
         min: usize,
         max: usize,
         group: Group,
-    ) -> crate::Result<(Par, Vec<Cst>, Par)> {
+    ) -> crate::Result<cst::FunArgs> {
         let span = group.inner_span();
         let items = group.items;
         let arg_count = items.iter().filter(|i| i.is_comma()).count() + 1;
@@ -326,9 +329,9 @@ impl Context {
 
         if !unexpected_args.is_empty() {
             self.errors.push(crate::Error::UnexpectedFunArgs {
-                spans: unexpected_args,
                 expected: max,
                 found: parsed_args,
+                spans: unexpected_args,
             });
         } else if parsed_args < min {
             let span = match args.last() {
@@ -336,21 +339,21 @@ impl Context {
                 None => span.after(),
             };
             self.errors.push(crate::Error::MissingFunArgs {
-                span,
                 expected: min,
                 found: parsed_args,
+                span,
             });
         }
 
-        Ok((group.l_par, args, group.r_par))
+        Ok(cst::FunArgs::new(group.l_par, group.r_par, args))
     }
 
     fn parse_lang_construct(&mut self, parser: &mut Parser, kw: Kw) -> crate::Result<Cst> {
         match kw.typ {
             KwT::If => {
                 let if_block = {
-                    let (if_kw, cond, block) = self.parse_cond_block(parser, kw)?;
-                    (if_kw, Box::new(cond), block)
+                    let (cond, block) = self.parse_cond_block(parser)?;
+                    cst::IfBlock::new(kw, Box::new(cond), block)
                 };
 
                 let mut else_if_blocks = Vec::new();
@@ -365,13 +368,13 @@ impl Context {
                     };
 
                     match parser.next() {
-                        Some(Item::Kw(k)) if k.typ == KwT::If => {
-                            let (if_kw, cond, block) = self.parse_cond_block(parser, k)?;
-                            else_if_blocks.push((else_kw, if_kw, cond, block));
+                        Some(Item::Kw(if_kw)) if if_kw.typ == KwT::If => {
+                            let (cond, block) = self.parse_cond_block(parser)?;
+                            else_if_blocks.push(cst::ElseIfBlock::new(else_kw, if_kw, cond, block));
                         }
                         Some(Item::Group(g)) if g.par_kind().is_curly() => {
                             let block = self.parse_block(g)?;
-                            else_block = Some((else_kw, block));
+                            else_block = Some(cst::ElseBlock::new(else_kw, block));
                             break;
                         }
                         Some(i) => return Err(crate::Error::ExpectedBlock(i.span())),
@@ -382,13 +385,15 @@ impl Context {
                     }
                 }
 
-                let if_expr = IfExpr::new(if_block, else_if_blocks, else_block);
+                let is_expr = true; // TODO
+
+                let if_expr = cst::IfExpr::new(if_block, else_if_blocks, else_block, is_expr);
                 Ok(Cst::IfExpr(if_expr))
             }
             KwT::Else => Err(crate::Error::WrongContext(kw)),
             KwT::While => {
-                let (kw, cond, block) = self.parse_cond_block(parser, kw)?;
-                let whl_loop = WhileLoop::new(kw, Box::new(cond), block);
+                let (cond, block) = self.parse_cond_block(parser)?;
+                let whl_loop = cst::WhileLoop::new(kw, Box::new(cond), block);
                 Ok(Cst::WhileLoop(whl_loop))
             }
             KwT::For => {
@@ -398,7 +403,7 @@ impl Context {
                 let group = parser.expect_block()?;
                 let block = self.parse_block(group)?;
 
-                let for_loop = ForLoop::new(kw, ident, in_kw, Box::new(iter), block);
+                let for_loop = cst::ForLoop::new(kw, ident, in_kw, Box::new(iter), block);
                 Ok(Cst::ForLoop(for_loop))
             }
             KwT::In => Err(crate::Error::WrongContext(kw)),
@@ -421,7 +426,7 @@ impl Context {
                         let colon = group_parser.expect_pct(PctT::Colon)?;
                         let typ = group_parser.expect_ident()?;
 
-                        params.push((ident, colon, typ));
+                        params.push(cst::FunParam::new(ident, colon, typ));
 
                         match group_parser.next() {
                             Some(i) if i.is_comma() => (),
@@ -432,7 +437,7 @@ impl Context {
                             None => break,
                         }
                     }
-                    (param_group.l_par, params, param_group.r_par)
+                    cst::FunParams::new(param_group.l_par, param_group.r_par, params)
                 };
 
                 let mut return_type = None;
@@ -440,14 +445,14 @@ impl Context {
                     if let PctT::Arrow = p.typ {
                         parser.next();
                         let t = parser.expect_ident()?;
-                        return_type = Some((p, t));
+                        return_type = Some(cst::ReturnType::new(p, t));
                     }
                 }
 
                 let block_group = parser.expect_block()?;
                 let block = self.parse_block(block_group)?;
 
-                let fun = FunDef::new(kw, ident, params, return_type, block);
+                let fun = cst::FunDef::new(kw, ident, params, return_type, block);
                 Ok(Cst::FunDef(fun))
             }
             KwT::Val | KwT::Var => {
@@ -470,21 +475,23 @@ impl Context {
                     }
                 }
 
-                let op = parser.expect_op(OpT::Assign)?;
+                let value = {
+                    let op = parser.expect_op(OpT::Assign)?;
+                    let val = self.parse_bp(parser, 0, false)?;
+                    (op, Box::new(val))
+                };
 
-                let val = self.parse_bp(parser, 0, false)?;
-
-                let v = VarDef::new(kw, ident, type_hint, op, Box::new(val));
+                let v = cst::VarDef::new(kw, ident, type_hint, value);
                 Ok(Cst::VarDef(v))
             }
         }
     }
 
-    fn parse_cond_block(&mut self, parser: &mut Parser, kw: Kw) -> crate::Result<(Kw, Cst, Block)> {
+    fn parse_cond_block(&mut self, parser: &mut Parser) -> crate::Result<(Cst, cst::Block)> {
         let cond = self.parse_bp(parser, 0, true)?;
         let group = parser.expect_block()?;
         let block = self.parse_block(group)?;
-        Ok((kw, cond, block))
+        Ok((cond, block))
     }
 }
 

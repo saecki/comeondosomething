@@ -1,19 +1,8 @@
 use std::f64::consts;
 
-use crate::{Span, Val};
+use crate::{DataType, Val};
 
-pub struct BuiltinFun {
-    pub typ: BuiltinFunT,
-    pub span: Span,
-}
-
-impl BuiltinFun {
-    pub fn new(typ: BuiltinFunT, span: Span) -> Self {
-        Self { typ, span }
-    }
-}
-
-pub enum BuiltinFunT {
+pub enum BuiltinFun {
     Pow,
     Ln,
     Log,
@@ -38,7 +27,7 @@ pub enum BuiltinFunT {
     AssertEq,
 }
 
-impl BuiltinFunT {
+impl BuiltinFun {
     pub fn from(name: &str) -> Option<Self> {
         let b = match name {
             "pow" => Self::Pow,
@@ -103,6 +92,14 @@ impl BuiltinConst {
             Self::Pi => &PI,
             Self::Tau => &TAU,
             Self::E => &E,
+        }
+    }
+
+    pub const fn data_type(&self) -> DataType {
+        match self {
+            Self::Pi => PI.data_type(),
+            Self::Tau => TAU.data_type(),
+            Self::E => E.data_type(),
         }
     }
 }

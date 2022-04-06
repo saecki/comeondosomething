@@ -1,7 +1,6 @@
 use std::fmt::Display;
-use std::ops::Deref;
 
-use crate::{Range, Span, Val};
+use crate::{Range, Span, Val, ValSpan};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Return {
@@ -65,37 +64,7 @@ impl Return {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct ValSpan {
-    pub val: Val,
-    pub span: Span,
-}
-
-impl Deref for ValSpan {
-    type Target = Val;
-
-    fn deref(&self) -> &Self::Target {
-        &self.val
-    }
-}
-
-impl std::ops::DerefMut for ValSpan {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.val
-    }
-}
-
-impl Display for ValSpan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.val)
-    }
-}
-
 impl ValSpan {
-    pub const fn new(val: Val, span: Span) -> Self {
-        Self { val, span }
-    }
-
     pub fn to_int(&self) -> crate::Result<i128> {
         self.val
             .to_int()

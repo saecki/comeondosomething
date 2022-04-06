@@ -1,9 +1,26 @@
-use crate::{OpT, Span};
+use std::fmt::{self, Display};
+use std::ops::Deref;
 
-#[derive(Clone, Debug)]
+use crate::{DataType, OpT, Span};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Infix {
     pub typ: InfixT,
     pub span: Span,
+}
+
+impl Deref for Infix {
+    type Target = InfixT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl Display for Infix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.typ)
+    }
 }
 
 impl Infix {
@@ -12,7 +29,7 @@ impl Infix {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InfixT {
     Assign,
     AddAssign,
@@ -41,10 +58,88 @@ pub enum InfixT {
     Dot,
 }
 
-#[derive(Clone, Debug)]
+impl Display for InfixT {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Assign => write!(f, "="),
+            Self::AddAssign => write!(f, "+="),
+            Self::SubAssign => write!(f, "-="),
+            Self::MulAssign => write!(f, "*="),
+            Self::DivAssign => write!(f, "/="),
+            Self::RangeEx => write!(f, ".."),
+            Self::RangeIn => write!(f, "..="),
+            Self::Add => write!(f, "+"),
+            Self::Sub => write!(f, "-"),
+            Self::Mul => write!(f, "*"),
+            Self::Div => write!(f, "/"),
+            Self::IntDiv => write!(f, "div"),
+            Self::Rem => write!(f, "%"),
+            Self::Pow => write!(f, "^"),
+            Self::Eq => write!(f, "=="),
+            Self::Ne => write!(f, "!="),
+            Self::Lt => write!(f, "<"),
+            Self::Le => write!(f, "<="),
+            Self::Gt => write!(f, ">"),
+            Self::Ge => write!(f, ">="),
+            Self::BwOr => write!(f, "|"),
+            Self::BwAnd => write!(f, "&"),
+            Self::Or => write!(f, "||"),
+            Self::And => write!(f, "&&"),
+            Self::Dot => write!(f, "."),
+        }
+    }
+}
+
+impl InfixT {
+    pub fn resulting_type(&self, a: DataType, b: DataType) -> Option<DataType> {
+        match self {
+            Self::Assign => same(a, b),
+            Self::AddAssign => same_num(a, b),
+            Self::SubAssign => same_num(a, b),
+            Self::MulAssign => same_num(a, b),
+            Self::DivAssign => same_num(a, b),
+            Self::RangeEx => both_int_then_range(a, b),
+            Self::RangeIn => both_int_then_range(a, b),
+            Self::Add => same_num(a, b),
+            Self::Sub => same_num(a, b),
+            Self::Mul => same_num(a, b),
+            Self::Div => same_num(a, b),
+            Self::IntDiv => both_int_then_range(a, b),
+            Self::Rem => both_int_then_range(a, b),
+            Self::Pow => same_num(a, b),
+            Self::Eq => same_then_bool(a, b),
+            Self::Ne => same_then_bool(a, b),
+            Self::Lt => same_num_then_bool(a, b),
+            Self::Le => same_num_then_bool(a, b),
+            Self::Gt => same_num_then_bool(a, b),
+            Self::Ge => same_num_then_bool(a, b),
+            Self::BwOr => same_int_bool_then_bool(a, b),
+            Self::BwAnd => same_int_bool_then_bool(a, b),
+            Self::Or => both_bool(a, b),
+            Self::And => both_bool(a, b),
+            Self::Dot => None, // TODO
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Prefix {
     pub typ: PrefixT,
     pub span: Span,
+}
+
+impl Deref for Prefix {
+    type Target = PrefixT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl Display for Prefix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.typ)
+    }
 }
 
 impl Prefix {
@@ -53,17 +148,51 @@ impl Prefix {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PrefixT {
     UnaryPlus,
     UnaryMinus,
     Not,
 }
 
-#[derive(Clone, Debug)]
+impl Display for PrefixT {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnaryPlus => write!(f, "+"),
+            Self::UnaryMinus => write!(f, "-"),
+            Self::Not => write!(f, "!"),
+        }
+    }
+}
+
+impl PrefixT {
+    pub fn resulting_type(&self, typ: DataType) -> Option<DataType> {
+        match self {
+            Self::UnaryPlus => num(typ),
+            Self::UnaryMinus => num(typ),
+            Self::Not => bool(typ),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Postfix {
     pub typ: PostfixT,
     pub span: Span,
+}
+
+impl Deref for Postfix {
+    type Target = PostfixT;
+
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl Display for Postfix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.typ)
+    }
 }
 
 impl Postfix {
@@ -72,9 +201,25 @@ impl Postfix {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PostfixT {
     Factorial,
+}
+
+impl Display for PostfixT {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Factorial => write!(f, "!"),
+        }
+    }
+}
+
+impl PostfixT {
+    pub fn resulting_type(&self, typ: DataType) -> Option<DataType> {
+        match self {
+            PostfixT::Factorial => int(typ),
+        }
+    }
 }
 
 impl OpT {
@@ -169,5 +314,72 @@ impl OpT {
             | Self::And
             | Self::Dot => None,
         }
+    }
+}
+
+fn same_then_bool(a: DataType, b: DataType) -> Option<DataType> {
+    (a == b).then(|| DataType::Bool)
+}
+
+fn same(a: DataType, b: DataType) -> Option<DataType> {
+    (a == b).then(|| a)
+}
+
+fn same_num(a: DataType, b: DataType) -> Option<DataType> {
+    match (a, b) {
+        (DataType::Int, DataType::Int) => Some(a),
+        (DataType::Float, DataType::Float) => Some(a),
+        (_, _) => None,
+    }
+}
+
+fn same_num_then_bool(a: DataType, b: DataType) -> Option<DataType> {
+    match (a, b) {
+        (DataType::Int, DataType::Int) => Some(DataType::Bool),
+        (DataType::Float, DataType::Float) => Some(DataType::Bool),
+        (_, _) => None,
+    }
+}
+
+fn same_int_bool_then_bool(a: DataType, b: DataType) -> Option<DataType> {
+    match (a, b) {
+        (DataType::Int, DataType::Int) => Some(DataType::Bool),
+        (DataType::Bool, DataType::Bool) => Some(DataType::Bool),
+        (_, _) => None,
+    }
+}
+
+fn both_int_then_range(a: DataType, b: DataType) -> Option<DataType> {
+    match (a, b) {
+        (DataType::Int, DataType::Int) => Some(DataType::Range),
+        (_, _) => None,
+    }
+}
+
+fn both_bool(a: DataType, b: DataType) -> Option<DataType> {
+    match (a, b) {
+        (DataType::Bool, DataType::Bool) => Some(a),
+        (_, _) => None,
+    }
+}
+
+fn num(typ: DataType) -> Option<DataType> {
+    match typ {
+        DataType::Int | DataType::Float => Some(typ),
+        DataType::Range | DataType::Bool | DataType::Str | DataType::Unit => None,
+    }
+}
+
+fn int(typ: DataType) -> Option<DataType> {
+    match typ {
+        DataType::Int => Some(typ),
+        DataType::Float | DataType::Range | DataType::Bool | DataType::Str | DataType::Unit => None,
+    }
+}
+
+fn bool(typ: DataType) -> Option<DataType> {
+    match typ {
+        DataType::Bool => Some(typ),
+        DataType::Int | DataType::Float | DataType::Range | DataType::Str | DataType::Unit => None,
     }
 }

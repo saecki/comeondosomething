@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{Group, IdentSpan, Item, Kw, KwT, OpT, Pct, PctT, Span, Op};
+use crate::{Group, IdentSpan, Item, Kw, KwT, Op, OpT, Pct, PctT, Span};
 
 pub struct Parser {
     items: VecDeque<Item>,

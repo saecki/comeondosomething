@@ -1,4 +1,4 @@
-pub use check::Cst;
+pub use check::*;
 pub use error::*;
 pub use eval::*;
 pub use group::*;
@@ -52,11 +52,12 @@ impl Context {
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<Ast>> {
+    pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<ast::Ast>> {
         let tokens = self.lex(input.as_ref())?;
         let items = self.group(tokens)?;
         let csts = self.parse(items)?;
-        todo!("type check {csts:?} and build asts");
+        let asts = self.check(csts)?;
+        Ok(asts)
     }
 }
 

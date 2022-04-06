@@ -1,7 +1,8 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::ValSpan;
+use crate::{Ast, DataType, IdentSpan};
+use crate::{Infix, Postfix, Prefix, ValSpan};
 use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -44,14 +45,14 @@ pub enum Error {
     MissingOperand(Span),
     MissingOperator(Span),
     MissingFunArgs {
-        span: Span,
         expected: usize,
         found: usize,
+        span: Span,
     },
     UnexpectedFunArgs {
-        spans: Vec<Span>,
         expected: usize,
         found: usize,
+        spans: Vec<Span>,
     },
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
@@ -63,6 +64,25 @@ pub enum Error {
     ExpectedKw(KwT, Span),
     WrongContext(Kw),
 
+    // Check
+    UnknownType(String, Span),
+    MismatchedType {
+        expected: DataType,
+        found: DataType,
+        spans: Vec<Span>,
+    },
+    IfBranchIncompatibleType((DataType, Span), (DataType, Span)),
+    MissingElseBranch(DataType, Span),
+    UndefinedVar(String, Span),
+    UndefinedFun(String, Span),
+    UninitializedVar(String, Span, Span),
+    NotIterable(DataType, Span),
+    PrefixNotApplicable(Prefix, Ast),
+    PostfixNotApplicable(Ast, Postfix),
+    InfixNotApplicable(Ast, Infix, Ast),
+    AssignInfixNotApplicable((IdentSpan, DataType), Infix, Ast),
+    AssignNotApplicable((IdentSpan, DataType), Infix, Ast),
+
     // Eval
     MissingExpr,
     ExpectedValue(Span),
@@ -72,14 +92,10 @@ pub enum Error {
     ExpectedStr(ValSpan),
     ExpectedRange(ValSpan),
     Parsing(Span),
-    UndefinedVar(String, Span),
-    UninitializedVar(String, Span, Span),
     RedefinedBuiltinConst(String, Span),
     ImmutableAssign(String, Span, Span),
-    UndefinedFun(String, Span),
     RedefinedFun(String, Span, Span),
     RedefinedBuiltinFun(String, Span),
-    UnknownType(String, Span),
     AddOverflow(ValSpan, ValSpan),
     SubOverflow(ValSpan, ValSpan),
     MulOverflow(ValSpan, ValSpan),
@@ -193,28 +209,52 @@ impl UserFacing for Error {
             Self::ExpectedPct(s, _) => write!(f, "Expected '{s}'"),
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
+            // Check
+            Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
+            Self::MismatchedType { expected, found, .. } => write!(f, "Mismatched type expected '{expected}', found '{found}'"),
+            Self::IfBranchIncompatibleType((a, _), (b, _)) => write!(f, "If and else branches have incompatible types: '{a}' and '{b}'"),
+            Self::MissingElseBranch(t, _) => write!(f, "Missing else branch for if expression of type '{t}'"),
+            Self::PrefixNotApplicable(p, a) => write!(
+                f,
+                "Prefix operator '{p}' not applicable to value of type '{}'",
+                a.data_type
+            ),
+            Self::PostfixNotApplicable(a, p) => write!(
+                f,
+                "Postfix operator '{p}' not applicable to value of type '{}'",
+                a.data_type
+            ),
+            Self::InfixNotApplicable(a, i, b) => write!(
+                f,
+                "Infix operator '{i}' not applicable to values of type '{}' and '{}'",
+                a.data_type, b.data_type
+            ),
+            Self::AssignInfixNotApplicable((_, a), i, b) => write!(f, "Infix operator '{i}' not applicable to variable of type '{a}' and value of type '{}'", b.data_type),
+            Self::AssignNotApplicable((_, a), _, b) => write!(f, "Cannot assign value of type '{}' to variable of type '{a}'", b.data_type),
+
             // Eval
             Self::MissingExpr => write!(f, "Missing expression"),
             Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
             Self::ExpectedNumber(v) => {
-                write!(f, "Expected a number found '{v}' of type {}", v.typ())
+                write!(f, "Expected a number found '{v}' of type {}", v.data_type())
             }
             Self::ExpectedInt(v) => {
-                write!(f, "Expected an int found '{v}' of type {}", v.typ())
+                write!(f, "Expected an int found '{v}' of type {}", v.data_type())
             }
             Self::ExpectedBool(v) => {
-                write!(f, "Expected a bool found '{v}' of type {}", v.typ())
+                write!(f, "Expected a bool found '{v}' of type {}", v.data_type())
             }
             Self::ExpectedStr(v) => {
-                write!(f, "Expected a str found '{v}' of type {}", v.typ())
+                write!(f, "Expected a str found '{v}' of type {}", v.data_type())
             }
             Self::ExpectedRange(v) => {
-                write!(f, "Expected a range found '{v}' of type {}", v.typ())
+                write!(f, "Expected a range found '{v}' of type {}", v.data_type())
             }
             Self::Parsing(_) => write!(f, "A parsing error occured"),
 
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
-            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"),
+            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"), // TODO separate definition and usage into hint and error
+            Self::NotIterable(t, _) => write!(f, "Value of type '{t}' is not iterable"),
             Self::RedefinedBuiltinConst(name, _) => {
                 write!(f, "Redefined builtin constant '{name}'")
             }
@@ -224,7 +264,6 @@ impl UserFacing for Error {
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
-            Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
             Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
             Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
             Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
@@ -287,16 +326,16 @@ impl UserFacing for Error {
                 write!(
                     f,
                     "A bitwise or can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
-                    a.typ(),
-                    b.typ(),
+                    a.data_type(),
+                    b.data_type(),
                 )
             }
             Self::InvalidBwAnd(a, b) => {
                 write!(
                     f,
                     "A bitwise and can only be applied to two ints or two bools, not '{a}' of type {} and '{b}' of type {}",
-                    a.typ(),
-                    b.typ(),
+                    a.data_type(),
+                    b.data_type(),
                 )
             }
             Self::InvalidAssignment(_, _) => {
@@ -352,6 +391,17 @@ impl UserFacing for Error {
             Self::ExpectedPct(_, s) => vec![*s],
             Self::WrongContext(k) => vec![k.span],
 
+            // Check
+            Self::UnknownType(_, s) => vec![*s],
+            Self::MismatchedType { spans, .. } => spans.clone(),
+            Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
+            Self::MissingElseBranch(_, s) => vec![*s],
+            Self::PrefixNotApplicable(p, a) => vec![p.span, a.span],
+            Self::PostfixNotApplicable(a, p) => vec![a.span, p.span],
+            Self::InfixNotApplicable(a, i, b) => vec![a.span, i.span, b.span],
+            Self::AssignInfixNotApplicable((a, _), i, b) => vec![a.span, i.span, b.span],
+            Self::AssignNotApplicable((a, _), i, b) => vec![a.span, i.span, b.span],
+
             // Eval
             Self::MissingExpr => vec![],
             Self::ExpectedValue(s) => vec![*s],
@@ -363,12 +413,12 @@ impl UserFacing for Error {
             Self::Parsing(s) => vec![*s],
             Self::UndefinedVar(_, s) => vec![*s],
             Self::UninitializedVar(_, a, b) => vec![*a, *b],
+            Self::NotIterable(_, s) => vec![*s],
             Self::RedefinedBuiltinConst(_, s) => vec![*s],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, s) => vec![*s],
-            Self::UnknownType(_, s) => vec![*s],
             Self::AddOverflow(a, b) => vec![a.span, b.span],
             Self::SubOverflow(a, b) => vec![a.span, b.span],
             Self::MulOverflow(a, b) => vec![a.span, b.span],
