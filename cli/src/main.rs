@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::Context;
+use cods::{Context, Val};
 
 use display::*;
 use style::*;
@@ -92,7 +92,7 @@ fn print_calc(ctx: &mut Context, input: &str) {
             for e in ctx.errors.iter().rev() {
                 println!("{}\n", e.display(input));
             }
-            if let Some(v) = v {
+            if v != Val::Unit {
                 println!("{v}")
             }
         }

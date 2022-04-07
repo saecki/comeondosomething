@@ -155,7 +155,6 @@ impl Context {
         let token = match literal {
             "true" => Token::val(Val::Bool(true), span),
             "false" => Token::val(Val::Bool(false), span),
-            "div" => Token::op(OpT::IntDiv, span),
             "mod" => Token::op(OpT::Rem, span),
             "if" => Token::kw(KwT::If, span),
             "else" => Token::kw(KwT::Else, span),

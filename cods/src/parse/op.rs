@@ -42,7 +42,6 @@ pub enum InfixT {
     Sub,
     Mul,
     Div,
-    IntDiv,
     Rem,
     Pow,
     Eq,
@@ -72,7 +71,6 @@ impl Display for InfixT {
             Self::Sub => write!(f, "-"),
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
-            Self::IntDiv => write!(f, "div"),
             Self::Rem => write!(f, "%"),
             Self::Pow => write!(f, "^"),
             Self::Eq => write!(f, "=="),
@@ -93,20 +91,19 @@ impl Display for InfixT {
 impl InfixT {
     pub fn resulting_type(&self, a: DataType, b: DataType) -> Option<DataType> {
         match self {
-            Self::Assign => same(a, b),
-            Self::AddAssign => same_num(a, b),
-            Self::SubAssign => same_num(a, b),
-            Self::MulAssign => same_num(a, b),
-            Self::DivAssign => same_num(a, b),
+            Self::Assign => same_then_unit(a, b),
+            Self::AddAssign => same_num_then_unit(a, b),
+            Self::SubAssign => same_num_then_unit(a, b),
+            Self::MulAssign => same_num_then_unit(a, b),
+            Self::DivAssign => same_num_then_unit(a, b),
             Self::RangeEx => both_int_then_range(a, b),
             Self::RangeIn => both_int_then_range(a, b),
-            Self::Add => same_num(a, b),
-            Self::Sub => same_num(a, b),
-            Self::Mul => same_num(a, b),
-            Self::Div => same_num(a, b),
-            Self::IntDiv => both_int_then_range(a, b),
+            Self::Add => same_num_then_unit(a, b),
+            Self::Sub => same_num_then_unit(a, b),
+            Self::Mul => same_num_then_unit(a, b),
+            Self::Div => same_num_then_unit(a, b),
             Self::Rem => both_int_then_range(a, b),
-            Self::Pow => same_num(a, b),
+            Self::Pow => same_num_then_unit(a, b),
             Self::Eq => same_then_bool(a, b),
             Self::Ne => same_then_bool(a, b),
             Self::Lt => same_num_then_bool(a, b),
@@ -229,7 +226,6 @@ impl OpT {
             Self::Pow => Some((19, InfixT::Pow, 20)),
             Self::Mul => Some((17, InfixT::Mul, 18)),
             Self::Div => Some((17, InfixT::Div, 18)),
-            Self::IntDiv => Some((17, InfixT::IntDiv, 18)),
             Self::Rem => Some((17, InfixT::Rem, 18)),
             Self::Add => Some((15, InfixT::Add, 16)),
             Self::Sub => Some((15, InfixT::Sub, 16)),
@@ -268,7 +264,6 @@ impl OpT {
             | Self::Sub
             | Self::Mul
             | Self::Div
-            | Self::IntDiv
             | Self::Rem
             | Self::Pow
             | Self::Eq
@@ -299,7 +294,6 @@ impl OpT {
             | Self::RangeIn
             | Self::Mul
             | Self::Div
-            | Self::IntDiv
             | Self::Rem
             | Self::Pow
             | Self::Eq
@@ -321,14 +315,14 @@ fn same_then_bool(a: DataType, b: DataType) -> Option<DataType> {
     (a == b).then(|| DataType::Bool)
 }
 
-fn same(a: DataType, b: DataType) -> Option<DataType> {
+fn same_then_unit(a: DataType, b: DataType) -> Option<DataType> {
     (a == b).then(|| a)
 }
 
-fn same_num(a: DataType, b: DataType) -> Option<DataType> {
+fn same_num_then_unit(a: DataType, b: DataType) -> Option<DataType> {
     match (a, b) {
-        (DataType::Int, DataType::Int) => Some(a),
-        (DataType::Float, DataType::Float) => Some(a),
+        (DataType::Int, DataType::Int) => Some(DataType::Unit),
+        (DataType::Float, DataType::Float) => Some(DataType::Unit),
         (_, _) => None,
     }
 }

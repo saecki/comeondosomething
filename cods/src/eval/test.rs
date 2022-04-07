@@ -20,7 +20,7 @@ fn undefined_outside_scope() {
 fn defined_inside_scope() {
     let input = "{ val x = 7; println(x); x }";
     let mut ctx = Context::default();
-    let val = ctx.parse_and_eval(input).unwrap().unwrap();
+    let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(7));
 }
 
@@ -28,7 +28,7 @@ fn defined_inside_scope() {
 fn can_assign_to_var_in_outer_scope() {
     let input = "var x = 2; { x = 7 }; x";
     let mut ctx = Context::default();
-    let val = ctx.parse_and_eval(input).unwrap().unwrap();
+    let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(7));
 }
 

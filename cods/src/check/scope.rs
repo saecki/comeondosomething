@@ -6,9 +6,8 @@ use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentS
 impl Context {
     pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<Rc<Fun>> {
         let name = self.idents.name(id.ident);
-        match BuiltinFun::from(name) {
-            Some(_) => todo!(),
-            None => (),
+        if let Some(_b) = BuiltinFun::from(name) {
+            todo!()
         }
 
         match scopes.fun(id.ident) {
@@ -34,16 +33,23 @@ impl Context {
         Ok(())
     }
 
+    /// Resolve the var belonging to the identifier.
+    ///
     pub fn resolve_var<'a>(&self, scopes: &'a Scopes, id: &IdentSpan) -> crate::Result<&'a Var> {
         let name = self.idents.name(id.ident);
-        if let Some(_) = BuiltinConst::from(name) {
+        if let Some(_b) = BuiltinConst::from(name) {
             todo!()
         }
 
-        let var = match scopes.var(id.ident) {
-            Some(v) => v,
-            None => return Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
-        };
+        match scopes.var(id.ident) {
+            Some(v) => Ok(v),
+            None => Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
+        }
+    }
+
+    /// Resolve the var and make sure it is initialized
+    pub fn get_var<'a>(&self, scopes: &'a Scopes, id: &IdentSpan) -> crate::Result<&'a Var> {
+        let var = self.resolve_var(scopes, id)?;
 
         if !var.assigned {
             let name = self.idents.name(id.ident);
@@ -65,10 +71,6 @@ impl Context {
     pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
         match scopes.var_mut(id.ident) {
             Some(v) => {
-                if val.data_type != v.data_type {
-                    todo!("error")
-                }
-
                 if !v.mutable && v.assigned {
                     let name = self.idents.name(id.ident);
                     return Err(crate::Error::ImmutableAssign(
@@ -90,7 +92,6 @@ impl Context {
     }
 }
 
-// TODO: separate function and var scope
 #[derive(Debug)]
 pub struct Scopes {
     scopes: Vec<Scope>,

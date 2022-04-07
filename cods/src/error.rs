@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{Ast, DataType, IdentSpan};
+use crate::DataType;
 use crate::{Infix, Postfix, Prefix, ValSpan};
 use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 
@@ -65,6 +65,7 @@ pub enum Error {
     WrongContext(Kw),
 
     // Check
+    InvalidAssignment(Span, Span),
     UnknownType(String, Span),
     MismatchedType {
         expected: DataType,
@@ -77,13 +78,21 @@ pub enum Error {
     UndefinedFun(String, Span),
     UninitializedVar(String, Span, Span),
     NotIterable(DataType, Span),
-    PrefixNotApplicable(Prefix, Ast),
-    PostfixNotApplicable(Ast, Postfix),
-    InfixNotApplicable(Ast, Infix, Ast),
-    AssignInfixNotApplicable((IdentSpan, DataType), Infix, Ast),
-    AssignNotApplicable((IdentSpan, DataType), Infix, Ast),
+    PrefixNotApplicable(Prefix, (DataType, Span)),
+    PostfixNotApplicable((DataType, Span), Postfix),
+    InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
+    AssignInfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
+    AssignNotApplicable((DataType, Span), (DataType, Span)),
 
     // Eval
+    AddOverflow(Span, Span),
+    SubOverflow(Span, Span),
+    MulOverflow(Span, Span),
+    DivideByZero(Span, Span),
+    RemainderByZero(Span, Span),
+    PowOverflow(Span, Span),
+    NegativeIntPow(Span, Span),
+
     MissingExpr,
     ExpectedValue(Span),
     ExpectedNumber(ValSpan),
@@ -96,13 +105,7 @@ pub enum Error {
     ImmutableAssign(String, Span, Span),
     RedefinedFun(String, Span, Span),
     RedefinedBuiltinFun(String, Span),
-    AddOverflow(ValSpan, ValSpan),
-    SubOverflow(ValSpan, ValSpan),
-    MulOverflow(ValSpan, ValSpan),
-    PowOverflow(ValSpan, ValSpan),
-    DivideByZero(ValSpan, ValSpan),
     FractionEuclidDiv(ValSpan, ValSpan),
-    RemainderByZero(ValSpan, ValSpan),
     FractionRemainder(ValSpan, ValSpan),
     FractionGcd(ValSpan, ValSpan),
     NegativeNcr(ValSpan),
@@ -114,7 +117,6 @@ pub enum Error {
     InvalidClampBounds(ValSpan, ValSpan),
     InvalidBwOr(ValSpan, ValSpan),
     InvalidBwAnd(ValSpan, ValSpan),
-    InvalidAssignment(Span, Span),
     AssertFailed(Span),
     AssertEqFailed(ValSpan, ValSpan),
 }
@@ -210,29 +212,55 @@ impl UserFacing for Error {
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
             // Check
+            Self::InvalidAssignment(_, _) => {
+                write!(f, "Cannot assign to something that is not a variable")
+            }
             Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
-            Self::MismatchedType { expected, found, .. } => write!(f, "Mismatched type expected '{expected}', found '{found}'"),
-            Self::IfBranchIncompatibleType((a, _), (b, _)) => write!(f, "If and else branches have incompatible types: '{a}' and '{b}'"),
-            Self::MissingElseBranch(t, _) => write!(f, "Missing else branch for if expression of type '{t}'"),
-            Self::PrefixNotApplicable(p, a) => write!(
+            Self::MismatchedType {
+                expected, found, ..
+            } => write!(f, "Mismatched type expected '{expected}', found '{found}'"),
+            Self::IfBranchIncompatibleType((a, _), (b, _)) => write!(
                 f,
-                "Prefix operator '{p}' not applicable to value of type '{}'",
-                a.data_type
+                "If and else branches have incompatible types: '{a}' and '{b}'"
             ),
-            Self::PostfixNotApplicable(a, p) => write!(
+            Self::MissingElseBranch(t, _) => {
+                write!(f, "Missing else branch for if expression of type '{t}'")
+            }
+            Self::PrefixNotApplicable(p, (t, _)) => write!(
                 f,
-                "Postfix operator '{p}' not applicable to value of type '{}'",
-                a.data_type
+                "Prefix operator '{p}' not applicable to value of type '{t}'",
             ),
-            Self::InfixNotApplicable(a, i, b) => write!(
+            Self::PostfixNotApplicable((t, _), p) => write!(
                 f,
-                "Infix operator '{i}' not applicable to values of type '{}' and '{}'",
-                a.data_type, b.data_type
+                "Postfix operator '{p}' not applicable to value of type '{t}'",
             ),
-            Self::AssignInfixNotApplicable((_, a), i, b) => write!(f, "Infix operator '{i}' not applicable to variable of type '{a}' and value of type '{}'", b.data_type),
-            Self::AssignNotApplicable((_, a), _, b) => write!(f, "Cannot assign value of type '{}' to variable of type '{a}'", b.data_type),
+            Self::InfixNotApplicable((a, _), i, (b, _)) => write!(
+                f,
+                "Infix operator '{i}' not applicable to values of type '{a}' and '{b}'",
+            ),
+            Self::AssignInfixNotApplicable((a, _), i, (b, _)) => write!(
+                f,
+                "Operator '{i}' not applicable to variable of type '{a}' and value of type '{b}'"
+            ),
+            Self::AssignNotApplicable((a, _), (b, _)) => write!(
+                f,
+                "Cannot assign value of type '{b}' to variable of type '{a}'"
+            ),
 
             // Eval
+            Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
+            Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
+            Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
+            Self::DivideByZero(_, _) => write!(f, "Attempted to divide by 0"),
+            Self::RemainderByZero(_, _) => {
+                write!(
+                    f,
+                    "Attempted to calculate the remainder with a divisor of 0"
+                )
+            }
+            Self::PowOverflow(_, _) => write!(f, "Exponentiation would overflow"),
+            Self::NegativeIntPow(_, _) => write!(f, ""),
+
             Self::MissingExpr => write!(f, "Missing expression"),
             Self::ExpectedValue(_) => write!(f, "Expected a value found unit"),
             Self::ExpectedNumber(v) => {
@@ -264,18 +292,7 @@ impl UserFacing for Error {
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
-            Self::AddOverflow(_, _) => write!(f, "Addition would overflow"),
-            Self::SubOverflow(_, _) => write!(f, "Subtraction would overflow"),
-            Self::MulOverflow(_, _) => write!(f, "Multiplication would overflow"),
-            Self::PowOverflow(_, _) => write!(f, "Exponentiation would overflow"),
-            Self::DivideByZero(_, _) => write!(f, "Attempted to divide by 0"),
             Self::FractionEuclidDiv(_, _) => write!(f, "Attempted divide fractions with remainder"),
-            Self::RemainderByZero(_, _) => {
-                write!(
-                    f,
-                    "Attempted to calculate the remainder with a divisor of 0"
-                )
-            }
             Self::FractionRemainder(_, _) => {
                 write!(
                     f,
@@ -338,9 +355,6 @@ impl UserFacing for Error {
                     b.data_type(),
                 )
             }
-            Self::InvalidAssignment(_, _) => {
-                write!(f, "Cannot assign to something that is not a variable")
-            }
             Self::AssertFailed(_) => {
                 write!(f, "Assertion failed")
             }
@@ -392,17 +406,26 @@ impl UserFacing for Error {
             Self::WrongContext(k) => vec![k.span],
 
             // Check
+            Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::UnknownType(_, s) => vec![*s],
             Self::MismatchedType { spans, .. } => spans.clone(),
             Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
             Self::MissingElseBranch(_, s) => vec![*s],
-            Self::PrefixNotApplicable(p, a) => vec![p.span, a.span],
-            Self::PostfixNotApplicable(a, p) => vec![a.span, p.span],
-            Self::InfixNotApplicable(a, i, b) => vec![a.span, i.span, b.span],
-            Self::AssignInfixNotApplicable((a, _), i, b) => vec![a.span, i.span, b.span],
-            Self::AssignNotApplicable((a, _), i, b) => vec![a.span, i.span, b.span],
+            Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
+            Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
+            Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
+            Self::AssignInfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
+            Self::AssignNotApplicable((_, a), (_, b)) => vec![*a, *b],
 
             // Eval
+            Self::AddOverflow(a, b) => vec![*a, *b],
+            Self::SubOverflow(a, b) => vec![*a, *b],
+            Self::MulOverflow(a, b) => vec![*a, *b],
+            Self::DivideByZero(a, b) => vec![*a, *b],
+            Self::RemainderByZero(a, b) => vec![*a, *b],
+            Self::PowOverflow(a, b) => vec![*a, *b],
+            Self::NegativeIntPow(a, b) => vec![*a, *b],
+
             Self::MissingExpr => vec![],
             Self::ExpectedValue(s) => vec![*s],
             Self::ExpectedNumber(v) => vec![v.span],
@@ -419,13 +442,7 @@ impl UserFacing for Error {
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, s) => vec![*s],
-            Self::AddOverflow(a, b) => vec![a.span, b.span],
-            Self::SubOverflow(a, b) => vec![a.span, b.span],
-            Self::MulOverflow(a, b) => vec![a.span, b.span],
-            Self::PowOverflow(a, b) => vec![a.span, b.span],
-            Self::DivideByZero(a, b) => vec![a.span, b.span],
             Self::FractionEuclidDiv(a, b) => vec![a.span, b.span],
-            Self::RemainderByZero(a, b) => vec![a.span, b.span],
             Self::FractionRemainder(a, b) => vec![a.span, b.span],
             Self::FractionGcd(a, b) => vec![a.span, b.span],
             Self::FractionNcr(a, b) => vec![a.span, b.span],
@@ -437,7 +454,6 @@ impl UserFacing for Error {
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
             Self::InvalidBwOr(a, b) => vec![a.span, b.span],
             Self::InvalidBwAnd(a, b) => vec![a.span, b.span],
-            Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::AssertFailed(s) => vec![*s],
             Self::AssertEqFailed(a, b) => vec![a.span, b.span],
             Self::NotImplemented(_, s) => vec![*s],

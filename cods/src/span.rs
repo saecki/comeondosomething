@@ -1,6 +1,7 @@
 /// Span of character indices
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span {
+    // TODO: make these u32
     pub start: usize,
     pub end: usize,
 }

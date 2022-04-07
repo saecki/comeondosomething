@@ -26,9 +26,9 @@ impl Val {
 pub enum DataType {
     Int,
     Float,
-    Range,
     Bool,
     Str,
+    Range,
     Unit,
 }
 

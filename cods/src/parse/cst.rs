@@ -17,8 +17,6 @@ pub enum Cst {
     Prefix(Prefix, Box<Cst>),
     Postfix(Box<Cst>, Postfix),
     Infix(Box<Cst>, Infix, Box<Cst>),
-    InfixAssign(IdentSpan, Infix, Box<Cst>),
-    Assign(IdentSpan, Infix, Box<Cst>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -327,8 +325,6 @@ impl Cst {
             Self::Prefix(p, a) => Span::across(p.span, a.span()),
             Self::Postfix(a, p) => Span::across(a.span(), p.span),
             Self::Infix(a, _, b) => Span::across(a.span(), b.span()),
-            Self::InfixAssign(a, _, b) => Span::across(a.span, b.span()),
-            Self::Assign(a, _, b) => Span::across(a.span, b.span()),
         }
     }
 

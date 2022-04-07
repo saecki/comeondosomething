@@ -7,8 +7,8 @@ fn semicolon() {
     let items = ctx.group(tokens).unwrap();
     let csts = ctx.parse(items).unwrap();
     let expected = vec![
-        Cst::Assign(
-            IdentSpan::new(Ident(0), Span::pos(0)),
+        Cst::Infix(
+            Box::new(Cst::Ident(IdentSpan::new(Ident(0), Span::pos(0)))),
             Infix::new(InfixT::Assign, Span::pos(2)),
             Box::new(Cst::Val(ValSpan::new(Val::Int(34), Span::of(4, 6)))),
         ),

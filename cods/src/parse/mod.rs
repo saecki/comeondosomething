@@ -223,44 +223,7 @@ impl Context {
             }
 
             let i = Infix::new(infix, op.span);
-            // TODO: is_assign() method
-            lhs = match infix {
-                InfixT::Assign => match lhs {
-                    Cst::Ident(id) => Cst::Assign(id, i, Box::new(rhs)),
-                    _ => return Err(crate::Error::InvalidAssignment(lhs.span(), op.span)),
-                },
-                InfixT::AddAssign | InfixT::SubAssign | InfixT::MulAssign | InfixT::DivAssign => {
-                    match lhs {
-                        Cst::Ident(id) => Cst::InfixAssign(id, i, Box::new(rhs)),
-                        _ => return Err(crate::Error::InvalidAssignment(lhs.span(), op.span)),
-                    }
-                }
-                InfixT::RangeEx
-                | InfixT::RangeIn
-                | InfixT::Add
-                | InfixT::Sub
-                | InfixT::Mul
-                | InfixT::Div
-                | InfixT::IntDiv
-                | InfixT::Rem
-                | InfixT::Pow
-                | InfixT::Eq
-                | InfixT::Ne
-                | InfixT::Lt
-                | InfixT::Le
-                | InfixT::Gt
-                | InfixT::Ge
-                | InfixT::Or
-                | InfixT::And
-                | InfixT::BwOr
-                | InfixT::BwAnd => Cst::Infix(Box::new(lhs), i, Box::new(rhs)),
-                InfixT::Dot => {
-                    return Err(crate::Error::NotImplemented(
-                        "Field access or method calls are not yet implemented",
-                        op.span,
-                    ))
-                }
-            };
+            lhs = Cst::Infix(Box::new(lhs), i, Box::new(rhs));
         }
 
         Ok(lhs)

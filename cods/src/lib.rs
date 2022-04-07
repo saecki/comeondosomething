@@ -40,13 +40,13 @@ impl Context {
         self.warnings.clear();
     }
 
-    pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Option<Val>> {
+    pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Val> {
         let asts = self.parse_str(input)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
         }
 
-        let val = self.eval_all(&asts)?;
+        let val = eval::eval_all(&asts)?;
         Ok(val)
     }
 
@@ -59,7 +59,7 @@ impl Context {
     }
 }
 
-pub fn eval(input: &str) -> crate::Result<Option<Val>> {
+pub fn eval(input: &str) -> crate::Result<Val> {
     let mut ctx = Context::default();
     ctx.parse_and_eval(input)
 }

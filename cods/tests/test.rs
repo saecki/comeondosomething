@@ -4,18 +4,7 @@ use cods::{Error, Par, ParT, Span, Val, ValSpan};
 
 fn assert(input: &str, expected: Val) {
     match cods::eval(input) {
-        Ok(Some(val)) => assert_eq!(val, expected),
-        Ok(None) => panic!("Expected a value found nothing"),
-        Err(e) => {
-            panic!("{e:?}");
-        }
-    }
-}
-
-fn assert_unit(input: &str) {
-    match cods::eval(input) {
-        Ok(Some(val)) => panic!("Expected unit found value: '{val}'"),
-        Ok(None) => (),
+        Ok(val) => assert_eq!(val, expected),
         Err(e) => {
             panic!("{e:?}");
         }
@@ -369,7 +358,7 @@ fn newline_ignored_before_op() {
 
 #[test]
 fn assertion() {
-    assert_unit("assert(5 == 5)");
+    assert("assert(5 == 5)", Val::Unit);
 }
 
 #[test]
@@ -379,7 +368,7 @@ fn assertion_failed() {
 
 #[test]
 fn assertion_eq() {
-    assert_unit("assert_eq(false, 4 == 3)");
+    assert("assert_eq(false, 4 == 3)", Val::Unit);
 }
 
 #[test]
