@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::Deref;
 
-use crate::{DataType, OpT, Span};
+use crate::{OpT, Span};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Infix {
@@ -88,37 +88,6 @@ impl Display for InfixT {
     }
 }
 
-impl InfixT {
-    pub fn resulting_type(&self, a: DataType, b: DataType) -> Option<DataType> {
-        match self {
-            Self::Assign => same_then_unit(a, b),
-            Self::AddAssign => same_num_then_unit(a, b),
-            Self::SubAssign => same_num_then_unit(a, b),
-            Self::MulAssign => same_num_then_unit(a, b),
-            Self::DivAssign => same_num_then_unit(a, b),
-            Self::RangeEx => both_int_then_range(a, b),
-            Self::RangeIn => both_int_then_range(a, b),
-            Self::Add => same_num_then_unit(a, b),
-            Self::Sub => same_num_then_unit(a, b),
-            Self::Mul => same_num_then_unit(a, b),
-            Self::Div => same_num_then_unit(a, b),
-            Self::Rem => both_int_then_range(a, b),
-            Self::Pow => same_num_then_unit(a, b),
-            Self::Eq => same_then_bool(a, b),
-            Self::Ne => same_then_bool(a, b),
-            Self::Lt => same_num_then_bool(a, b),
-            Self::Le => same_num_then_bool(a, b),
-            Self::Gt => same_num_then_bool(a, b),
-            Self::Ge => same_num_then_bool(a, b),
-            Self::BwOr => same_int_bool_then_bool(a, b),
-            Self::BwAnd => same_int_bool_then_bool(a, b),
-            Self::Or => both_bool(a, b),
-            Self::And => both_bool(a, b),
-            Self::Dot => None, // TODO
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Prefix {
     pub typ: PrefixT,
@@ -162,16 +131,6 @@ impl Display for PrefixT {
     }
 }
 
-impl PrefixT {
-    pub fn resulting_type(&self, typ: DataType) -> Option<DataType> {
-        match self {
-            Self::UnaryPlus => num(typ),
-            Self::UnaryMinus => num(typ),
-            Self::Not => bool(typ),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Postfix {
     pub typ: PostfixT,
@@ -207,14 +166,6 @@ impl Display for PostfixT {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Factorial => write!(f, "!"),
-        }
-    }
-}
-
-impl PostfixT {
-    pub fn resulting_type(&self, typ: DataType) -> Option<DataType> {
-        match self {
-            PostfixT::Factorial => int(typ),
         }
     }
 }
@@ -308,72 +259,5 @@ impl OpT {
             | Self::And
             | Self::Dot => None,
         }
-    }
-}
-
-fn same_then_bool(a: DataType, b: DataType) -> Option<DataType> {
-    (a == b).then(|| DataType::Bool)
-}
-
-fn same_then_unit(a: DataType, b: DataType) -> Option<DataType> {
-    (a == b).then(|| a)
-}
-
-fn same_num_then_unit(a: DataType, b: DataType) -> Option<DataType> {
-    match (a, b) {
-        (DataType::Int, DataType::Int) => Some(DataType::Unit),
-        (DataType::Float, DataType::Float) => Some(DataType::Unit),
-        (_, _) => None,
-    }
-}
-
-fn same_num_then_bool(a: DataType, b: DataType) -> Option<DataType> {
-    match (a, b) {
-        (DataType::Int, DataType::Int) => Some(DataType::Bool),
-        (DataType::Float, DataType::Float) => Some(DataType::Bool),
-        (_, _) => None,
-    }
-}
-
-fn same_int_bool_then_bool(a: DataType, b: DataType) -> Option<DataType> {
-    match (a, b) {
-        (DataType::Int, DataType::Int) => Some(DataType::Bool),
-        (DataType::Bool, DataType::Bool) => Some(DataType::Bool),
-        (_, _) => None,
-    }
-}
-
-fn both_int_then_range(a: DataType, b: DataType) -> Option<DataType> {
-    match (a, b) {
-        (DataType::Int, DataType::Int) => Some(DataType::Range),
-        (_, _) => None,
-    }
-}
-
-fn both_bool(a: DataType, b: DataType) -> Option<DataType> {
-    match (a, b) {
-        (DataType::Bool, DataType::Bool) => Some(a),
-        (_, _) => None,
-    }
-}
-
-fn num(typ: DataType) -> Option<DataType> {
-    match typ {
-        DataType::Int | DataType::Float => Some(typ),
-        DataType::Range | DataType::Bool | DataType::Str | DataType::Unit => None,
-    }
-}
-
-fn int(typ: DataType) -> Option<DataType> {
-    match typ {
-        DataType::Int => Some(typ),
-        DataType::Float | DataType::Range | DataType::Bool | DataType::Str | DataType::Unit => None,
-    }
-}
-
-fn bool(typ: DataType) -> Option<DataType> {
-    match typ {
-        DataType::Bool => Some(typ),
-        DataType::Int | DataType::Float | DataType::Range | DataType::Str | DataType::Unit => None,
     }
 }

@@ -10,6 +10,8 @@ pub use types::*;
 pub mod ast;
 mod scope;
 mod types;
+#[cfg(test)]
+mod test;
 
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {
@@ -386,22 +388,22 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let b = self.check_type(scopes, b)?;
+                let expr = self.check_type(scopes, b)?;
                 let var = self.resolve_var(scopes, &ident)?;
 
-                if var.data_type != b.data_type {
+                if var.data_type != expr.data_type {
                     return Err(crate::Error::AssignNotApplicable(
                         (var.data_type, ident.span),
-                        (b.data_type, b.span),
+                        (expr.data_type, expr.span),
                     ));
                 }
 
+                let inner = Rc::clone(&var.inner);
+
+                self.set_var(scopes, &ident, &expr)?;
+
                 // TODO: return some sort of statement type that can't be used as an expression
-                Ast::new(
-                    AstT::Assign(Rc::clone(&var.inner), Box::new(b)),
-                    DataType::Unit,
-                    span,
-                )
+                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, span)
             }
             InfixT::AddAssign => {
                 let ident = match a {
@@ -423,11 +425,11 @@ impl Context {
                     (_, _) => return infix_assign_error((var.data_type, ident.span), i, b),
                 };
 
-                Ast::new(
-                    AstT::Assign(Rc::clone(&var.inner), Box::new(expr)),
-                    DataType::Unit,
-                    span,
-                )
+                let inner = Rc::clone(&var.inner);
+
+                self.set_var(scopes, &ident, &expr)?;
+
+                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, span)
             }
             InfixT::SubAssign => {
                 let ident = match a {
@@ -677,10 +679,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::BwOrInt(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::BwOr(Box::new(a), Box::new(b)), span)
                     }
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwOrBool(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::BwOr(Box::new(a), Box::new(b)), span)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -690,10 +692,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::BwAndInt(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::BwAnd(Box::new(a), Box::new(b)), span)
                     }
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwAndBool(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::BwAnd(Box::new(a), Box::new(b)), span)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }

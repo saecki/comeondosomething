@@ -94,6 +94,8 @@ pub enum IntExpr {
     Rem(Box<Ast>, Box<Ast>),
     Pow(Box<Ast>, Box<Ast>),
     Factorial(Box<Ast>),
+    BwOr(Box<Ast>, Box<Ast>),
+    BwAnd(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -122,10 +124,8 @@ pub enum BoolExpr {
     GtFloat(Box<Ast>, Box<Ast>),
     GeInt(Box<Ast>, Box<Ast>),
     GeFloat(Box<Ast>, Box<Ast>),
-    BwOrInt(Box<Ast>, Box<Ast>),
-    BwOrBool(Box<Ast>, Box<Ast>),
-    BwAndInt(Box<Ast>, Box<Ast>),
-    BwAndBool(Box<Ast>, Box<Ast>),
+    BwOr(Box<Ast>, Box<Ast>),
+    BwAnd(Box<Ast>, Box<Ast>),
     Or(Box<Ast>, Box<Ast>),
     And(Box<Ast>, Box<Ast>),
 }

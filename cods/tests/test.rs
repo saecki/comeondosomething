@@ -152,14 +152,6 @@ fn factorial_overflow() {
 }
 
 #[test]
-fn factorial_fraction() {
-    assert_err(
-        "4.1!",
-        Error::FractionFactorial(ValSpan::new(Val::Float(4.1), Span::of(0, 3))),
-    );
-}
-
-#[test]
 fn factorial_negative() {
     assert_err(
         "(-3)!",
