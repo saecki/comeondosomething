@@ -53,7 +53,7 @@ impl Ast {
     pub fn bool(expr: BoolExpr, span: Span) -> Self {
         Self::new(AstT::Bool(expr), DataType::Bool, span)
     }
-    
+
     pub fn str(expr: StrExpr, span: Span) -> Self {
         Self::new(AstT::Str(expr), DataType::Str, span)
     }

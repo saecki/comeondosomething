@@ -14,7 +14,7 @@ struct Lexer<'a> {
     tokens: Vec<Token>,
     literal: String,
     chars: Peekable<Chars<'a>>,
-    cursor: usize,
+    cursor: u32,
 }
 
 impl<'a> Lexer<'a> {
@@ -46,7 +46,7 @@ impl<'a> Lexer<'a> {
         None
     }
 
-    const fn pos(&self) -> usize {
+    const fn pos(&self) -> u32 {
         self.cursor.saturating_sub(1)
     }
 }
@@ -148,7 +148,7 @@ impl Context {
             return Ok(());
         }
 
-        let start = lexer.pos() - lexer.literal.chars().count();
+        let start = lexer.pos() - lexer.literal.chars().count() as u32;
         let span = Span::of(start, lexer.pos());
 
         let literal = lexer.literal.as_str();
@@ -181,7 +181,11 @@ impl Context {
                             'a'..='z' => (),
                             'A'..='Z' => (),
                             '_' => (),
-                            _ => return Err(crate::Error::InvalidChar(Span::pos(span.start + i))),
+                            _ => {
+                                return Err(crate::Error::InvalidChar(Span::pos(
+                                    span.start + i as u32,
+                                )))
+                            }
                         }
                     }
 
@@ -243,7 +247,7 @@ impl Context {
         Err(crate::Error::MissingClosingQuote(s))
     }
 
-    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: usize) -> crate::Result<()> {
+    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: u32) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
         let span = Span::of(start, lexer.pos() + 1);
         lexer.tokens.push(Token::val(str, span));

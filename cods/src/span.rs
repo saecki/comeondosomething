@@ -1,17 +1,16 @@
 /// Span of character indices
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span {
-    // TODO: make these u32
-    pub start: usize,
-    pub end: usize,
+    pub start: u32,
+    pub end: u32,
 }
 
 impl Span {
-    pub const fn of(start: usize, end: usize) -> Self {
+    pub const fn of(start: u32, end: u32) -> Self {
         Self { start, end }
     }
 
-    pub const fn pos(pos: usize) -> Self {
+    pub const fn pos(pos: u32) -> Self {
         Self::of(pos, pos + 1)
     }
 
@@ -31,7 +30,7 @@ impl Span {
         Self::pos(self.end)
     }
 
-    pub const fn len(&self) -> usize {
+    pub const fn len(&self) -> u32 {
         self.end - self.start
     }
 
@@ -43,7 +42,7 @@ impl Span {
         self.contains(other.start) || other.contains(self.start)
     }
 
-    pub const fn contains(&self, pos: usize) -> bool {
+    pub const fn contains(&self, pos: u32) -> bool {
         self.start <= pos && self.end > pos
     }
 }

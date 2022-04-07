@@ -51,7 +51,7 @@ pub struct EscError {
 fn unicode_escape_char(
     lexer: &mut Lexer<'_>,
     expected: usize,
-    esc_start: usize,
+    esc_start: u32,
 ) -> Result<char, EscError> {
     if let Some('{') = lexer.peek() {
         lexer.next();
@@ -90,7 +90,7 @@ fn unicode_escape_char(
     parse_unicode_cp(lexer, cp, esc_start)
 }
 
-fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: usize) -> Result<char, EscError> {
+fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: u32) -> Result<char, EscError> {
     let mut cp = 0;
     let mut i = 0;
     while let Some(c) = lexer.next() {
@@ -145,7 +145,7 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
     }
 }
 
-fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: usize) -> Result<char, EscError> {
+fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: u32) -> Result<char, EscError> {
     match char::from_u32(cp) {
         Some(char) => Ok(char),
         None => {

@@ -9,9 +9,9 @@ pub use types::*;
 
 pub mod ast;
 mod scope;
-mod types;
 #[cfg(test)]
 mod test;
+mod types;
 
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {

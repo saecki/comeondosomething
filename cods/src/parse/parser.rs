@@ -4,13 +4,13 @@ use crate::{Group, IdentSpan, Item, Kw, KwT, Op, OpT, Pct, PctT, Span};
 
 pub struct Parser {
     items: VecDeque<Item>,
-    pub pos: usize,
+    pub pos: u32,
     pub current_newln: bool,
     pub last_newln: bool,
 }
 
 impl Parser {
-    pub fn new(items: Vec<Item>, pos: usize) -> Self {
+    pub fn new(items: Vec<Item>, pos: u32) -> Self {
         Self {
             items: VecDeque::from(items),
             pos,
