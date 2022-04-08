@@ -273,8 +273,18 @@ impl Context {
         }
 
         let mut args = Vec::with_capacity(f.args.items.len());
-        for a in f.args.items {
-            args.push(self.check_type(scopes, a)?);
+        for (p, a) in fun.params.iter().zip(f.args.items.into_iter()) {
+            let val = self.check_type(scopes, a)?;
+            let expected = p.typ;
+            let found = val.data_type;
+            if expected != found {
+                return Err(crate::Error::MismatchedType {
+                    expected,
+                    found,
+                    spans: vec![val.span],
+                });
+            }
+            args.push(val);
         }
 
         let return_type = match fun.return_type {
