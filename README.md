@@ -24,6 +24,7 @@ OPTIONS:
 - Early returns
 - Variable definition without assignment (`val x` or `val y: str`)
 - Casting from float to int
+- Add char datatype
 - Comments
 - Warnings
     - Unnecessary semicolons (if a newline is following)
