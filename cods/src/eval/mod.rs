@@ -102,12 +102,9 @@ fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
 
             let mut f: i128 = 1;
             for i in 2..=va {
-                f = f
-                    .checked_mul(i)
-                    .ok_or(crate::Error::FactorialOverflow(ValSpan::new(
-                        Val::Int(va),
-                        a.span,
-                    )))?;
+                f = f.checked_mul(i).ok_or_else(|| {
+                    crate::Error::FactorialOverflow(ValSpan::new(Val::Int(va), a.span))
+                })?;
             }
             f
         }
