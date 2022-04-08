@@ -3,6 +3,11 @@ use std::rc::Rc;
 
 use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan};
 
+pub enum ResolvedVar<'a> {
+    Var(&'a Var),
+    Const(BuiltinConst),
+}
+
 impl Context {
     pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<Rc<Fun>> {
         let name = self.idents.name(id.ident);
@@ -34,22 +39,32 @@ impl Context {
     }
 
     /// Resolve the var belonging to the identifier.
-    ///
-    pub fn resolve_var<'a>(&self, scopes: &'a Scopes, id: &IdentSpan) -> crate::Result<&'a Var> {
+    pub fn resolve_var<'a>(
+        &self,
+        scopes: &'a Scopes,
+        id: &IdentSpan,
+    ) -> crate::Result<ResolvedVar<'a>> {
         let name = self.idents.name(id.ident);
-        if let Some(_b) = BuiltinConst::from(name) {
-            todo!()
+        if let Some(b) = BuiltinConst::from(name) {
+            return Ok(ResolvedVar::Const(b));
         }
 
         match scopes.var(id.ident) {
-            Some(v) => Ok(v),
+            Some(v) => Ok(ResolvedVar::Var(v)),
             None => Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
         }
     }
 
     /// Resolve the var and make sure it is initialized
-    pub fn get_var<'a>(&self, scopes: &'a Scopes, id: &IdentSpan) -> crate::Result<&'a Var> {
-        let var = self.resolve_var(scopes, id)?;
+    pub fn get_var<'a>(
+        &self,
+        scopes: &'a Scopes,
+        id: &IdentSpan,
+    ) -> crate::Result<ResolvedVar<'a>> {
+        let var = match self.resolve_var(scopes, id)? {
+            c @ ResolvedVar::Const(_) => return Ok(c),
+            ResolvedVar::Var(v) => v,
+        };
 
         if !var.assigned {
             let name = self.idents.name(id.ident);
@@ -60,7 +75,7 @@ impl Context {
             ));
         }
 
-        Ok(var)
+        Ok(ResolvedVar::Var(var))
     }
 
     pub fn def_var(&self, scopes: &mut Scopes, var: Var) {

@@ -1,7 +1,9 @@
 use std::rc::Rc;
 
 use crate::cst::{self, Cst};
-use crate::{Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span};
+use crate::{
+    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, ValSpan,
+};
 
 pub use ast::{Ast, AstT, BoolExpr, FloatExpr, IntExpr, RangeExpr, StrExpr};
 use scope::*;
@@ -35,10 +37,10 @@ impl Context {
             Cst::Empty(s) => Ast::new(AstT::Unit, DataType::Unit, s),
             Cst::Error(s) => Ast::new(AstT::Error, DataType::Unit, s),
             Cst::Val(v) => Ast::val(v),
-            Cst::Ident(i) => {
-                let var = self.get_var(scopes, &i)?;
-                Ast::var(Rc::clone(&var.inner), var.data_type, i.span)
-            }
+            Cst::Ident(i) => match self.get_var(scopes, &i)? {
+                ResolvedVar::Const(c) => Ast::val(ValSpan::new(c.val(), span)),
+                ResolvedVar::Var(var) => Ast::var(Rc::clone(&var.inner), var.data_type, i.span),
+            },
             Cst::Par(_, c, _) => self.check_type(scopes, *c)?,
             Cst::Block(b) => self.check_block(scopes, b)?,
             Cst::IfExpr(i) => self.check_if_expr(scopes, i)?,
@@ -389,7 +391,12 @@ impl Context {
                 };
 
                 let expr = self.check_type(scopes, b)?;
-                let var = self.resolve_var(scopes, &ident)?;
+                let var = match self.resolve_var(scopes, &ident)? {
+                    ResolvedVar::Var(v) => v,
+                    ResolvedVar::Const(c) => {
+                        return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                    }
+                };
 
                 if var.data_type != expr.data_type {
                     return Err(crate::Error::AssignNotApplicable(
@@ -412,7 +419,12 @@ impl Context {
                 };
 
                 let b = self.check_type(scopes, b)?;
-                let var = self.get_var(scopes, &ident)?;
+                let var = match self.get_var(scopes, &ident)? {
+                    ResolvedVar::Var(v) => v,
+                    ResolvedVar::Const(c) => {
+                        return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                    }
+                };
                 let var_expr = Ast::var(Rc::clone(&var.inner), var.data_type, ident.span);
 
                 let expr = match (var.data_type, b.data_type) {
@@ -438,7 +450,12 @@ impl Context {
                 };
 
                 let b = self.check_type(scopes, b)?;
-                let var = self.get_var(scopes, &ident)?;
+                let var = match self.get_var(scopes, &ident)? {
+                    ResolvedVar::Var(v) => v,
+                    ResolvedVar::Const(c) => {
+                        return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                    }
+                };
                 let var_expr = Ast::var(Rc::clone(&var.inner), var.data_type, ident.span);
 
                 let expr = match (var.data_type, b.data_type) {
@@ -464,7 +481,12 @@ impl Context {
                 };
 
                 let b = self.check_type(scopes, b)?;
-                let var = self.get_var(scopes, &ident)?;
+                let var = match self.get_var(scopes, &ident)? {
+                    ResolvedVar::Var(v) => v,
+                    ResolvedVar::Const(c) => {
+                        return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                    }
+                };
                 let var_expr = Ast::var(Rc::clone(&var.inner), var.data_type, ident.span);
 
                 let expr = match (var.data_type, b.data_type) {
@@ -490,7 +512,12 @@ impl Context {
                 };
 
                 let b = self.check_type(scopes, b)?;
-                let var = self.get_var(scopes, &ident)?;
+                let var = match self.get_var(scopes, &ident)? {
+                    ResolvedVar::Var(v) => v,
+                    ResolvedVar::Const(c) => {
+                        return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                    }
+                };
                 let var_expr = Ast::var(Rc::clone(&var.inner), var.data_type, ident.span);
 
                 let expr = match (var.data_type, b.data_type) {

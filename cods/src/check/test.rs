@@ -1,4 +1,6 @@
-use crate::{Context, Span, Val};
+use std::f64::consts;
+
+use crate::{BuiltinConst, Context, Span, Val};
 
 #[test]
 fn undefined_var() {
@@ -41,6 +43,25 @@ fn cannot_assign_twice_to_immutable_var() {
         error,
         crate::Error::ImmutableAssign("x".into(), Span::pos(11), Span::pos(15)),
     );
+}
+
+#[test]
+fn cannot_assign_twice_to_builtin_const() {
+    let input = "TAU += 4";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::ConstAssign((BuiltinConst::Tau, Span::of(0, 3)), Span::of(4, 6)),
+    );
+}
+
+#[test]
+fn can_resolve_builtin_const() {
+    let input = "val x = PI; x";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Float(consts::PI));
 }
 
 #[test]

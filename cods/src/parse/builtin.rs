@@ -1,4 +1,5 @@
 use std::f64::consts;
+use std::fmt::Display;
 
 use crate::{DataType, Val};
 
@@ -62,10 +63,21 @@ pub const PI: Val = Val::Float(consts::PI);
 pub const TAU: Val = Val::Float(consts::TAU);
 pub const E: Val = Val::Float(consts::E);
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BuiltinConst {
     Pi,
     Tau,
     E,
+}
+
+impl Display for BuiltinConst {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pi => write!(f, "PI"),
+            Self::Tau => write!(f, "TAU"),
+            Self::E => write!(f, "E"),
+        }
+    }
 }
 
 impl BuiltinConst {
@@ -84,14 +96,6 @@ impl BuiltinConst {
             Self::Pi => PI,
             Self::Tau => TAU,
             Self::E => E,
-        }
-    }
-
-    pub const fn val_ref(&self) -> &'static Val {
-        match self {
-            Self::Pi => &PI,
-            Self::Tau => &TAU,
-            Self::E => &E,
         }
     }
 

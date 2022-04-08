@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::DataType;
+use crate::{BuiltinConst, DataType};
 use crate::{Infix, Postfix, Prefix, ValSpan};
 use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 
@@ -65,7 +65,6 @@ pub enum Error {
     WrongContext(Kw),
 
     // Check
-    InvalidAssignment(Span, Span),
     UnknownType(String, Span),
     MismatchedType {
         expected: DataType,
@@ -83,6 +82,8 @@ pub enum Error {
     InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignInfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignNotApplicable((DataType, Span), (DataType, Span)),
+    InvalidAssignment(Span, Span),
+    ConstAssign((BuiltinConst, Span), Span),
 
     // Eval
     Parsing(Span),
@@ -199,9 +200,6 @@ impl UserFacing for Error {
             Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
 
             // Check
-            Self::InvalidAssignment(_, _) => {
-                write!(f, "Cannot assign to something that is not a variable")
-            }
             Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
             Self::MismatchedType {
                 expected, found, ..
@@ -233,6 +231,12 @@ impl UserFacing for Error {
                 f,
                 "Cannot assign value of type '{b}' to variable of type '{a}'"
             ),
+            Self::InvalidAssignment(_, _) => {
+                write!(f, "Cannot assign to something that is not a variable")
+            }
+            Self::ConstAssign((c, _), _) => {
+                write!(f, "Cannot assign to builtin constant '{c}'")
+            }
 
             // Eval
             Self::Parsing(_) => write!(f, "A parsing error occured"),
@@ -343,7 +347,6 @@ impl UserFacing for Error {
             Self::WrongContext(k) => vec![k.span],
 
             // Check
-            Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::UnknownType(_, s) => vec![*s],
             Self::MismatchedType { spans, .. } => spans.clone(),
             Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
@@ -353,6 +356,8 @@ impl UserFacing for Error {
             Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignInfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignNotApplicable((_, a), (_, b)) => vec![*a, *b],
+            Self::InvalidAssignment(a, b) => vec![*a, *b],
+            Self::ConstAssign((_, a), b) => vec![*a, *b],
 
             // Eval
             Self::NegOverflow(a) => vec![*a],
