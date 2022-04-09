@@ -43,7 +43,6 @@ pub enum InfixT {
     Mul,
     Div,
     Rem,
-    Pow,
     Eq,
     Ne,
     Lt,
@@ -72,7 +71,6 @@ impl Display for InfixT {
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
             Self::Rem => write!(f, "%"),
-            Self::Pow => write!(f, "^"),
             Self::Eq => write!(f, "=="),
             Self::Ne => write!(f, "!="),
             Self::Lt => write!(f, "<"),
@@ -173,8 +171,7 @@ impl Display for PostfixT {
 impl OpT {
     pub fn infix_bp(&self) -> Option<(u8, InfixT, u8)> {
         match self {
-            Self::Dot => Some((23, InfixT::Pow, 24)),
-            Self::Pow => Some((19, InfixT::Pow, 20)),
+            Self::Dot => Some((21, InfixT::Dot, 22)),
             Self::Mul => Some((17, InfixT::Mul, 18)),
             Self::Div => Some((17, InfixT::Div, 18)),
             Self::Rem => Some((17, InfixT::Rem, 18)),
@@ -203,7 +200,7 @@ impl OpT {
 
     pub fn postfix_bp(&self) -> Option<(u8, PostfixT)> {
         match self {
-            Self::Bang => Some((21, PostfixT::Factorial)),
+            Self::Bang => Some((19, PostfixT::Factorial)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -216,7 +213,6 @@ impl OpT {
             | Self::Mul
             | Self::Div
             | Self::Rem
-            | Self::Pow
             | Self::Eq
             | Self::Ne
             | Self::Lt
@@ -233,9 +229,9 @@ impl OpT {
 
     pub fn prefix_bp(&self) -> Option<(PrefixT, u8)> {
         match self {
-            Self::Bang => Some((PrefixT::Not, 22)),
-            Self::Add => Some((PrefixT::UnaryPlus, 22)),
-            Self::Sub => Some((PrefixT::UnaryMinus, 22)),
+            Self::Bang => Some((PrefixT::Not, 20)),
+            Self::Add => Some((PrefixT::UnaryPlus, 20)),
+            Self::Sub => Some((PrefixT::UnaryMinus, 20)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -246,7 +242,6 @@ impl OpT {
             | Self::Mul
             | Self::Div
             | Self::Rem
-            | Self::Pow
             | Self::Eq
             | Self::Ne
             | Self::Lt

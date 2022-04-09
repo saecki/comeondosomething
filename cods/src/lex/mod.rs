@@ -80,7 +80,6 @@ impl Context {
                 '*' | '×' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
                 '/' | '÷' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
                 '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, span))?,
-                '^' => self.new_atom(&mut lexer, Token::op(OpT::Pow, span))?,
                 '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
                 '.' => match lexer.peek() {
                     Some('.') => {

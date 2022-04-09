@@ -95,7 +95,6 @@ pub enum IntExpr {
     Mul(Box<Ast>, Box<Ast>),
     Div(Box<Ast>, Box<Ast>),
     Rem(Box<Ast>, Box<Ast>),
-    Pow(Box<Ast>, Box<Ast>),
     Factorial(Box<Ast>),
     BwOr(Box<Ast>, Box<Ast>),
     BwAnd(Box<Ast>, Box<Ast>),
@@ -110,7 +109,6 @@ pub enum FloatExpr {
     Sub(Box<Ast>, Box<Ast>),
     Mul(Box<Ast>, Box<Ast>),
     Div(Box<Ast>, Box<Ast>),
-    Pow(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

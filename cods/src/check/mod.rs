@@ -686,19 +686,6 @@ impl Context {
                     (_, _) => return infix_error(a, i, b),
                 }
             }
-            InfixT::Pow => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
-                match (a.data_type, b.data_type) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Pow(Box::new(a), Box::new(b)), span)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Pow(Box::new(a), Box::new(b)), span)
-                    }
-                    (_, _) => return infix_error(a, i, b),
-                }
-            }
             InfixT::Eq => {
                 let a = self.check_type(scopes, a)?;
                 let b = self.check_type(scopes, b)?;

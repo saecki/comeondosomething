@@ -85,7 +85,6 @@ fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
             va.checked_rem(vb)
                 .ok_or(crate::Error::RemainderByZero(a.span, b.span))?
         }
-        IntExpr::Pow(a, b) => checked_pow(a, b)?,
         IntExpr::Factorial(a) => {
             let va = eval_ast(a)?.unwrap_int();
 
@@ -143,11 +142,6 @@ fn eval_float_expr(expr: &FloatExpr) -> crate::Result<Val> {
             let va = eval_ast(a)?.unwrap_float();
             let vb = eval_ast(b)?.unwrap_float();
             va / vb
-        }
-        FloatExpr::Pow(a, b) => {
-            let va = eval_ast(a)?.unwrap_float();
-            let vb = eval_ast(b)?.unwrap_float();
-            va.powf(vb)
         }
     };
 
@@ -317,7 +311,21 @@ fn eval_fun_call(fun: &Rc<Fun>, args: &[Ast]) -> crate::Result<Val> {
 
 fn eval_builtin_fun_call(fun: BuiltinFunCall, args: &[Ast]) -> crate::Result<Val> {
     let val = match fun {
-        BuiltinFunCall::PowInt => Val::Int(checked_pow(&args[0], &args[1])?),
+        BuiltinFunCall::PowInt => {
+            let a = &args[0];
+            let b = &args[1];
+            let base = eval_ast(a)?.unwrap_int();
+            let exp = eval_ast(b)?.unwrap_int();
+            if exp < 0 {
+                return Err(crate::Error::NegativeIntPow(a.span, b.span));
+            }
+            if exp > u32::MAX as i128 {
+                return Err(crate::Error::PowOverflow(a.span, b.span));
+            }
+            let val = base.checked_pow(exp as u32)
+                .ok_or(crate::Error::PowOverflow(a.span, b.span))?;
+            Val::Int(val)
+        }
         BuiltinFunCall::PowFloat => {
             let base = eval_ast(&args[0])?.unwrap_float();
             let exp = eval_ast(&args[1])?.unwrap_float();
@@ -506,17 +514,4 @@ fn fold_eval_float(args: &[Ast], fold: fn(f64, f64) -> f64) -> crate::Result<f64
         current = fold(current, val);
     }
     Ok(current)
-}
-
-fn checked_pow(a: &Ast, b: &Ast) -> crate::Result<i128> {
-    let base = eval_ast(a)?.unwrap_int();
-    let exp = eval_ast(b)?.unwrap_int();
-    if exp < 0 {
-        return Err(crate::Error::NegativeIntPow(a.span, b.span));
-    }
-    if exp > u32::MAX as i128 {
-        return Err(crate::Error::PowOverflow(a.span, b.span));
-    }
-    base.checked_pow(exp as u32)
-        .ok_or(crate::Error::PowOverflow(a.span, b.span))
 }

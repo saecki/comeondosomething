@@ -110,9 +110,9 @@ fn sign() {
 
 #[test]
 fn pow() {
-    assert("2.0^-1.0", Val::Float(0.5));
-    assert("3^3", Val::Int(27));
-    assert("9.0^0.5", Val::Float(3.0));
+    assert("pow(2.0, -1.0)", Val::Float(0.5));
+    assert("pow(3, 3)", Val::Int(27));
+    assert("pow(9.0, 0.5)", Val::Float(3.0));
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn binomial_coefficient_negative() {
 
 #[test]
 fn ln() {
-    assert("ln(E^27.0)", Val::Float(27.0));
+    assert("ln(pow(E, 27.0))", Val::Float(27.0));
 }
 
 #[test]
