@@ -73,16 +73,20 @@ pub enum Error {
     },
     IfBranchIncompatibleType((DataType, Span), (DataType, Span)),
     MissingElseBranch(DataType, Span),
-    UndefinedVar(String, Span),
-    UndefinedFun(String, Span),
-    UninitializedVar(String, Span, Span),
     NotIterable(DataType, Span),
+    UndefinedVar(String, Span),
+    UninitializedVar(String, Span, Span),
+    RedefinedBuiltinConst(String, Span),
+    UndefinedFun(String, Span),
+    RedefinedFun(String, Span, Span),
+    RedefinedBuiltinFun(String, Span),
     PrefixNotApplicable(Prefix, (DataType, Span)),
     PostfixNotApplicable((DataType, Span), Postfix),
     InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignInfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignNotApplicable((DataType, Span), (DataType, Span)),
     InvalidAssignment(Span, Span),
+    ImmutableAssign(String, Span, Span),
     ConstAssign((BuiltinConst, Span), Span),
 
     // Eval
@@ -98,10 +102,6 @@ pub enum Error {
     FactorialOverflow(ValSpan),
     NegativeFactorial(ValSpan),
 
-    RedefinedBuiltinConst(String, Span),
-    ImmutableAssign(String, Span, Span),
-    RedefinedFun(String, Span, Span),
-    RedefinedBuiltinFun(String, Span),
     NegativeNcr(ValSpan),
     InvalidNcr(ValSpan, ValSpan),
     InvalidClampBounds(ValSpan, ValSpan),
@@ -211,6 +211,15 @@ impl UserFacing for Error {
             Self::MissingElseBranch(t, _) => {
                 write!(f, "Missing else branch for if expression of type '{t}'")
             }
+            Self::NotIterable(t, _) => write!(f, "Value of type '{t}' is not iterable"),
+            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
+            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"), // TODO separate definition and usage into hint and error
+            Self::RedefinedBuiltinConst(name, _) => {
+                write!(f, "Redefined builtin constant '{name}'")
+            }
+            Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
+            Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
+            Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
             Self::PrefixNotApplicable(p, (t, _)) => write!(
                 f,
                 "Prefix operator '{p}' not applicable to value of type '{t}'",
@@ -233,6 +242,9 @@ impl UserFacing for Error {
             ),
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
+            }
+            Self::ImmutableAssign(name, _, _) => {
+                write!(f, "Cannot assign twice to immutable variable '{name}'")
             }
             Self::ConstAssign((c, _), _) => {
                 write!(f, "Cannot assign to builtin constant '{c}'")
@@ -264,18 +276,6 @@ impl UserFacing for Error {
                 )
             }
 
-            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
-            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"), // TODO separate definition and usage into hint and error
-            Self::NotIterable(t, _) => write!(f, "Value of type '{t}' is not iterable"),
-            Self::RedefinedBuiltinConst(name, _) => {
-                write!(f, "Redefined builtin constant '{name}'")
-            }
-            Self::ImmutableAssign(name, _, _) => {
-                write!(f, "Cannot assign twice to immutable variable '{name}'")
-            }
-            Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
-            Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
-            Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
             Self::NegativeNcr(r) => {
                 write!(
                     f,
@@ -351,15 +351,24 @@ impl UserFacing for Error {
             Self::MismatchedType { spans, .. } => spans.clone(),
             Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
             Self::MissingElseBranch(_, s) => vec![*s],
+            Self::NotIterable(_, s) => vec![*s],
+            Self::UndefinedVar(_, s) => vec![*s],
+            Self::UninitializedVar(_, a, b) => vec![*a, *b],
+            Self::RedefinedBuiltinConst(_, s) => vec![*s],
+            Self::UndefinedFun(_, s) => vec![*s],
+            Self::RedefinedFun(_, a, b) => vec![*a, *b],
+            Self::RedefinedBuiltinFun(_, s) => vec![*s],
             Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
             Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
             Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignInfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignNotApplicable((_, a), (_, b)) => vec![*a, *b],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
+            Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::ConstAssign((_, a), b) => vec![*a, *b],
 
             // Eval
+            Self::Parsing(s) => vec![*s],
             Self::NegOverflow(a) => vec![*a],
             Self::AddOverflow(a, b) => vec![*a, *b],
             Self::SubOverflow(a, b) => vec![*a, *b],
@@ -368,20 +377,11 @@ impl UserFacing for Error {
             Self::RemainderByZero(a, b) => vec![*a, *b],
             Self::PowOverflow(a, b) => vec![*a, *b],
             Self::NegativeIntPow(a, b) => vec![*a, *b],
-
-            Self::Parsing(s) => vec![*s],
-            Self::UndefinedVar(_, s) => vec![*s],
-            Self::UninitializedVar(_, a, b) => vec![*a, *b],
-            Self::NotIterable(_, s) => vec![*s],
-            Self::RedefinedBuiltinConst(_, s) => vec![*s],
-            Self::ImmutableAssign(_, a, b) => vec![*a, *b],
-            Self::UndefinedFun(_, s) => vec![*s],
-            Self::RedefinedFun(_, a, b) => vec![*a, *b],
-            Self::RedefinedBuiltinFun(_, s) => vec![*s],
-            Self::NegativeNcr(a) => vec![a.span],
-            Self::InvalidNcr(a, b) => vec![a.span, b.span],
             Self::FactorialOverflow(v) => vec![v.span],
             Self::NegativeFactorial(v) => vec![v.span],
+
+            Self::NegativeNcr(a) => vec![a.span],
+            Self::InvalidNcr(a, b) => vec![a.span, b.span],
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
             Self::AssertFailed(s) => vec![*s],
             Self::AssertEqFailed(a, b) => vec![a.span, b.span],
