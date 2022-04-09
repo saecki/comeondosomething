@@ -2,14 +2,18 @@ use std::rc::Rc;
 
 use crate::cst::{self, Cst};
 use crate::{
-    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, ValSpan,
+    BuiltinFun, Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span,
+    ValSpan,
 };
 
 pub use ast::{Ast, AstT, BoolExpr, FloatExpr, IntExpr, RangeExpr, StrExpr};
 use scope::*;
 pub use types::*;
 
+use self::ast::BuiltinFunCall;
+
 pub mod ast;
+mod builtin;
 mod scope;
 #[cfg(test)]
 mod test;
@@ -79,7 +83,7 @@ impl Context {
         let if_block_span = i.if_block.block.span();
         {
             let cond = self.check_type(scopes, *i.if_block.cond)?;
-            if cond.data_type != DataType::Bool {
+            if cond.data_type.is_not(DataType::Bool) {
                 return Err(crate::Error::MismatchedType {
                     expected: DataType::Bool,
                     found: cond.data_type,
@@ -103,7 +107,7 @@ impl Context {
 
         for e in i.else_if_blocks {
             let cond = self.check_type(scopes, e.cond)?;
-            if cond.data_type != DataType::Bool {
+            if cond.data_type.is_not(DataType::Bool) {
                 return Err(crate::Error::MismatchedType {
                     expected: DataType::Bool,
                     found: cond.data_type,
@@ -118,7 +122,7 @@ impl Context {
 
             if i.is_expr {
                 let d = block.last().map_or(DataType::Unit, |a| a.data_type);
-                if data_type != d {
+                if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
                     let else_expr_span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::IfBranchIncompatibleType(
@@ -139,7 +143,7 @@ impl Context {
 
             if i.is_expr {
                 let d = block.last().map_or(DataType::Unit, |a| a.data_type);
-                if data_type != d {
+                if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
                     let else_expr_span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::IfBranchIncompatibleType(
@@ -150,7 +154,7 @@ impl Context {
             }
 
             Some(block)
-        } else if i.is_expr && data_type != DataType::Unit {
+        } else if i.is_expr && data_type.is_not(DataType::Unit) {
             return Err(crate::Error::MissingElseBranch(data_type, span));
         } else {
             None
@@ -177,7 +181,7 @@ impl Context {
         let span = f.span();
 
         let iter = self.check_type(scopes, *f.iter)?;
-        if iter.data_type != DataType::Range {
+        if iter.data_type.is_not(DataType::Range) {
             return Err(crate::Error::NotIterable(iter.data_type, iter.span));
         }
         let iter_type = DataType::Int;
@@ -199,7 +203,8 @@ impl Context {
         let mut params = Vec::with_capacity(f.params.items.len());
         for p in f.params.items {
             let typ = self.resolve_data_type(&p.typ)?;
-            params.push(FunParam::new(p.ident, typ));
+            let span = Span::across(p.ident.span, p.typ.span);
+            params.push(FunParam::new(p.ident, typ, span));
         }
 
         scopes.push();
@@ -208,7 +213,7 @@ impl Context {
             let param = Rc::new(ast::Var::new(None));
             self.def_var(
                 scopes,
-                Var::new(p.ident, p.typ, true, false, Rc::clone(&param)),
+                Var::new(p.ident, p.data_type, true, false, Rc::clone(&param)),
             );
             inner_params.push(param);
         }
@@ -220,7 +225,7 @@ impl Context {
         let return_type = if let Some(r) = f.return_type {
             let return_type = self.resolve_data_type(&r.typ)?;
 
-            if return_type != block_type {
+            if block_type.is_not(return_type) {
                 let span = block.last().map_or(block_span, |a| a.span);
                 return Err(crate::Error::MismatchedType {
                     expected: return_type,
@@ -244,11 +249,14 @@ impl Context {
     fn check_fun_call(&mut self, scopes: &mut Scopes, f: cst::FunCall) -> crate::Result<Ast> {
         let span = f.span();
 
-        let fun = self.resolve_fun(scopes, &f.ident)?;
+        let fun = match self.resolve_fun(scopes, &f.ident)? {
+            ResolvedFun::Fun(f) => f,
+            ResolvedFun::Builtin(b) => return self.check_builtin_fun_call(scopes, b, f.args, span),
+        };
 
         {
-            let expected = fun.params.len();
             let found = f.args.items.len();
+            let expected = fun.params.len();
             if found < expected {
                 return Err(crate::Error::MissingFunArgs {
                     expected,
@@ -271,17 +279,16 @@ impl Context {
                 });
             }
         }
-
         let mut args = Vec::with_capacity(f.args.items.len());
         for (p, a) in fun.params.iter().zip(f.args.items.into_iter()) {
             let val = self.check_type(scopes, a)?;
-            let expected = p.typ;
+            let expected = p.data_type;
             let found = val.data_type;
-            if expected != found {
+            if found.is_not(expected) {
                 return Err(crate::Error::MismatchedType {
                     expected,
                     found,
-                    spans: vec![val.span],
+                    spans: vec![p.span, val.span],
                 });
             }
             args.push(val);
@@ -299,29 +306,80 @@ impl Context {
         ))
     }
 
+    fn check_builtin_fun_call(
+        &mut self,
+        scopes: &mut Scopes,
+        b: BuiltinFun,
+        f_args: cst::FunArgs,
+        span: Span,
+    ) -> crate::Result<Ast> {
+        let mut args = Vec::with_capacity(f_args.items.len());
+        for a in f_args.items {
+            args.push(self.check_type(scopes, a)?);
+        }
+
+        let mut fun = None;
+        'outer: for (c, s) in b.signatures() {
+            if s.params.len() != args.len() {
+                continue;
+            }
+            for (&p, a) in s.params.iter().zip(args.iter()) {
+                if a.data_type.is_not(p) {
+                    continue 'outer;
+                }
+            }
+
+            fun = Some((c, s));
+            break;
+        }
+        let (fun, signature) = match fun {
+            Some(s) => s,
+            None => return Err(crate::Error::NoMatchingSignature(b, span)),
+        };
+
+        match fun {
+            BuiltinFunCall::Spill => {
+                let vars = self.collect_spill_vars(scopes.iter().map(Scope::vars).flatten());
+                return Ok(Ast::new(AstT::Spill(vars), signature.return_type, span));
+            }
+            BuiltinFunCall::SpillLocal => {
+                let vars = self.collect_spill_vars(scopes.current().vars());
+                return Ok(Ast::new(AstT::Spill(vars), signature.return_type, span));
+            }
+            _ => (),
+        }
+
+        let return_type = signature.return_type;
+        Ok(Ast::new(
+            AstT::BuiltinFunCall(*fun, args),
+            return_type,
+            span,
+        ))
+    }
+
     fn check_var_def(&mut self, scopes: &mut Scopes, v: cst::VarDef) -> crate::Result<Ast> {
         let span = v.span();
         let val = self.check_type(scopes, *v.value.1)?;
 
-        let typ = match v.type_hint {
+        let data_type = match v.type_hint {
             Some((_, t)) => {
-                let typ = self.resolve_data_type(&t)?;
-                if val.data_type != typ {
+                let data_type = self.resolve_data_type(&t)?;
+                if val.data_type.is_not(data_type) {
                     return Err(crate::Error::MismatchedType {
-                        expected: typ,
+                        expected: data_type,
                         found: val.data_type,
                         spans: vec![t.span, val.span],
                     });
                 }
 
-                typ
+                data_type
             }
             None => val.data_type,
         };
 
         let mutable = v.kw.typ == KwT::Var;
         let inner = Rc::new(ast::Var::new(None));
-        let var = Var::new(v.ident, typ, true, mutable, Rc::clone(&inner));
+        let var = Var::new(v.ident, data_type, true, mutable, Rc::clone(&inner));
         self.def_var(scopes, var);
 
         Ok(Ast::new(
@@ -378,7 +436,7 @@ impl Context {
         span: Span,
     ) -> crate::Result<Ast> {
         fn infix_assign_error(a: (DataType, Span), i: Infix, b: Ast) -> crate::Result<Ast> {
-            Err(crate::Error::InfixNotApplicable(
+            Err(crate::Error::AssignInfixNotApplicable(
                 a,
                 i,
                 (b.data_type, b.span),
@@ -408,7 +466,7 @@ impl Context {
                     }
                 };
 
-                if var.data_type != expr.data_type {
+                if expr.data_type.is_not(var.data_type) {
                     return Err(crate::Error::AssignNotApplicable(
                         (var.data_type, ident.span),
                         (expr.data_type, expr.span),
@@ -644,19 +702,17 @@ impl Context {
             InfixT::Eq => {
                 let a = self.check_type(scopes, a)?;
                 let b = self.check_type(scopes, b)?;
-                if a.data_type != b.data_type {
+                if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
-
                 Ast::bool(BoolExpr::Eq(Box::new(a), Box::new(b)), span)
             }
             InfixT::Ne => {
                 let a = self.check_type(scopes, a)?;
                 let b = self.check_type(scopes, b)?;
-                if a.data_type != b.data_type {
+                if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
-
                 Ast::bool(BoolExpr::Ne(Box::new(a), Box::new(b)), span)
             }
             InfixT::Lt => {
@@ -774,5 +830,18 @@ impl Context {
             Some(d) => Ok(d),
             None => Err(crate::Error::UnknownType(name.into(), typ.span)),
         }
+    }
+
+    fn collect_spill_vars<'a>(
+        &self,
+        var_iter: impl Iterator<Item = &'a Var>,
+    ) -> Vec<(String, Rc<ast::Var>)> {
+        var_iter
+            .filter(|v| v.assigned)
+            .map(|v| {
+                let name = self.idents.name(v.ident.ident).to_owned();
+                (name, Rc::clone(&v.inner))
+            })
+            .collect()
     }
 }

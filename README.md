@@ -23,8 +23,10 @@ OPTIONS:
 ## TODO
 - Early returns
 - Variable definition without assignment (`val x` or `val y: str`)
-- Casting from float to int
+- Casting from float to int `x as int`
+- Checking of types with `x is str`
 - Add char datatype
+- Generics for functions ```fun a<T>(i: T) -> T { i }```
 - Comments
 - Warnings
     - Unnecessary semicolons (if a newline is following)

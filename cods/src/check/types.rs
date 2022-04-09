@@ -7,7 +7,8 @@ pub const TYPE_FLOAT: &str = "float";
 pub const TYPE_BOOL: &str = "bool";
 pub const TYPE_STR: &str = "str";
 pub const TYPE_RANGE: &str = "range";
-pub const TYPE_UNIT: &str = "()";
+pub const TYPE_UNIT: &str = "unit";
+pub const TYPE_ANY: &str = "any";
 
 impl Val {
     pub const fn data_type(&self) -> DataType {
@@ -30,6 +31,7 @@ pub enum DataType {
     Str,
     Range,
     Unit,
+    Any,
 }
 
 impl Display for DataType {
@@ -40,7 +42,8 @@ impl Display for DataType {
             Self::Bool => f.write_str(TYPE_BOOL),
             Self::Str => f.write_str(TYPE_STR),
             Self::Range => f.write_str(TYPE_RANGE),
-            Self::Unit => f.write_str("()"), // TODO
+            Self::Unit => f.write_str(TYPE_UNIT),
+            Self::Any => f.write_str(TYPE_ANY),
         }
     }
 }
@@ -53,9 +56,34 @@ impl DataType {
             TYPE_BOOL => Self::Bool,
             TYPE_STR => Self::Str,
             TYPE_RANGE => Self::Range,
+            TYPE_UNIT => Self::Str,
+            TYPE_ANY => Self::Any,
             _ => return None,
         };
 
         Some(t)
+    }
+
+    pub fn is(self, requirement: Self) -> bool {
+        match (self, requirement) {
+            (_, DataType::Any) => true,
+            (a, b) => a == b,
+        }
+    }
+
+    pub fn is_not(self, requirement: Self) -> bool {
+        !self.is(requirement)
+    }
+
+    pub fn is_comparable_to(self, other: Self) -> bool {
+        match (self, other) {
+            (DataType::Any, _) => true,
+            (_, DataType::Any) => true,
+            (a, b) => a == b,
+        }
+    }
+
+    pub fn is_not_comparable_to(self, other: Self) -> bool {
+        !self.is_comparable_to(other)
     }
 }

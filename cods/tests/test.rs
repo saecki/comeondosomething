@@ -35,8 +35,8 @@ fn float() {
 #[test]
 fn int() {
     assert(
-        "6 + 3452 − (3252 × 5324) + (((2342 × 3242) ÷ 4234) × 4234) − 324",
-        Val::Int(-9717750),
+        "6 + 3452 - (3252 * 5324) + (((2342 * 3242) / 4234) * 4234) - 324",
+        Val::Int(-9718952),
     );
 }
 
@@ -62,14 +62,14 @@ fn div_assign() {
 
 #[test]
 fn to_deg() {
-    assert("to_deg(PI)", Val::Int(180));
-    assert("to_deg(PI / 2)", Val::Int(90));
+    assert("to_deg(PI)", Val::Float(180.0));
+    assert("to_deg(PI / 2.0)", Val::Float(90.0));
 }
 
 #[test]
 fn to_rad() {
-    assert("to_rad(180)", Val::Float(consts::PI));
-    assert("to_rad(45)", Val::Float(consts::FRAC_PI_4));
+    assert("to_rad(180.0)", Val::Float(consts::PI));
+    assert("to_rad(45.0)", Val::Float(consts::FRAC_PI_4));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn string_multi_line() {
 #[test]
 fn unicode_operators() {
     assert(
-        "(23423 × 423 + (423 − 234) ÷ 654 + 4324) × 4234",
+        "(23423.0 × 423.0 + (423.0 − 234.0) ÷ 654.0 + 4324.0) × 4234.0",
         Val::Float(41968480425.587155963),
     );
 }
@@ -110,14 +110,14 @@ fn sign() {
 
 #[test]
 fn pow() {
-    assert("2^-1", Val::Float(0.5));
+    assert("2.0^-1.0", Val::Float(0.5));
     assert("3^3", Val::Int(27));
-    assert("9^0.5", Val::Int(3));
+    assert("9.0^0.5", Val::Float(3.0));
 }
 
 #[test]
-fn euclid_div() {
-    assert("8 div 3", Val::Int(2));
+fn int_div() {
+    assert("8 / 3", Val::Int(2));
 }
 
 #[test]
@@ -127,8 +127,9 @@ fn remainder() {
 
 #[test]
 fn negative_remainder() {
-    assert("-8 % 3", Val::Int(1));
-    assert("8 % -5", Val::Int(-2));
+    // TODO: make `mod` use remainder
+    assert("-8 mod 3", Val::Int(1));
+    assert("8 mod -5", Val::Int(-2));
 }
 
 #[test]
@@ -155,13 +156,13 @@ fn factorial_overflow() {
 fn factorial_negative() {
     assert_err(
         "(-3)!",
-        Error::NegativeFactorial(ValSpan::new(Val::Int(-3), Span::of(0, 4))),
+        Error::NegativeFactorial(ValSpan::new(Val::Int(-3), Span::of(1, 3))),
     );
 }
 
 #[test]
 fn squareroot() {
-    assert("sqrt(625)", Val::Int(25));
+    assert("sqrt(625.0)", Val::Float(25.0));
 }
 
 #[test]
@@ -191,27 +192,25 @@ fn binomial_coefficient_negative() {
 
 #[test]
 fn ln() {
-    assert("ln(E^27)", Val::Int(27));
+    assert("ln(E^27.0)", Val::Float(27.0));
 }
 
 #[test]
-fn log2() {
-    assert("log(2, 8)", Val::Int(3));
-}
-
-#[test]
-fn log10() {
-    assert("log(10, 100000)", Val::Int(5));
+fn log() {
+    assert("log(2.0, 8.0)", Val::Float(3.0));
+    assert("log(10.0, 100000.0)", Val::Float(5.0));
 }
 
 #[test]
 fn min() {
-    assert("min(3, 7, 5)", Val::Int(3));
+    assert("min(7, 3, 5)", Val::Int(3));
+    assert("min(7.0, 3.0, 5.0)", Val::Float(3.0));
 }
 
 #[test]
 fn max() {
     assert("max(3, 7, 5)", Val::Int(7));
+    assert("max(3.0, 7.0, 5.0)", Val::Float(7.0));
 }
 
 #[test]
@@ -219,6 +218,10 @@ fn clamp() {
     assert("clamp(9, -2, 23)", Val::Int(9));
     assert("clamp(-12, -5, 5)", Val::Int(-5));
     assert("clamp(31, 0, 7)", Val::Int(7));
+
+    assert("clamp(9.0, -2.0, 23.0)", Val::Float(9.0));
+    assert("clamp(-12.0, -5.0, 5.0)", Val::Float(-5.0));
+    assert("clamp(31.0, 0.0, 7.0)", Val::Float(7.0));
 }
 
 #[test]
@@ -235,10 +238,10 @@ fn clamp_bounds() {
 #[test]
 fn clamp_bounds_float() {
     assert_err(
-        "clamp(0, 5.3, 4.5)",
+        "clamp(0.0, 5.3, 4.5)",
         Error::InvalidClampBounds(
-            ValSpan::new(Val::Float(5.3), Span::of(9, 12)),
-            ValSpan::new(Val::Float(4.5), Span::of(14, 17)),
+            ValSpan::new(Val::Float(5.3), Span::of(11, 14)),
+            ValSpan::new(Val::Float(4.5), Span::of(16, 19)),
         ),
     );
 }
@@ -247,8 +250,7 @@ fn clamp_bounds_float() {
 fn eq() {
     assert("false == false", Val::Bool(true));
     assert("false == true", Val::Bool(false));
-    assert("2.0 == 2", Val::Bool(true));
-    assert("4 == 4.2", Val::Bool(false));
+    assert("4.0 == 4.2", Val::Bool(false));
     assert("7.8 == 7.8", Val::Bool(true));
     assert("5.1 == 5.12", Val::Bool(false));
 }
@@ -257,8 +259,7 @@ fn eq() {
 fn ne() {
     assert("false != false", Val::Bool(false));
     assert("false != true", Val::Bool(true));
-    assert("2.0 != 2", Val::Bool(false));
-    assert("4 != 4.2", Val::Bool(true));
+    assert("4.0 != 4.2", Val::Bool(true));
     assert("7.8 != 7.8", Val::Bool(false));
     assert("5.1 != 5.12", Val::Bool(true));
 }
@@ -419,7 +420,7 @@ fn while_loop() {
         var i = 20
         var c = 0;
         while i > 0 {
-            i = i div 2
+            i = i / 2
             c += 1
         }
         c

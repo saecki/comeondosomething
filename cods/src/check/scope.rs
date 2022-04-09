@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan};
+use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan, Span};
+
+pub enum ResolvedFun {
+    Fun(Rc<Fun>),
+    Builtin(BuiltinFun),
+}
 
 pub enum ResolvedVar<'a> {
     Var(&'a Var),
@@ -9,14 +14,14 @@ pub enum ResolvedVar<'a> {
 }
 
 impl Context {
-    pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<Rc<Fun>> {
+    pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<ResolvedFun> {
         let name = self.idents.name(id.ident);
-        if let Some(_b) = BuiltinFun::from(name) {
-            todo!()
+        if let Some(b) = BuiltinFun::from(name) {
+            return Ok(ResolvedFun::Builtin(b));
         }
 
         match scopes.fun(id.ident) {
-            Some(f) => Ok(f),
+            Some(f) => Ok(ResolvedFun::Fun(f)),
             None => {
                 let name = self.idents.name(id.ident);
                 Err(crate::Error::UndefinedFun(name.to_owned(), id.span))
@@ -225,6 +230,10 @@ impl Scope {
     pub fn def_var(&mut self, var: Var) {
         self.vars.insert(var.ident.ident, var);
     }
+
+    pub fn vars(&self) -> impl Iterator<Item = &Var> {
+        self.vars.values()
+    }
 }
 
 // TODO: define fun before parsing body to support recursive calls
@@ -255,12 +264,17 @@ impl Fun {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunParam {
     pub ident: IdentSpan,
-    pub typ: DataType,
+    pub data_type: DataType,
+    pub span: Span,
 }
 
 impl FunParam {
-    pub const fn new(ident: IdentSpan, typ: DataType) -> Self {
-        Self { ident, typ }
+    pub const fn new(ident: IdentSpan, data_type: DataType, span: Span) -> Self {
+        Self {
+            ident,
+            data_type,
+            span,
+        }
     }
 }
 

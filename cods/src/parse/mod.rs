@@ -1,5 +1,3 @@
-use std::cmp;
-
 use crate::{Context, Group, IdentSpan, Item, Kw, KwT, OpT, ParKind, PctT, Span};
 
 pub use builtin::*;
@@ -241,71 +239,32 @@ impl Context {
     }
 
     fn parse_fun_call(&mut self, id: IdentSpan, g: Group) -> crate::Result<Cst> {
-        let args = self.parse_fun_args(0, usize::MAX, g)?;
+        let args = self.parse_fun_args(g)?;
         let f = cst::FunCall::new(id, args);
         Ok(Cst::FunCall(f))
     }
 
-    fn parse_fun_args(
-        &mut self,
-        min: usize,
-        max: usize,
-        group: Group,
-    ) -> crate::Result<cst::FunArgs> {
-        let span = group.inner_span();
-        let items = group.items;
-        let arg_count = items.iter().filter(|i| i.is_comma()).count() + 1;
-        let mut args = Vec::with_capacity(cmp::min(arg_count, max));
-        let mut unexpected_args = Vec::new();
-        let mut parsed_args = 0;
-        let mut start = (0, span.start);
+    fn parse_fun_args(&mut self, group: Group) -> crate::Result<cst::FunArgs> {
+        let arg_count = group.items.iter().filter(|i| i.is_comma()).count() + 1;
+        let mut args = Vec::with_capacity(arg_count);
+        let mut start = group.inner_span().start;
         let mut arg_items = Vec::new();
 
         // TODO: use parser on group items
-        for (i, it) in items.into_iter().enumerate() {
-            if it.is_comma() {
-                let s = Span::of(start.1, it.span().start);
-                if parsed_args < max {
-                    let mut parser = Parser::new(arg_items.clone(), s.start);
-                    arg_items.clear();
-                    args.push(self.parse_one_bp(&mut parser, 0)?);
-                } else {
-                    unexpected_args.push(s);
-                }
-                start = (i + 1, it.span().end);
-                parsed_args += 1;
+        for i in group.items.into_iter() {
+            if i.is_comma() {
+                let mut parser = Parser::new(arg_items.clone(), start);
+                arg_items.clear();
+                args.push(self.parse_one_bp(&mut parser, 0)?);
+                start = i.span().end;
             } else {
-                arg_items.push(it);
+                arg_items.push(i);
             }
         }
 
         if !arg_items.is_empty() {
-            let s = Span::of(start.1, span.end);
-            if parsed_args < max {
-                let mut parser = Parser::new(arg_items, s.start);
-                args.push(self.parse_one_bp(&mut parser, 0)?);
-            } else {
-                unexpected_args.push(s);
-            }
-            parsed_args += 1;
-        }
-
-        if !unexpected_args.is_empty() {
-            self.errors.push(crate::Error::UnexpectedFunArgs {
-                expected: max,
-                found: parsed_args,
-                spans: unexpected_args,
-            });
-        } else if parsed_args < min {
-            let span = match args.last() {
-                Some(a) => Span::of(a.span().end, span.end),
-                None => span.after(),
-            };
-            self.errors.push(crate::Error::MissingFunArgs {
-                expected: min,
-                found: parsed_args,
-                span,
-            });
+            let mut parser = Parser::new(arg_items, start);
+            args.push(self.parse_one_bp(&mut parser, 0)?);
         }
 
         Ok(cst::FunArgs::new(group.l_par, group.r_par, args))

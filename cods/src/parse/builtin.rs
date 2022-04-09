@@ -1,8 +1,6 @@
-use std::f64::consts;
-use std::fmt::Display;
+use std::fmt::{self, Display};
 
-use crate::{DataType, Val};
-
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BuiltinFun {
     Pow,
     Ln,
@@ -24,8 +22,39 @@ pub enum BuiltinFun {
     Print,
     Println,
     Spill,
+    SpillLocal,
     Assert,
     AssertEq,
+}
+
+impl Display for BuiltinFun {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BuiltinFun::Pow => write!(f, "pow"),
+            BuiltinFun::Ln => write!(f, "ln"),
+            BuiltinFun::Log => write!(f, "log"),
+            BuiltinFun::Sqrt => write!(f, "sqrt"),
+            BuiltinFun::Ncr => write!(f, "ncr"),
+            BuiltinFun::ToDeg => write!(f, "to_deg"),
+            BuiltinFun::ToRad => write!(f, "to_rad"),
+            BuiltinFun::Sin => write!(f, "sin"),
+            BuiltinFun::Cos => write!(f, "cos"),
+            BuiltinFun::Tan => write!(f, "tan"),
+            BuiltinFun::Asin => write!(f, "asin"),
+            BuiltinFun::Acos => write!(f, "acos"),
+            BuiltinFun::Atan => write!(f, "atan"),
+            BuiltinFun::Gcd => write!(f, "gcd"),
+            BuiltinFun::Min => write!(f, "min"),
+            BuiltinFun::Max => write!(f, "max"),
+            BuiltinFun::Clamp => write!(f, "clamp"),
+            BuiltinFun::Print => write!(f, "print"),
+            BuiltinFun::Println => write!(f, "println"),
+            BuiltinFun::Spill => write!(f, "spill"),
+            BuiltinFun::SpillLocal => write!(f, "spill_local"),
+            BuiltinFun::Assert => write!(f, "assert"),
+            BuiltinFun::AssertEq => write!(f, "assert_eq"),
+        }
+    }
 }
 
 impl BuiltinFun {
@@ -51,6 +80,7 @@ impl BuiltinFun {
             "print" => Self::Print,
             "println" => Self::Println,
             "spill" => Self::Spill,
+            "spill_local" => Self::SpillLocal,
             "assert" => Self::Assert,
             "assert_eq" => Self::AssertEq,
             _ => return None,
@@ -58,10 +88,6 @@ impl BuiltinFun {
         Some(b)
     }
 }
-
-pub const PI: Val = Val::Float(consts::PI);
-pub const TAU: Val = Val::Float(consts::TAU);
-pub const E: Val = Val::Float(consts::E);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BuiltinConst {
@@ -71,7 +97,7 @@ pub enum BuiltinConst {
 }
 
 impl Display for BuiltinConst {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Pi => write!(f, "PI"),
             Self::Tau => write!(f, "TAU"),
@@ -89,21 +115,5 @@ impl BuiltinConst {
             _ => return None,
         };
         Some(b)
-    }
-
-    pub const fn val(&self) -> Val {
-        match self {
-            Self::Pi => PI,
-            Self::Tau => TAU,
-            Self::E => E,
-        }
-    }
-
-    pub const fn data_type(&self) -> DataType {
-        match self {
-            Self::Pi => PI.data_type(),
-            Self::Tau => TAU.data_type(),
-            Self::E => E.data_type(),
-        }
     }
 }

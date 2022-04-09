@@ -33,12 +33,13 @@ impl Ast {
 
     pub fn var(var: Rc<Var>, data_type: DataType, span: Span) -> Self {
         match data_type {
-            DataType::Int => Self::new(AstT::Var(var), DataType::Int, span),
-            DataType::Float => Self::new(AstT::Var(var), DataType::Float, span),
-            DataType::Bool => Self::new(AstT::Var(var), DataType::Bool, span),
-            DataType::Str => Self::new(AstT::Var(var), DataType::Str, span),
-            DataType::Range => Self::new(AstT::Var(var), DataType::Range, span),
-            DataType::Unit => Self::new(AstT::Unit, DataType::Unit, span),
+            DataType::Int => Self::new(AstT::Var(var), data_type, span),
+            DataType::Float => Self::new(AstT::Var(var), data_type, span),
+            DataType::Bool => Self::new(AstT::Var(var), data_type, span),
+            DataType::Str => Self::new(AstT::Var(var), data_type, span),
+            DataType::Range => Self::new(AstT::Var(var), data_type, span),
+            DataType::Unit => Self::new(AstT::Unit, data_type, span),
+            DataType::Any => Self::new(AstT::Var(var), data_type, span),
         }
     }
 
@@ -80,6 +81,8 @@ pub enum AstT {
     Assign(Rc<Var>, Box<Ast>),
     VarDef(Rc<Var>, Box<Ast>),
     FunCall(Rc<Fun>, Vec<Ast>),
+    BuiltinFunCall(BuiltinFunCall, Vec<Ast>),
+    Spill(Vec<(String, Rc<Var>)>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -236,4 +239,35 @@ impl Fun {
     pub fn block(&self) -> &[Ast] {
         &self.block
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuiltinFunCall {
+    PowInt,
+    PowFloat,
+    Ln,
+    Log,
+    Sqrt,
+    Ncr,
+    ToDeg,
+    ToRad,
+    Sin,
+    Cos,
+    Tan,
+    Asin,
+    Acos,
+    Atan,
+    Gcd,
+    MinInt,
+    MinFloat,
+    MaxInt,
+    MaxFloat,
+    ClampInt,
+    ClampFloat,
+    Print,
+    Println,
+    Spill,
+    SpillLocal,
+    Assert,
+    AssertEq,
 }

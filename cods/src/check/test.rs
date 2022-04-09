@@ -74,3 +74,11 @@ fn cannot_redefine_function() {
         crate::Error::RedefinedFun("a".into(), Span::pos(4), Span::pos(23)),
     );
 }
+
+#[test]
+fn coerce_types() {
+    let input = "val a: any = 12; a";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(12),);
+}

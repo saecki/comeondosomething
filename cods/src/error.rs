@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{BuiltinConst, DataType};
+use crate::{BuiltinConst, BuiltinFun, DataType};
 use crate::{Infix, Postfix, Prefix, ValSpan};
 use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
 
@@ -80,6 +80,7 @@ pub enum Error {
     UndefinedFun(String, Span),
     RedefinedFun(String, Span, Span),
     RedefinedBuiltinFun(String, Span),
+    NoMatchingSignature(BuiltinFun, Span),
     PrefixNotApplicable(Prefix, (DataType, Span)),
     PostfixNotApplicable((DataType, Span), Postfix),
     InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
@@ -220,6 +221,29 @@ impl UserFacing for Error {
             Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
+            Self::NoMatchingSignature(b, _) => {
+                writeln!(
+                    f,
+                    "No matching signature for builtin function '{b}'{line_suffix}"
+                )?;
+                for (_, s) in b.signatures() {
+                    write!(f, "{line_prefix}    {b}(")?;
+                    if let Some((last, others)) = s.params.split_last() {
+                        for p in others {
+                            write!(f, "{p}, ")?;
+                        }
+                        write!(f, "{last}")?;
+                    }
+                    write!(f, ")")?;
+
+                    if s.return_type != DataType::Unit {
+                        write!(f, " -> {}", s.return_type)?;
+                    }
+                    writeln!(f, "{line_suffix}")?;
+                }
+
+                Ok(())
+            }
             Self::PrefixNotApplicable(p, (t, _)) => write!(
                 f,
                 "Prefix operator '{p}' not applicable to value of type '{t}'",
@@ -358,6 +382,7 @@ impl UserFacing for Error {
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, s) => vec![*s],
+            Self::NoMatchingSignature(_, s) => vec![*s],
             Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
             Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
             Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
