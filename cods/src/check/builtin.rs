@@ -28,25 +28,72 @@ impl BuiltinConst {
 
 pub struct Signature {
     pub params: &'static [DataType],
+    /// Repetition for the last parameter
+    pub repetition: Repetition,
     pub return_type: DataType,
 }
 
 impl Signature {
-    pub const fn new(params: &'static [DataType], return_type: DataType) -> Self {
+    pub const fn new(
+        params: &'static [DataType],
+        repetition: Repetition,
+        return_type: DataType,
+    ) -> Self {
         Self {
             params,
+            repetition,
             return_type,
         }
     }
 }
 
+pub enum Repetition {
+    /// a: int
+    One,
+    /// a: ..int
+    ZeroOrMore,
+    /// a: ...int
+    OneOrMore,
+}
+
 macro_rules! signatures {
-    ($($builtin:ident($($params:ident),*) -> $return_type:ident)*) => {{
+    ($($builtin:ident($($params:tt)*) -> $return_type:ident)*) => {{
         [
-            $(
-                ($builtin, Signature::new(&[$($params),*], $return_type))
-            ),*
+            $(signature!($builtin($($params)*) -> $return_type)),*
         ]
+    }};
+}
+
+macro_rules! signature {
+    ($builtin:ident($($params:ident),*) -> $return_type:ident) => {{
+        (
+            $builtin,
+            Signature::new(
+                &[$($params),*],
+                Repetition::One,
+                $return_type,
+            )
+        )
+    }};
+    ($builtin:ident($($params:ident,)* ..$last:ident) -> $return_type:ident) => {{
+        (
+            $builtin,
+            Signature::new(
+                &[$($params),* $last],
+                Repetition::ZeroOrMore,
+                $return_type,
+            )
+        )
+    }};
+    ($builtin:ident($($params:ident,)* ...$last:ident) -> $return_type:ident) => {{
+        (
+            $builtin,
+            Signature::new(
+                &[$($params),* $last],
+                Repetition::OneOrMore,
+                $return_type,
+            )
+        )
     }};
 }
 
@@ -94,22 +141,22 @@ const GCD_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
     Gcd(Int, Int) -> Int
 };
 const MIN_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
-    MinInt(Int, Int) -> Int
-    MinFloat(Float, Float) -> Int
+    MinInt(...Int) -> Int
+    MinFloat(...Float) -> Int
 };
 const MAX_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
-    MaxInt(Int, Int) -> Int
-    MaxFloat(Float, Float) -> Int
+    MaxInt(...Int) -> Int
+    MaxFloat(...Float) -> Int
 };
 const CLAMP_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
     ClampInt(Int, Int, Int) -> Int
     ClampFloat(Float, Float, Float) -> Int
 };
 const PRINT_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
-    Print(Any) -> Unit
+    Print(..Any) -> Unit
 };
 const PRINTLN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
-    Println(Any) -> Unit
+    Println(..Any) -> Unit
 };
 const SPILL_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
     Spill() -> Unit
@@ -146,11 +193,11 @@ impl BuiltinFun {
             BuiltinFun::Acos => &ACOS_SIGNATURES,
             BuiltinFun::Atan => &ATAN_SIGNATURES,
             BuiltinFun::Gcd => &GCD_SIGNATURES,
-            BuiltinFun::Min => &MIN_SIGNATURES, // TODO: variadic arguments
-            BuiltinFun::Max => &MAX_SIGNATURES, // TODO: variadic arguments
+            BuiltinFun::Min => &MIN_SIGNATURES,
+            BuiltinFun::Max => &MAX_SIGNATURES,
             BuiltinFun::Clamp => &CLAMP_SIGNATURES,
-            BuiltinFun::Print => &PRINT_SIGNATURES, // TODO: variadic arguments
-            BuiltinFun::Println => &PRINTLN_SIGNATURES, // TODO: variadic arguments
+            BuiltinFun::Print => &PRINT_SIGNATURES,
+            BuiltinFun::Println => &PRINTLN_SIGNATURES,
             BuiltinFun::Spill => &SPILL_SIGNATURES,
             BuiltinFun::SpillLocal => &SPILL_LOCAL_SIGNATURES,
             BuiltinFun::Assert => &ASSERT_SIGNATURES,

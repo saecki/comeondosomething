@@ -109,7 +109,10 @@ fn cast_int_to_str_fails_while_type_checking() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::CastAlwaysFails((DataType::Int, Span::pos(17)), (DataType::Str, Span::of(22, 25)))
+        crate::Error::CastAlwaysFails(
+            (DataType::Int, Span::pos(17)),
+            (DataType::Str, Span::of(22, 25))
+        )
     );
 }
 

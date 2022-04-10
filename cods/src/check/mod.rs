@@ -6,11 +6,10 @@ use crate::{
     ValSpan,
 };
 
-pub use ast::{Ast, AstT, BoolExpr, FloatExpr, IntExpr, RangeExpr, StrExpr};
+pub use ast::{Ast, AstT, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
+use builtin::*;
 use scope::*;
 pub use types::*;
-
-use self::ast::BuiltinFunCall;
 
 pub mod ast;
 mod builtin;
@@ -319,18 +318,64 @@ impl Context {
         }
 
         let mut fun = None;
-        'outer: for (c, s) in b.signatures() {
-            if s.params.len() != args.len() {
-                continue;
+        'signatures: for (c, s) in b.signatures() {
+            let (last, others) = match s.params.split_last() {
+                Some(params) => params,
+                None => {
+                    if args.is_empty() {
+                        continue 'signatures;
+                    } else {
+                        fun = Some((c, s));
+                        break 'signatures;
+                    }
+                }
+            };
+
+            if args.len() < others.len() {
+                continue 'signatures;
             }
-            for (&p, a) in s.params.iter().zip(args.iter()) {
+            for (&p, a) in others.iter().zip(args.iter()) {
                 if a.data_type.is_not(p) {
-                    continue 'outer;
+                    continue 'signatures;
+                }
+            }
+
+            let mut args_iter = args[others.len()..].iter();
+            match s.repetition {
+                Repetition::One => {
+                    if let Some(a) = args_iter.next() {
+                        if a.data_type.is_not(*last) {
+                            continue 'signatures;
+                        }
+                    } else {
+                        continue 'signatures;
+                    }
+                }
+                Repetition::ZeroOrMore => {
+                    for a in args_iter {
+                        if a.data_type.is_not(*last) {
+                            continue 'signatures;
+                        }
+                    }
+                }
+                Repetition::OneOrMore => {
+                    if let Some(a) = args_iter.next() {
+                        if a.data_type.is_not(*last) {
+                            continue 'signatures;
+                        }
+                    } else {
+                        continue 'signatures;
+                    }
+                    for a in args_iter {
+                        if a.data_type.is_not(*last) {
+                            continue 'signatures;
+                        }
+                    }
                 }
             }
 
             fun = Some((c, s));
-            break;
+            break 'signatures;
         }
         let (fun, signature) = match fun {
             Some(s) => s,
