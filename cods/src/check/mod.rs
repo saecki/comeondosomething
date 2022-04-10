@@ -321,13 +321,12 @@ impl Context {
         'signatures: for (c, s) in b.signatures() {
             let (last, others) = match s.params.split_last() {
                 Some(params) => params,
+                None if args.is_empty() => {
+                    fun = Some((c, s));
+                    break 'signatures;
+                }
                 None => {
-                    if args.is_empty() {
-                        continue 'signatures;
-                    } else {
-                        fun = Some((c, s));
-                        break 'signatures;
-                    }
+                    continue 'signatures;
                 }
             };
 

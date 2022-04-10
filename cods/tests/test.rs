@@ -468,3 +468,8 @@ fn function() {
         Val::Int(1 * 2 * 3 * 4),
     )
 }
+
+#[test]
+fn spill() {
+    assert("spill()", Val::Unit)
+}
