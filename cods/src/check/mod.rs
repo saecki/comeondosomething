@@ -339,7 +339,7 @@ impl Context {
 
         match fun {
             BuiltinFunCall::Spill => {
-                let vars = self.collect_spill_vars(scopes.iter().map(Scope::vars).flatten());
+                let vars = self.collect_spill_vars(scopes.iter().flat_map(Scope::vars));
                 return Ok(Ast::new(AstT::Spill(vars), signature.return_type, span));
             }
             BuiltinFunCall::SpillLocal => {

@@ -22,7 +22,7 @@ pub fn eval_all(asts: &[Ast]) -> crate::Result<Val> {
 }
 
 pub fn eval_iter(asts: &[Ast]) -> Peekable<impl Iterator<Item = crate::Result<Val>> + '_> {
-    asts.iter().map(|a| eval_ast(a)).peekable()
+    asts.iter().map(eval_ast).peekable()
 }
 
 pub fn eval_ast(ast: &Ast) -> crate::Result<Val> {
