@@ -24,8 +24,6 @@ pub struct IfExpr {
     pub if_block: IfBlock,
     pub else_if_blocks: Vec<ElseIfBlock>,
     pub else_block: Option<ElseBlock>,
-    /// If true, all branches are required to have the same return type
-    pub is_expr: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -89,13 +87,11 @@ impl IfExpr {
         if_block: IfBlock,
         else_if_blocks: Vec<ElseIfBlock>,
         else_block: Option<ElseBlock>,
-        is_expr: bool,
     ) -> Self {
         Self {
             if_block,
             else_if_blocks,
             else_block,
-            is_expr,
         }
     }
 

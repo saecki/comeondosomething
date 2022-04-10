@@ -303,9 +303,7 @@ impl Context {
                     }
                 }
 
-                let is_expr = true; // TODO
-
-                let if_expr = cst::IfExpr::new(if_block, else_if_blocks, else_block, is_expr);
+                let if_expr = cst::IfExpr::new(if_block, else_if_blocks, else_block);
                 Ok(Cst::IfExpr(if_expr))
             }
             KwT::Else => Err(crate::Error::WrongContext(kw)),

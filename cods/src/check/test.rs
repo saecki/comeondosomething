@@ -126,3 +126,76 @@ fn cast_int_coerced_as_any_to_str_fails_at_runtime() {
         crate::Error::CastFailed((DataType::Int, Span::pos(17)), DataType::Str)
     );
 }
+
+#[test]
+fn if_expr_branch_types_are_equal() {
+    let input = "
+        if 3 >= 4 {
+            9
+        } else if false {
+            12
+        } else {
+            43
+        }
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(43));
+}
+
+#[test]
+fn if_expr_else_branch_not_needed_when_unit() {
+    let input = "
+        var a = 3
+        val b = if 3 >= 4 {
+            spill()
+        } else if false {
+            a = 7
+        }
+        b
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+}
+
+#[test]
+fn if_expr_branch_types_are_enforced() {
+    let input = r#"
+        if 3 >= 4 {
+            println("hi")
+            9
+        } else if false {
+            12.0
+        } else {
+            false
+        }
+    "#;
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::IfBranchIncompatibleType(
+            (DataType::Int, Span::pos(59)),
+            (DataType::Float, Span::of(99, 103))
+        ),
+    );
+}
+
+#[test]
+fn if_statement_branch_types_can_differ() {
+    let input = r#"
+        if 3 >= 4 {
+            println("hi")
+            9
+        } else if false {
+            12.0
+        } else {
+            false
+        }
+        3 * 7
+    "#;
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(21));
+}

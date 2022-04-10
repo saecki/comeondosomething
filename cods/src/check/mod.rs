@@ -21,20 +21,30 @@ mod types;
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {
         let mut scopes = Scopes::default();
-        self.check_types(&mut scopes, csts)
+        self.check_types(&mut scopes, csts, true)
     }
 
-    fn check_types(&mut self, scopes: &mut Scopes, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {
+    fn check_types(
+        &mut self,
+        scopes: &mut Scopes,
+        mut csts: Vec<Cst>,
+        is_expr: bool,
+    ) -> crate::Result<Vec<Ast>> {
         let mut asts = Vec::with_capacity(csts.len());
-        for c in csts {
-            let ast = self.check_type(scopes, c)?;
+        if let Some(last) = csts.pop() {
+            for c in csts {
+                let ast = self.check_type(scopes, c, false)?;
+                asts.push(ast);
+            }
+
+            let ast = self.check_type(scopes, last, is_expr)?;
             asts.push(ast);
         }
 
         Ok(asts)
     }
 
-    fn check_type(&mut self, scopes: &mut Scopes, cst: Cst) -> crate::Result<Ast> {
+    fn check_type(&mut self, scopes: &mut Scopes, cst: Cst, is_expr: bool) -> crate::Result<Ast> {
         let span = cst.span();
         let ast = match cst {
             Cst::Empty(s) => Ast::new(AstT::Unit, DataType::Unit, s),
@@ -44,9 +54,9 @@ impl Context {
                 ResolvedVar::Const(c) => Ast::val(ValSpan::new(c.val(), span)),
                 ResolvedVar::Var(var) => Ast::var(Rc::clone(&var.inner), var.data_type, i.span),
             },
-            Cst::Par(_, c, _) => self.check_type(scopes, *c)?,
-            Cst::Block(b) => self.check_block(scopes, b)?,
-            Cst::IfExpr(i) => self.check_if_expr(scopes, i)?,
+            Cst::Par(_, c, _) => self.check_type(scopes, *c, is_expr)?,
+            Cst::Block(b) => self.check_block(scopes, b, is_expr)?,
+            Cst::IfExpr(i) => self.check_if_expr(scopes, i, is_expr)?,
             Cst::WhileLoop(w) => self.check_while_loop(scopes, w)?,
             Cst::ForLoop(f) => self.check_for_loop(scopes, f)?,
             Cst::FunDef(f) => self.check_fun_def(scopes, f)?,
@@ -59,11 +69,16 @@ impl Context {
         Ok(ast)
     }
 
-    fn check_block(&mut self, scopes: &mut Scopes, block: cst::Block) -> crate::Result<Ast> {
+    fn check_block(
+        &mut self,
+        scopes: &mut Scopes,
+        block: cst::Block,
+        is_expr: bool,
+    ) -> crate::Result<Ast> {
         let span = block.span();
 
         scopes.push();
-        let asts = self.check_types(scopes, block.csts)?;
+        let asts = self.check_types(scopes, block.csts, is_expr)?;
         scopes.pop();
 
         let data_type = match asts.last() {
@@ -74,14 +89,19 @@ impl Context {
         Ok(Ast::new(AstT::Block(asts), data_type, span))
     }
 
-    fn check_if_expr(&mut self, scopes: &mut Scopes, i: cst::IfExpr) -> crate::Result<Ast> {
+    fn check_if_expr(
+        &mut self,
+        scopes: &mut Scopes,
+        i: cst::IfExpr,
+        is_expr: bool,
+    ) -> crate::Result<Ast> {
         let mut cases = Vec::new();
         let mut data_type = DataType::Unit;
         let span = i.span();
 
         let if_block_span = i.if_block.block.span();
         {
-            let cond = self.check_type(scopes, *i.if_block.cond)?;
+            let cond = self.check_type(scopes, *i.if_block.cond, true)?;
             if cond.data_type.is_not(DataType::Bool) {
                 return Err(crate::Error::MismatchedType {
                     expected: DataType::Bool,
@@ -91,10 +111,10 @@ impl Context {
             }
 
             scopes.push();
-            let block = self.check_types(scopes, i.if_block.block.csts)?;
+            let block = self.check_types(scopes, i.if_block.block.csts, is_expr)?;
             scopes.pop();
 
-            if i.is_expr {
+            if is_expr {
                 data_type = match block.last() {
                     Some(a) => a.data_type,
                     None => DataType::Unit,
@@ -105,7 +125,7 @@ impl Context {
         }
 
         for e in i.else_if_blocks {
-            let cond = self.check_type(scopes, e.cond)?;
+            let cond = self.check_type(scopes, e.cond, true)?;
             if cond.data_type.is_not(DataType::Bool) {
                 return Err(crate::Error::MismatchedType {
                     expected: DataType::Bool,
@@ -116,10 +136,10 @@ impl Context {
 
             scopes.push();
             let block_span = e.block.span();
-            let block = self.check_types(scopes, e.block.csts)?;
+            let block = self.check_types(scopes, e.block.csts, is_expr)?;
             scopes.pop();
 
-            if i.is_expr {
+            if is_expr {
                 let d = block.last().map_or(DataType::Unit, |a| a.data_type);
                 if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
@@ -137,10 +157,10 @@ impl Context {
         let else_block = if let Some(e) = i.else_block {
             scopes.push();
             let block_span = e.block.span();
-            let block = self.check_types(scopes, e.block.csts)?;
+            let block = self.check_types(scopes, e.block.csts, is_expr)?;
             scopes.pop();
 
-            if i.is_expr {
+            if is_expr {
                 let d = block.last().map_or(DataType::Unit, |a| a.data_type);
                 if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
@@ -153,7 +173,7 @@ impl Context {
             }
 
             Some(block)
-        } else if i.is_expr && data_type.is_not(DataType::Unit) {
+        } else if is_expr && data_type.is_not(DataType::Unit) {
             return Err(crate::Error::MissingElseBranch(data_type, span));
         } else {
             None
@@ -166,10 +186,10 @@ impl Context {
     fn check_while_loop(&mut self, scopes: &mut Scopes, w: cst::WhileLoop) -> crate::Result<Ast> {
         let span = w.span();
 
-        let cond = self.check_type(scopes, *w.cond)?;
+        let cond = self.check_type(scopes, *w.cond, true)?;
 
         scopes.push();
-        let block = self.check_types(scopes, w.block.csts)?;
+        let block = self.check_types(scopes, w.block.csts, false)?;
         scopes.pop();
 
         let whl_loop = ast::WhileLoop::new(Box::new(cond), block);
@@ -179,7 +199,7 @@ impl Context {
     fn check_for_loop(&mut self, scopes: &mut Scopes, f: cst::ForLoop) -> crate::Result<Ast> {
         let span = f.span();
 
-        let iter = self.check_type(scopes, *f.iter)?;
+        let iter = self.check_type(scopes, *f.iter, true)?;
         if iter.data_type.is_not(DataType::Range) {
             return Err(crate::Error::NotIterable(iter.data_type, iter.span));
         }
@@ -189,7 +209,7 @@ impl Context {
         let inner = Rc::new(ast::Var::new(None));
         let var = Var::new(f.ident, iter_type, true, false, Rc::clone(&inner));
         self.def_var(scopes, var);
-        let block = self.check_types(scopes, f.block.csts)?;
+        let block = self.check_types(scopes, f.block.csts, false)?;
         scopes.pop();
 
         let for_loop = ast::ForLoop::new(inner, Box::new(iter), block);
@@ -217,7 +237,8 @@ impl Context {
             inner_params.push(param);
         }
         let block_span = f.block.span();
-        let block = self.check_types(scopes, f.block.csts)?;
+        let is_expr = f.return_type.is_some();
+        let block = self.check_types(scopes, f.block.csts, is_expr)?;
         scopes.pop();
 
         let block_type = block.last().map_or(DataType::Unit, |a| a.data_type);
@@ -280,7 +301,7 @@ impl Context {
         }
         let mut args = Vec::with_capacity(f.args.items.len());
         for (p, a) in fun.params.iter().zip(f.args.items.into_iter()) {
-            let val = self.check_type(scopes, a)?;
+            let val = self.check_type(scopes, a, true)?;
             let expected = p.data_type;
             let found = val.data_type;
             if found.is_not(expected) {
@@ -314,7 +335,7 @@ impl Context {
     ) -> crate::Result<Ast> {
         let mut args = Vec::with_capacity(f_args.items.len());
         for a in f_args.items {
-            args.push(self.check_type(scopes, a)?);
+            args.push(self.check_type(scopes, a, true)?);
         }
 
         let mut fun = None;
@@ -403,7 +424,7 @@ impl Context {
 
     fn check_var_def(&mut self, scopes: &mut Scopes, v: cst::VarDef) -> crate::Result<Ast> {
         let span = v.span();
-        let val = self.check_type(scopes, *v.value.1)?;
+        let val = self.check_type(scopes, *v.value.1, true)?;
 
         let data_type = match v.type_hint {
             Some((_, t)) => {
@@ -440,7 +461,7 @@ impl Context {
         a: Cst,
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, a)?;
+        let a = self.check_type(scopes, a, true)?;
 
         let ast = match (p.typ, a.data_type) {
             (PrefixT::UnaryPlus, DataType::Int) => a,
@@ -461,7 +482,7 @@ impl Context {
         p: Postfix,
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, a)?;
+        let a = self.check_type(scopes, a, true)?;
 
         let ast = match (p.typ, a.data_type) {
             (PostfixT::Factorial, DataType::Int) => Ast::int(IntExpr::Factorial(Box::new(a)), span),
@@ -502,7 +523,7 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let expr = self.check_type(scopes, b)?;
+                let expr = self.check_type(scopes, b, true)?;
                 let var = match self.resolve_var(scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
@@ -530,7 +551,7 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let b = self.check_type(scopes, b)?;
+                let b = self.check_type(scopes, b, true)?;
                 let var = match self.get_var(scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
@@ -561,7 +582,7 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let b = self.check_type(scopes, b)?;
+                let b = self.check_type(scopes, b, true)?;
                 let var = match self.get_var(scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
@@ -592,7 +613,7 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let b = self.check_type(scopes, b)?;
+                let b = self.check_type(scopes, b, true)?;
                 let var = match self.get_var(scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
@@ -623,7 +644,7 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let b = self.check_type(scopes, b)?;
+                let b = self.check_type(scopes, b, true)?;
                 let var = match self.get_var(scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
@@ -649,8 +670,8 @@ impl Context {
                 )
             }
             InfixT::RangeEx => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::range(RangeExpr::Ex(Box::new(a), Box::new(b)), s)
@@ -659,8 +680,8 @@ impl Context {
                 }
             }
             InfixT::RangeIn => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::range(RangeExpr::In(Box::new(a), Box::new(b)), s)
@@ -669,8 +690,8 @@ impl Context {
                 }
             }
             InfixT::Add => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::Add(Box::new(a), Box::new(b)), s)
@@ -682,8 +703,8 @@ impl Context {
                 }
             }
             InfixT::Sub => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::Sub(Box::new(a), Box::new(b)), s)
@@ -695,8 +716,8 @@ impl Context {
                 }
             }
             InfixT::Mul => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::Mul(Box::new(a), Box::new(b)), s)
@@ -708,8 +729,8 @@ impl Context {
                 }
             }
             InfixT::Div => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::Div(Box::new(a), Box::new(b)), s)
@@ -721,8 +742,8 @@ impl Context {
                 }
             }
             InfixT::Rem => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::Rem(Box::new(a), Box::new(b)), s)
@@ -731,8 +752,8 @@ impl Context {
                 }
             }
             InfixT::RemEuclid => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::RemEuclid(Box::new(a), Box::new(b)), s)
@@ -741,24 +762,24 @@ impl Context {
                 }
             }
             InfixT::Eq => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
                 Ast::bool(BoolExpr::Eq(Box::new(a), Box::new(b)), s)
             }
             InfixT::Ne => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
                 Ast::bool(BoolExpr::Ne(Box::new(a), Box::new(b)), s)
             }
             InfixT::Lt => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::bool(BoolExpr::LtInt(Box::new(a), Box::new(b)), s)
@@ -770,8 +791,8 @@ impl Context {
                 }
             }
             InfixT::Le => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::bool(BoolExpr::LeInt(Box::new(a), Box::new(b)), s)
@@ -783,8 +804,8 @@ impl Context {
                 }
             }
             InfixT::Gt => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::bool(BoolExpr::GtInt(Box::new(a), Box::new(b)), s)
@@ -796,8 +817,8 @@ impl Context {
                 }
             }
             InfixT::Ge => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::bool(BoolExpr::GeInt(Box::new(a), Box::new(b)), s)
@@ -809,8 +830,8 @@ impl Context {
                 }
             }
             InfixT::BwOr => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::BwOr(Box::new(a), Box::new(b)), s)
@@ -822,8 +843,8 @@ impl Context {
                 }
             }
             InfixT::BwAnd => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
                         Ast::int(IntExpr::BwAnd(Box::new(a), Box::new(b)), s)
@@ -835,8 +856,8 @@ impl Context {
                 }
             }
             InfixT::Or => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Bool, DataType::Bool) => {
                         Ast::bool(BoolExpr::Or(Box::new(a), Box::new(b)), s)
@@ -845,8 +866,8 @@ impl Context {
                 }
             }
             InfixT::And => {
-                let a = self.check_type(scopes, a)?;
-                let b = self.check_type(scopes, b)?;
+                let a = self.check_type(scopes, a, true)?;
+                let b = self.check_type(scopes, b, true)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Bool, DataType::Bool) => {
                         Ast::bool(BoolExpr::And(Box::new(a), Box::new(b)), s)
@@ -866,7 +887,7 @@ impl Context {
                     _ => return Err(crate::Error::ExpectedIdent(b.span())),
                 };
                 let data_type = self.resolve_data_type(&ident)?;
-                let mut a = self.check_type(scopes, a)?;
+                let mut a = self.check_type(scopes, a, true)?;
 
                 if a.data_type == data_type {
                     return Ok(a);
@@ -898,7 +919,7 @@ impl Context {
                     _ => return Err(crate::Error::ExpectedIdent(b.span())),
                 };
                 let data_type = self.resolve_data_type(&ident)?;
-                let a = self.check_type(scopes, a)?;
+                let a = self.check_type(scopes, a, true)?;
 
                 Ast::bool(BoolExpr::Is(Box::new(a), data_type), s)
             }
