@@ -24,7 +24,8 @@ OPTIONS:
 - Early returns
 - Variable definition without assignment (`val x` or `val y: str`)
 - Add char datatype
-- Generics for functions ```fun a<T>(i: T) -> T { i }```
+- structs `struct A { b: int, c: float }`
+- Generics for functions `fun a<T>(i: T) -> T { i }`
 - Comments
 - Warnings
     - Unnecessary semicolons (if a newline is following)
