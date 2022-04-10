@@ -7,60 +7,68 @@ use crate::{DataType, Range, Span, Val, ValSpan};
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
     pub typ: AstT,
-    pub data_type: DataType,
+    pub data_type: Option<DataType>,
     pub span: Span,
 }
 
 impl Ast {
-    pub const fn new(typ: AstT, data_type: DataType, span: Span) -> Self {
+    pub const fn expr(typ: AstT, data_type: DataType, span: Span) -> Self {
         Self {
             typ,
-            data_type,
+            data_type: Some(data_type),
+            span,
+        }
+    }
+
+    pub const fn statement(typ: AstT, span: Span) -> Self {
+        Self {
+            typ,
+            data_type: None,
             span,
         }
     }
 
     pub fn val(val: ValSpan) -> Self {
         match val.val {
-            Val::Int(i) => Self::new(AstT::Int(IntExpr::Val(i)), DataType::Int, val.span),
-            Val::Float(f) => Self::new(AstT::Float(FloatExpr::Val(f)), DataType::Float, val.span),
-            Val::Bool(b) => Self::new(AstT::Bool(BoolExpr::Val(b)), DataType::Bool, val.span),
-            Val::Str(s) => Self::new(AstT::Str(StrExpr::Val(s)), DataType::Str, val.span),
-            Val::Range(r) => Self::new(AstT::Range(RangeExpr::Val(r)), DataType::Range, val.span),
-            Val::Unit => Self::new(AstT::Unit, DataType::Unit, val.span),
+            Val::Int(i) => Self::expr(AstT::Int(IntExpr::Val(i)), DataType::Int, val.span),
+            Val::Float(f) => Self::expr(AstT::Float(FloatExpr::Val(f)), DataType::Float, val.span),
+            Val::Bool(b) => Self::expr(AstT::Bool(BoolExpr::Val(b)), DataType::Bool, val.span),
+            Val::Str(s) => Self::expr(AstT::Str(StrExpr::Val(s)), DataType::Str, val.span),
+            Val::Range(r) => Self::expr(AstT::Range(RangeExpr::Val(r)), DataType::Range, val.span),
+            Val::Unit => Self::expr(AstT::Unit, DataType::Unit, val.span),
         }
     }
 
     pub fn var(var: Rc<Var>, data_type: DataType, span: Span) -> Self {
         match data_type {
-            DataType::Int => Self::new(AstT::Var(var), data_type, span),
-            DataType::Float => Self::new(AstT::Var(var), data_type, span),
-            DataType::Bool => Self::new(AstT::Var(var), data_type, span),
-            DataType::Str => Self::new(AstT::Var(var), data_type, span),
-            DataType::Range => Self::new(AstT::Var(var), data_type, span),
-            DataType::Unit => Self::new(AstT::Unit, data_type, span),
-            DataType::Any => Self::new(AstT::Var(var), data_type, span),
+            DataType::Int => Self::expr(AstT::Var(var), data_type, span),
+            DataType::Float => Self::expr(AstT::Var(var), data_type, span),
+            DataType::Bool => Self::expr(AstT::Var(var), data_type, span),
+            DataType::Str => Self::expr(AstT::Var(var), data_type, span),
+            DataType::Range => Self::expr(AstT::Var(var), data_type, span),
+            DataType::Unit => Self::expr(AstT::Unit, data_type, span),
+            DataType::Any => Self::expr(AstT::Var(var), data_type, span),
         }
     }
 
     pub fn int(expr: IntExpr, span: Span) -> Self {
-        Self::new(AstT::Int(expr), DataType::Int, span)
+        Self::expr(AstT::Int(expr), DataType::Int, span)
     }
 
     pub fn float(expr: FloatExpr, span: Span) -> Self {
-        Self::new(AstT::Float(expr), DataType::Float, span)
+        Self::expr(AstT::Float(expr), DataType::Float, span)
     }
 
     pub fn bool(expr: BoolExpr, span: Span) -> Self {
-        Self::new(AstT::Bool(expr), DataType::Bool, span)
+        Self::expr(AstT::Bool(expr), DataType::Bool, span)
     }
 
     pub fn str(expr: StrExpr, span: Span) -> Self {
-        Self::new(AstT::Str(expr), DataType::Str, span)
+        Self::expr(AstT::Str(expr), DataType::Str, span)
     }
 
     pub fn range(expr: RangeExpr, span: Span) -> Self {
-        Self::new(AstT::Range(expr), DataType::Range, span)
+        Self::expr(AstT::Range(expr), DataType::Range, span)
     }
 }
 

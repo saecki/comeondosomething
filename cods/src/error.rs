@@ -56,6 +56,7 @@ pub enum Error {
     },
     UnexpectedItem(Item),
     UnexpectedOperator(Op),
+    ExpectedExpr(Span),
     ExpectedBlock(Span),
     ExpectedFunPars(Span),
     ExpectedIdent(Span),
@@ -194,6 +195,7 @@ impl UserFacing for Error {
                 write!(f, "Found {over} unexpected function argument{arg_s}, only {expected} {are_is} required, but {found} {were_was} found")
             }
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
+            Self::ExpectedExpr(_) => write!(f, "Expected an expression"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
             Self::ExpectedOp(o, _) => write!(f, "Expected `{o}`"),
@@ -368,6 +370,7 @@ impl UserFacing for Error {
             Self::UnexpectedItem(i) => vec![i.span()],
             Self::UnexpectedFunArgs { spans, .. } => spans.clone(),
             Self::UnexpectedOperator(o) => vec![o.span],
+            Self::ExpectedExpr(s) => vec![*s],
             Self::ExpectedBlock(s) => vec![*s],
             Self::ExpectedFunPars(s) => vec![*s],
             Self::ExpectedIdent(s) => vec![*s],

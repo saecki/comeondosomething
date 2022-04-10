@@ -199,3 +199,11 @@ fn if_statement_branch_types_can_differ() {
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(21));
 }
+
+#[test]
+fn statement_cannot_be_used_as_expr() {
+    let input = "val a = (val b = 12)";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(error, crate::Error::ExpectedExpr(Span::of(9, 19)));
+}
