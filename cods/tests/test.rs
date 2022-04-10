@@ -126,8 +126,7 @@ fn remainder() {
 }
 
 #[test]
-fn negative_remainder() {
-    // TODO: make `mod` use remainder
+fn remainder_euclid() {
     assert("-8 mod 3", Val::Int(1));
     assert("8 mod -5", Val::Int(-2));
 }

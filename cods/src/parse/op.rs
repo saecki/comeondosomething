@@ -43,6 +43,7 @@ pub enum InfixT {
     Mul,
     Div,
     Rem,
+    RemEuclid,
     Eq,
     Ne,
     Lt,
@@ -73,6 +74,7 @@ impl Display for InfixT {
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
             Self::Rem => write!(f, "%"),
+            Self::RemEuclid => write!(f, "mod"),
             Self::Eq => write!(f, "=="),
             Self::Ne => write!(f, "!="),
             Self::Lt => write!(f, "<"),
@@ -181,6 +183,7 @@ impl OpT {
             Self::Mul => Some((17, InfixT::Mul, 18)),
             Self::Div => Some((17, InfixT::Div, 18)),
             Self::Rem => Some((17, InfixT::Rem, 18)),
+            Self::RemEuclid => Some((17, InfixT::RemEuclid, 18)),
             Self::Add => Some((15, InfixT::Add, 16)),
             Self::Sub => Some((15, InfixT::Sub, 16)),
             Self::BwAnd => Some((13, InfixT::BwAnd, 14)),
@@ -219,6 +222,7 @@ impl OpT {
             | Self::Mul
             | Self::Div
             | Self::Rem
+            | Self::RemEuclid
             | Self::Eq
             | Self::Ne
             | Self::Lt
@@ -250,6 +254,7 @@ impl OpT {
             | Self::Mul
             | Self::Div
             | Self::Rem
+            | Self::RemEuclid
             | Self::Eq
             | Self::Ne
             | Self::Lt

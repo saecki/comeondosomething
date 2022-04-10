@@ -95,6 +95,7 @@ pub enum IntExpr {
     Mul(Box<Ast>, Box<Ast>),
     Div(Box<Ast>, Box<Ast>),
     Rem(Box<Ast>, Box<Ast>),
+    RemEuclid(Box<Ast>, Box<Ast>),
     Factorial(Box<Ast>),
     BwOr(Box<Ast>, Box<Ast>),
     BwAnd(Box<Ast>, Box<Ast>),

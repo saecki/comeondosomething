@@ -96,6 +96,19 @@ fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
             va.checked_rem(vb)
                 .ok_or(crate::Error::RemainderByZero(a.span, b.span))?
         }
+        IntExpr::RemEuclid(a, b) => {
+            let va = eval_ast(a)?.unwrap_int();
+            let vb = eval_ast(b)?.unwrap_int();
+            if vb == 0 {
+                return Err(crate::Error::RemainderByZero(a.span, b.span));
+            }
+            let r = va % vb;
+            if (r > 0 && vb < 0) || (r < 0 && vb > 0) {
+                r + vb
+            } else {
+                r
+            }
+        }
         IntExpr::Factorial(a) => {
             let va = eval_ast(a)?.unwrap_int();
 
