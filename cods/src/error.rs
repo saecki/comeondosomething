@@ -89,6 +89,7 @@ pub enum Error {
     InvalidAssignment(Span, Span),
     ImmutableAssign(String, Span, Span),
     ConstAssign((BuiltinConst, Span), Span),
+    CastAlwaysFails((DataType, Span), (DataType, Span)),
 
     // Eval
     Parsing(Span),
@@ -102,7 +103,7 @@ pub enum Error {
     NegativeIntPow(Span, Span),
     FactorialOverflow(ValSpan),
     NegativeFactorial(ValSpan),
-
+    CastFailed((DataType, Span), DataType),
     NegativeNcr(ValSpan),
     InvalidNcr(ValSpan, ValSpan),
     InvalidClampBounds(ValSpan, ValSpan),
@@ -273,6 +274,9 @@ impl UserFacing for Error {
             Self::ConstAssign((c, _), _) => {
                 write!(f, "Cannot assign to builtin constant '{c}'")
             }
+            Self::CastAlwaysFails((a, _), (b, _)) => {
+                write!(f, "Casting value of type '{a}' to '{b}' will always fail")
+            }
 
             // Eval
             Self::Parsing(_) => write!(f, "A parsing error occured"),
@@ -299,7 +303,9 @@ impl UserFacing for Error {
                     "Attempted to calculate the factorial of a negative number"
                 )
             }
-
+            Self::CastFailed((a, _), b) => {
+                write!(f, "Casting value of type '{a}' to '{b}' failed")
+            }
             Self::NegativeNcr(r) => {
                 write!(
                     f,
@@ -391,6 +397,7 @@ impl UserFacing for Error {
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::ConstAssign((_, a), b) => vec![*a, *b],
+            Self::CastAlwaysFails((_, a), (_, b)) => vec![*a, *b],
 
             // Eval
             Self::Parsing(s) => vec![*s],
@@ -404,7 +411,7 @@ impl UserFacing for Error {
             Self::NegativeIntPow(a, b) => vec![*a, *b],
             Self::FactorialOverflow(v) => vec![v.span],
             Self::NegativeFactorial(v) => vec![v.span],
-
+            Self::CastFailed((_, a), _) => vec![*a],
             Self::NegativeNcr(a) => vec![a.span],
             Self::InvalidNcr(a, b) => vec![a.span, b.span],
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],

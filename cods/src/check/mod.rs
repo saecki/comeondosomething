@@ -433,7 +433,7 @@ impl Context {
         a: Cst,
         i: Infix,
         b: Cst,
-        span: Span,
+        s: Span,
     ) -> crate::Result<Ast> {
         fn infix_assign_error(a: (DataType, Span), i: Infix, b: Ast) -> crate::Result<Ast> {
             Err(crate::Error::AssignInfixNotApplicable(
@@ -478,7 +478,7 @@ impl Context {
                 self.set_var(scopes, &ident, &expr)?;
 
                 // TODO: return some sort of statement type that can't be used as an expression
-                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, span)
+                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, s)
             }
             InfixT::AddAssign => {
                 let ident = match a {
@@ -497,10 +497,10 @@ impl Context {
 
                 let expr = match (var.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Add(Box::new(var_expr), Box::new(b)), span)
+                        Ast::int(IntExpr::Add(Box::new(var_expr), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Add(Box::new(var_expr), Box::new(b)), span)
+                        Ast::float(FloatExpr::Add(Box::new(var_expr), Box::new(b)), s)
                     }
                     (_, _) => return infix_assign_error((var.data_type, ident.span), i, b),
                 };
@@ -509,7 +509,7 @@ impl Context {
 
                 self.set_var(scopes, &ident, &expr)?;
 
-                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, span)
+                Ast::new(AstT::Assign(inner, Box::new(expr)), DataType::Unit, s)
             }
             InfixT::SubAssign => {
                 let ident = match a {
@@ -528,10 +528,10 @@ impl Context {
 
                 let expr = match (var.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Sub(Box::new(var_expr), Box::new(b)), span)
+                        Ast::int(IntExpr::Sub(Box::new(var_expr), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Sub(Box::new(var_expr), Box::new(b)), span)
+                        Ast::float(FloatExpr::Sub(Box::new(var_expr), Box::new(b)), s)
                     }
                     (_, _) => return infix_assign_error((var.data_type, ident.span), i, b),
                 };
@@ -539,7 +539,7 @@ impl Context {
                 Ast::new(
                     AstT::Assign(Rc::clone(&var.inner), Box::new(expr)),
                     DataType::Unit,
-                    span,
+                    s,
                 )
             }
             InfixT::MulAssign => {
@@ -559,10 +559,10 @@ impl Context {
 
                 let expr = match (var.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Mul(Box::new(var_expr), Box::new(b)), span)
+                        Ast::int(IntExpr::Mul(Box::new(var_expr), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Mul(Box::new(var_expr), Box::new(b)), span)
+                        Ast::float(FloatExpr::Mul(Box::new(var_expr), Box::new(b)), s)
                     }
                     (_, _) => return infix_assign_error((var.data_type, ident.span), i, b),
                 };
@@ -570,7 +570,7 @@ impl Context {
                 Ast::new(
                     AstT::Assign(Rc::clone(&var.inner), Box::new(expr)),
                     DataType::Unit,
-                    span,
+                    s,
                 )
             }
             InfixT::DivAssign => {
@@ -590,10 +590,10 @@ impl Context {
 
                 let expr = match (var.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Div(Box::new(var_expr), Box::new(b)), span)
+                        Ast::int(IntExpr::Div(Box::new(var_expr), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Div(Box::new(var_expr), Box::new(b)), span)
+                        Ast::float(FloatExpr::Div(Box::new(var_expr), Box::new(b)), s)
                     }
                     (_, _) => return infix_assign_error((var.data_type, ident.span), i, b),
                 };
@@ -601,7 +601,7 @@ impl Context {
                 Ast::new(
                     AstT::Assign(Rc::clone(&var.inner), Box::new(expr)),
                     DataType::Unit,
-                    span,
+                    s,
                 )
             }
             InfixT::RangeEx => {
@@ -609,7 +609,7 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::range(RangeExpr::Ex(Box::new(a), Box::new(b)), span)
+                        Ast::range(RangeExpr::Ex(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -619,7 +619,7 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::range(RangeExpr::In(Box::new(a), Box::new(b)), span)
+                        Ast::range(RangeExpr::In(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -629,10 +629,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Add(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::Add(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Add(Box::new(a), Box::new(b)), span)
+                        Ast::float(FloatExpr::Add(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -642,10 +642,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Sub(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::Sub(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Sub(Box::new(a), Box::new(b)), span)
+                        Ast::float(FloatExpr::Sub(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -655,10 +655,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Mul(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::Mul(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Mul(Box::new(a), Box::new(b)), span)
+                        Ast::float(FloatExpr::Mul(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -668,10 +668,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Div(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::Div(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Div(Box::new(a), Box::new(b)), span)
+                        Ast::float(FloatExpr::Div(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -681,7 +681,7 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Rem(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::Rem(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -692,7 +692,7 @@ impl Context {
                 if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
-                Ast::bool(BoolExpr::Eq(Box::new(a), Box::new(b)), span)
+                Ast::bool(BoolExpr::Eq(Box::new(a), Box::new(b)), s)
             }
             InfixT::Ne => {
                 let a = self.check_type(scopes, a)?;
@@ -700,17 +700,17 @@ impl Context {
                 if a.data_type.is_not_comparable_to(b.data_type) {
                     return infix_error(a, i, b);
                 }
-                Ast::bool(BoolExpr::Ne(Box::new(a), Box::new(b)), span)
+                Ast::bool(BoolExpr::Ne(Box::new(a), Box::new(b)), s)
             }
             InfixT::Lt => {
                 let a = self.check_type(scopes, a)?;
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::LtInt(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::LtInt(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::LtFloat(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::LtFloat(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -720,10 +720,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::LeInt(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::LeInt(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::LeFloat(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::LeFloat(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -733,10 +733,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::GtInt(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::GtInt(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::GtFloat(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::GtFloat(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -746,10 +746,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::GeInt(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::GeInt(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::GeFloat(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::GeFloat(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -759,10 +759,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::BwOr(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::BwOr(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwOr(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::BwOr(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -772,10 +772,10 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::BwAnd(Box::new(a), Box::new(b)), span)
+                        Ast::int(IntExpr::BwAnd(Box::new(a), Box::new(b)), s)
                     }
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwAnd(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::BwAnd(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -785,7 +785,7 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::Or(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::Or(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -795,7 +795,7 @@ impl Context {
                 let b = self.check_type(scopes, b)?;
                 match (a.data_type, b.data_type) {
                     (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::And(Box::new(a), Box::new(b)), span)
+                        Ast::bool(BoolExpr::And(Box::new(a), Box::new(b)), s)
                     }
                     (_, _) => return infix_error(a, i, b),
                 }
@@ -803,8 +803,50 @@ impl Context {
             InfixT::Dot => {
                 return Err(crate::Error::NotImplemented(
                     "Field access is not yet implemented",
-                    span,
+                    s,
                 ))
+            }
+            InfixT::As => {
+                let ident = match b {
+                    Cst::Ident(i) => i,
+                    _ => return Err(crate::Error::ExpectedIdent(b.span())),
+                };
+                let data_type = self.resolve_data_type(&ident)?;
+                let mut a = self.check_type(scopes, a)?;
+
+                if a.data_type == data_type {
+                    return Ok(a);
+                }
+
+                match (a.data_type, data_type) {
+                    (DataType::Float, DataType::Int) => Ast::int(IntExpr::Cast(Box::new(a)), s),
+                    (DataType::Any, DataType::Int) => Ast::int(IntExpr::Cast(Box::new(a)), s),
+                    (DataType::Int, DataType::Float) => Ast::float(FloatExpr::Cast(Box::new(a)), s),
+                    (DataType::Any, DataType::Float) => Ast::float(FloatExpr::Cast(Box::new(a)), s),
+                    (DataType::Any, DataType::Bool) => Ast::bool(BoolExpr::Cast(Box::new(a)), s),
+                    (DataType::Any, DataType::Str) => Ast::str(StrExpr::Cast(Box::new(a)), s),
+                    (DataType::Any, DataType::Range) => Ast::range(RangeExpr::Cast(Box::new(a)), s),
+                    (_, DataType::Any) => {
+                        a.data_type = DataType::Any;
+                        a
+                    }
+                    (_, _) => {
+                        return Err(crate::Error::CastAlwaysFails(
+                            (a.data_type, a.span),
+                            (data_type, b.span()),
+                        ));
+                    }
+                }
+            }
+            InfixT::Is => {
+                let ident = match b {
+                    Cst::Ident(i) => i,
+                    _ => return Err(crate::Error::ExpectedIdent(b.span())),
+                };
+                let data_type = self.resolve_data_type(&ident)?;
+                let a = self.check_type(scopes, a)?;
+
+                Ast::bool(BoolExpr::Is(Box::new(a), data_type), s)
             }
         };
 

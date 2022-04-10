@@ -54,6 +54,8 @@ pub enum InfixT {
     Or,
     And,
     Dot,
+    As,
+    Is,
 }
 
 impl Display for InfixT {
@@ -82,6 +84,8 @@ impl Display for InfixT {
             Self::Or => write!(f, "||"),
             Self::And => write!(f, "&&"),
             Self::Dot => write!(f, "."),
+            Self::As => write!(f, "as"),
+            Self::Is => write!(f, "is"),
         }
     }
 }
@@ -171,7 +175,9 @@ impl Display for PostfixT {
 impl OpT {
     pub fn infix_bp(&self) -> Option<(u8, InfixT, u8)> {
         match self {
-            Self::Dot => Some((21, InfixT::Dot, 22)),
+            Self::Dot => Some((23, InfixT::Dot, 24)),
+            Self::As => Some((19, InfixT::As, 20)),
+            Self::Is => Some((19, InfixT::Is, 20)),
             Self::Mul => Some((17, InfixT::Mul, 18)),
             Self::Div => Some((17, InfixT::Div, 18)),
             Self::Rem => Some((17, InfixT::Rem, 18)),
@@ -200,7 +206,7 @@ impl OpT {
 
     pub fn postfix_bp(&self) -> Option<(u8, PostfixT)> {
         match self {
-            Self::Bang => Some((19, PostfixT::Factorial)),
+            Self::Bang => Some((21, PostfixT::Factorial)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -223,15 +229,17 @@ impl OpT {
             | Self::BwAnd
             | Self::Or
             | Self::And
-            | Self::Dot => None,
+            | Self::Dot
+            | Self::As
+            | Self::Is => None,
         }
     }
 
     pub fn prefix_bp(&self) -> Option<(PrefixT, u8)> {
         match self {
-            Self::Bang => Some((PrefixT::Not, 20)),
-            Self::Add => Some((PrefixT::UnaryPlus, 20)),
-            Self::Sub => Some((PrefixT::UnaryMinus, 20)),
+            Self::Bang => Some((PrefixT::Not, 22)),
+            Self::Add => Some((PrefixT::UnaryPlus, 22)),
+            Self::Sub => Some((PrefixT::UnaryMinus, 22)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -252,7 +260,9 @@ impl OpT {
             | Self::BwAnd
             | Self::Or
             | Self::And
-            | Self::Dot => None,
+            | Self::Dot
+            | Self::As
+            | Self::Is => None,
         }
     }
 }

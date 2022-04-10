@@ -2,7 +2,9 @@ use std::iter::Peekable;
 use std::rc::Rc;
 
 use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, Var, WhileLoop};
-use crate::{Ast, AstT, BoolExpr, FloatExpr, IntExpr, Range, RangeExpr, StrExpr, Val, ValSpan};
+use crate::{
+    Ast, AstT, BoolExpr, DataType, FloatExpr, IntExpr, Range, RangeExpr, StrExpr, Val, ValSpan,
+};
 
 pub use val::*;
 
@@ -50,7 +52,16 @@ pub fn eval_ast(ast: &Ast) -> crate::Result<Val> {
 fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
     let int = match expr {
         IntExpr::Val(i) => *i,
-        IntExpr::CastFloat(_) => todo!(),
+        IntExpr::Cast(a) => match eval_ast(a)? {
+            Val::Int(i) => i,
+            Val::Float(f) => f as i128,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Int,
+                ));
+            }
+        },
         IntExpr::Neg(a) => eval_ast(a)?
             .unwrap_int()
             .checked_neg()
@@ -121,7 +132,18 @@ fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
 fn eval_float_expr(expr: &FloatExpr) -> crate::Result<Val> {
     let float = match expr {
         FloatExpr::Val(f) => *f,
-        FloatExpr::CastInt(a) => eval_ast(a)?.unwrap_int() as f64,
+        FloatExpr::Cast(a) => {
+            match eval_ast(a)? {
+                Val::Float(f) => f,
+                Val::Int(i) => i as f64, // TODO: safe cast
+                v => {
+                    return Err(crate::Error::CastFailed(
+                        (v.data_type(), a.span),
+                        DataType::Float,
+                    ));
+                }
+            }
+        }
         FloatExpr::Neg(a) => -eval_ast(a)?.unwrap_float(),
         FloatExpr::Add(a, b) => {
             let va = eval_ast(a)?.unwrap_float();
@@ -151,6 +173,19 @@ fn eval_float_expr(expr: &FloatExpr) -> crate::Result<Val> {
 fn eval_bool_expr(expr: &BoolExpr) -> crate::Result<Val> {
     let bool = match expr {
         BoolExpr::Val(b) => *b,
+        BoolExpr::Cast(a) => match eval_ast(a)? {
+            Val::Bool(b) => b,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Bool,
+                ));
+            }
+        },
+        BoolExpr::Is(a, d) => {
+            let v = eval_ast(a)?;
+            v.data_type().is(*d)
+        }
         BoolExpr::Not(a) => !eval_ast(a)?.unwrap_bool(),
         BoolExpr::Eq(a, b) => {
             let va = eval_ast(a)?;
@@ -230,6 +265,15 @@ fn eval_bool_expr(expr: &BoolExpr) -> crate::Result<Val> {
 fn eval_str_expr(expr: &StrExpr) -> crate::Result<Val> {
     let string = match expr {
         StrExpr::Val(s) => s.clone(),
+        StrExpr::Cast(a) => match eval_ast(a)? {
+            Val::Str(s) => s,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Str,
+                ));
+            }
+        },
     };
 
     Ok(Val::Str(string))
@@ -238,6 +282,15 @@ fn eval_str_expr(expr: &StrExpr) -> crate::Result<Val> {
 fn eval_range_expr(expr: &RangeExpr) -> crate::Result<Val> {
     let range = match expr {
         RangeExpr::Val(r) => *r,
+        RangeExpr::Cast(a) => match eval_ast(a)? {
+            Val::Range(r) => r,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Range,
+                ));
+            }
+        },
         RangeExpr::Ex(a, b) => {
             let va = eval_ast(a)?.unwrap_int();
             let vb = eval_ast(b)?.unwrap_int();
@@ -322,7 +375,8 @@ fn eval_builtin_fun_call(fun: BuiltinFunCall, args: &[Ast]) -> crate::Result<Val
             if exp > u32::MAX as i128 {
                 return Err(crate::Error::PowOverflow(a.span, b.span));
             }
-            let val = base.checked_pow(exp as u32)
+            let val = base
+                .checked_pow(exp as u32)
                 .ok_or(crate::Error::PowOverflow(a.span, b.span))?;
             Val::Int(val)
         }

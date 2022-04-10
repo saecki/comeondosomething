@@ -155,6 +155,8 @@ impl Context {
             "true" => Token::val(Val::Bool(true), span),
             "false" => Token::val(Val::Bool(false), span),
             "mod" => Token::op(OpT::Rem, span),
+            "as" => Token::op(OpT::As, span),
+            "is" => Token::op(OpT::Is, span),
             "if" => Token::kw(KwT::If, span),
             "else" => Token::kw(KwT::Else, span),
             "while" => Token::kw(KwT::While, span),

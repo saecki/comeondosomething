@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use crate::{BuiltinConst, Context, Span, Val};
+use crate::{BuiltinConst, Context, DataType, Span, Val};
 
 #[test]
 fn undefined_var() {
@@ -81,4 +81,45 @@ fn coerce_types() {
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(12),);
+}
+
+#[test]
+fn cast_to_any() {
+    let input = "val a = 12; a as any";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(12),);
+}
+
+#[test]
+fn cast_from_any_fails_at_runtime() {
+    let input = "val a: any = 12; a as str";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::CastFailed((DataType::Int, Span::pos(17)), DataType::Str)
+    );
+}
+
+#[test]
+fn cast_int_to_str_fails_while_type_checking() {
+    let input = "val a: int = 12; a as str";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::CastAlwaysFails((DataType::Int, Span::pos(17)), (DataType::Str, Span::of(22, 25)))
+    );
+}
+
+#[test]
+fn cast_int_coerced_as_any_to_str_fails_at_runtime() {
+    let input = "val a: any = 12; a as str";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::CastFailed((DataType::Int, Span::pos(17)), DataType::Str)
+    );
 }

@@ -253,6 +253,8 @@ pub enum OpT {
     /// Not or Factorial depending on position
     Bang,
     Dot,
+    As,
+    Is,
 }
 
 impl Display for OpT {
@@ -282,6 +284,8 @@ impl Display for OpT {
             Self::BwAnd => write!(f, "&"),
             Self::Bang => write!(f, "!"),
             Self::Dot => write!(f, "."),
+            Self::As => write!(f, "as"),
+            Self::Is => write!(f, "is"),
         }
     }
 }

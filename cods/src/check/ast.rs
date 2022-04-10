@@ -88,7 +88,7 @@ pub enum AstT {
 #[derive(Clone, Debug, PartialEq)]
 pub enum IntExpr {
     Val(i128),
-    CastFloat(Box<Ast>),
+    Cast(Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -103,7 +103,7 @@ pub enum IntExpr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum FloatExpr {
     Val(f64),
-    CastInt(Box<Ast>),
+    Cast(Box<Ast>),
     Neg(Box<Ast>),
     Add(Box<Ast>, Box<Ast>),
     Sub(Box<Ast>, Box<Ast>),
@@ -114,6 +114,7 @@ pub enum FloatExpr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum BoolExpr {
     Val(bool),
+    Cast(Box<Ast>),
     Not(Box<Ast>),
     Eq(Box<Ast>, Box<Ast>),
     Ne(Box<Ast>, Box<Ast>),
@@ -129,16 +130,19 @@ pub enum BoolExpr {
     BwAnd(Box<Ast>, Box<Ast>),
     Or(Box<Ast>, Box<Ast>),
     And(Box<Ast>, Box<Ast>),
+    Is(Box<Ast>, DataType),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StrExpr {
     Val(String),
+    Cast(Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RangeExpr {
     Val(Range),
+    Cast(Box<Ast>),
     Ex(Box<Ast>, Box<Ast>),
     In(Box<Ast>, Box<Ast>),
 }
