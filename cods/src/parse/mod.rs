@@ -12,6 +12,13 @@ mod parser;
 #[cfg(test)]
 mod test;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StopOn {
+    Nothing,
+    LCurly,
+    Comma,
+}
+
 impl Context {
     pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Cst>> {
         let span = items_span(&items).unwrap_or(Span::of(0, 0));
@@ -23,7 +30,7 @@ impl Context {
 
         let mut parser = Parser::new(items, span.start);
         while parser.peek().is_some() {
-            let ast = self.parse_bp(&mut parser, 0, false)?;
+            let ast = self.parse_bp(&mut parser, 0, StopOn::Nothing)?;
             parser.eat_semi();
 
             if !ast.is_empty() {
@@ -38,17 +45,7 @@ impl Context {
         }
     }
 
-    fn parse_one_bp(&mut self, parser: &mut Parser, min_bp: u8) -> crate::Result<Cst> {
-        let ast = self.parse_bp(parser, min_bp, false)?;
-        while let Some(i) = parser.next() {
-            if !i.is_newln() {
-                return Err(crate::Error::UnexpectedItem(i));
-            }
-        }
-        Ok(ast)
-    }
-
-    fn parse_bp(&mut self, parser: &mut Parser, min_bp: u8, cond: bool) -> crate::Result<Cst> {
+    fn parse_bp(&mut self, parser: &mut Parser, min_bp: u8, stop: StopOn) -> crate::Result<Cst> {
         let mut lhs = match parser.peek() {
             Some(Item::Group(_)) => {
                 let g = parser.next().unwrap().into_group().unwrap();
@@ -56,7 +53,11 @@ impl Context {
                     ParKind::Round => {
                         let s = g.span();
                         let mut group_parser = Parser::new(g.items, s.start);
-                        let cst = self.parse_one_bp(&mut group_parser, 0)?;
+                        let cst = self.parse_bp(&mut group_parser, 0, StopOn::Nothing)?;
+                        if let Some(i) = group_parser.next() {
+                            return Err(crate::Error::UnexpectedItem(i));
+                        }
+
                         Cst::Par(g.l_par, Box::new(cst), g.r_par)
                     }
                     ParKind::Curly => Cst::Block(self.parse_block(g)?),
@@ -90,7 +91,7 @@ impl Context {
                     return Err(crate::Error::MissingOperand(s));
                 }
 
-                let val = self.parse_bp(parser, r_bp, cond)?;
+                let val = self.parse_bp(parser, r_bp, stop)?;
                 let p = Prefix::new(prefix, o.span);
 
                 Cst::Prefix(p, Box::new(val))
@@ -125,9 +126,7 @@ impl Context {
                     if newln {
                         break;
                     }
-                    // stop if parsing an if condition
-                    // TODO: cleanup
-                    if cond && g.par_kind().is_curly() {
+                    if stop == StopOn::LCurly && g.par_kind().is_curly() {
                         break;
                     }
 
@@ -168,11 +167,14 @@ impl Context {
                     return Err(crate::Error::MissingOperator(s));
                 }
                 &Item::Op(o) => o,
-                &Item::Pct(s) => {
+                &Item::Pct(p) => {
                     if newln {
                         break;
                     }
-                    if let PctT::Semi = s.typ {
+                    if p.typ == PctT::Semi {
+                        break;
+                    }
+                    if stop == StopOn::Comma && p.typ == PctT::Comma {
                         break;
                     }
 
@@ -214,7 +216,7 @@ impl Context {
                 parser.next();
             }
 
-            let rhs = self.parse_bp(parser, r_bp, cond)?;
+            let rhs = self.parse_bp(parser, r_bp, stop)?;
 
             if let Cst::Empty(s) = rhs {
                 return Err(crate::Error::MissingOperand(Span::between(op.span, s)));
@@ -247,24 +249,18 @@ impl Context {
     fn parse_fun_args(&mut self, group: Group) -> crate::Result<cst::FunArgs> {
         let arg_count = group.items.iter().filter(|i| i.is_comma()).count() + 1;
         let mut args = Vec::with_capacity(arg_count);
-        let mut start = group.inner_span().start;
-        let mut arg_items = Vec::new();
+        let start = group.inner_span().start;
+        let mut parser = Parser::new(group.items, start);
 
-        // TODO: use parser on group items
-        for i in group.items.into_iter() {
-            if i.is_comma() {
-                let mut parser = Parser::new(arg_items.clone(), start);
-                arg_items.clear();
-                args.push(self.parse_one_bp(&mut parser, 0)?);
-                start = i.span().end;
-            } else {
-                arg_items.push(i);
+        while parser.peek().is_some() {
+            let arg = self.parse_bp(&mut parser, 0, StopOn::Comma)?;
+            args.push(arg);
+
+            match parser.next() {
+                Some(Item::Pct(p)) if p.is_comma() => (),
+                Some(i) => return Err(crate::Error::ExpectedPct(PctT::Comma, i.span())),
+                None => break,
             }
-        }
-
-        if !arg_items.is_empty() {
-            let mut parser = Parser::new(arg_items, start);
-            args.push(self.parse_one_bp(&mut parser, 0)?);
         }
 
         Ok(cst::FunArgs::new(group.l_par, group.r_par, args))
@@ -321,7 +317,7 @@ impl Context {
             KwT::For => {
                 let ident = parser.expect_ident()?;
                 let in_kw = parser.expect_kw(KwT::In)?;
-                let iter = self.parse_bp(parser, 0, true)?;
+                let iter = self.parse_bp(parser, 0, StopOn::LCurly)?;
                 let group = parser.expect_block()?;
                 let block = self.parse_block(group)?;
 
@@ -399,7 +395,7 @@ impl Context {
 
                 let value = {
                     let op = parser.expect_op(OpT::Assign)?;
-                    let val = self.parse_bp(parser, 0, false)?;
+                    let val = self.parse_bp(parser, 0, StopOn::Nothing)?;
                     (op, Box::new(val))
                 };
 
@@ -410,7 +406,7 @@ impl Context {
     }
 
     fn parse_cond_block(&mut self, parser: &mut Parser) -> crate::Result<(Cst, cst::Block)> {
-        let cond = self.parse_bp(parser, 0, true)?;
+        let cond = self.parse_bp(parser, 0, StopOn::LCurly)?;
         let group = parser.expect_block()?;
         let block = self.parse_block(group)?;
         Ok((cond, block))
