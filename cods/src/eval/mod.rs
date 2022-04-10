@@ -145,18 +145,16 @@ fn eval_int_expr(expr: &IntExpr) -> crate::Result<Val> {
 fn eval_float_expr(expr: &FloatExpr) -> crate::Result<Val> {
     let float = match expr {
         FloatExpr::Val(f) => *f,
-        FloatExpr::Cast(a) => {
-            match eval_ast(a)? {
-                Val::Float(f) => f,
-                Val::Int(i) => i as f64, // TODO: safe cast
-                v => {
-                    return Err(crate::Error::CastFailed(
-                        (v.data_type(), a.span),
-                        DataType::Float,
-                    ));
-                }
+        FloatExpr::Cast(a) => match eval_ast(a)? {
+            Val::Float(f) => f,
+            Val::Int(i) => i as f64,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Float,
+                ));
             }
-        }
+        },
         FloatExpr::Neg(a) => -eval_ast(a)?.unwrap_float(),
         FloatExpr::Add(a, b) => {
             let va = eval_ast(a)?.unwrap_float();
