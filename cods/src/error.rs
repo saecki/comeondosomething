@@ -134,13 +134,13 @@ impl UserFacing for Error {
             Self::InvalidChar(_) => write!(f, "Invalid character"),
             Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
             Self::InvalidEscapeChar(c, _) => {
-                write!(f, "Invalid escape character: '{}'", c.escape_default())
+                write!(f, "Invalid escape character: `{}`", c.escape_default())
             }
             Self::MissingEscapeChar(_) => write!(f, "Missing escape character"),
             Self::InvalidUnicodeEscapeChar(c, _) => {
                 write!(
                     f,
-                    "Invalid unicode escape character: '{}'",
+                    "Invalid unicode escape character: `{}`",
                     c.escape_default()
                 )
             }
@@ -162,7 +162,7 @@ impl UserFacing for Error {
                 )
             }
             Self::InvalidUnicodeScalar(cp, _) => {
-                write!(f, "Invalid unicode scalar value: '{cp:x}'")
+                write!(f, "Invalid unicode scalar value: `{cp:x}`")
             }
             Self::MissingClosingQuote(_) => write!(f, "Missing closing quote"),
 
@@ -196,36 +196,36 @@ impl UserFacing for Error {
             Self::UnexpectedOperator(_) => write!(f, "Unexpected operator"),
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
-            Self::ExpectedOp(o, _) => write!(f, "Expected '{o}'"),
-            Self::ExpectedKw(k, _) => write!(f, "Expected '{}'", k.name()),
-            Self::ExpectedPct(s, _) => write!(f, "Expected '{s}'"),
-            Self::WrongContext(k) => write!(f, "'{}' wasn't expected in this context", k.name()),
+            Self::ExpectedOp(o, _) => write!(f, "Expected `{o}`"),
+            Self::ExpectedKw(k, _) => write!(f, "Expected `{}`", k.name()),
+            Self::ExpectedPct(s, _) => write!(f, "Expected `{s}`"),
+            Self::WrongContext(k) => write!(f, "`{}` wasn`t expected in this context", k.name()),
 
             // Check
-            Self::UnknownType(name, _) => write!(f, "Unknown type '{name}'"),
+            Self::UnknownType(name, _) => write!(f, "Unknown type `{name}`"),
             Self::MismatchedType {
                 expected, found, ..
-            } => write!(f, "Mismatched type expected '{expected}', found '{found}'"),
+            } => write!(f, "Mismatched type expected `{expected}`, found `{found}`"),
             Self::IfBranchIncompatibleType((a, _), (b, _)) => write!(
                 f,
-                "If and else branches have incompatible types: '{a}' and '{b}'"
+                "If and else branches have incompatible types: `{a}` and `{b}`"
             ),
             Self::MissingElseBranch(t, _) => {
-                write!(f, "Missing else branch for if expression of type '{t}'")
+                write!(f, "Missing else branch for if expression of type `{t}`")
             }
-            Self::NotIterable(t, _) => write!(f, "Value of type '{t}' is not iterable"),
-            Self::UndefinedVar(name, _) => write!(f, "Undefined variable '{name}'"),
-            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable '{name}'"), // TODO separate definition and usage into hint and error
+            Self::NotIterable(t, _) => write!(f, "Value of type `{t}` is not iterable"),
+            Self::UndefinedVar(name, _) => write!(f, "Undefined variable `{name}`"),
+            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable `{name}`"), // TODO separate definition and usage into hint and error
             Self::RedefinedBuiltinConst(name, _) => {
-                write!(f, "Redefined builtin constant '{name}'")
+                write!(f, "Redefined builtin constant `{name}`")
             }
-            Self::UndefinedFun(name, _) => write!(f, "Undefined function '{name}'"),
-            Self::RedefinedFun(name, _, _) => write!(f, "Redefined function '{name}'"),
-            Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function '{name}'"),
+            Self::UndefinedFun(name, _) => write!(f, "Undefined function `{name}`"),
+            Self::RedefinedFun(name, _, _) => write!(f, "Redefined function `{name}`"),
+            Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function `{name}`"),
             Self::NoMatchingSignature(b, _) => {
                 writeln!(
                     f,
-                    "No matching signature for builtin function '{b}'{line_suffix}"
+                    "No matching signature for builtin function `{b}`{line_suffix}"
                 )?;
                 for (_, s) in b.signatures() {
                     write!(f, "{line_prefix}    {b}(")?;
@@ -247,35 +247,35 @@ impl UserFacing for Error {
             }
             Self::PrefixNotApplicable(p, (t, _)) => write!(
                 f,
-                "Prefix operator '{p}' not applicable to value of type '{t}'",
+                "Prefix operator `{p}` not applicable to value of type `{t}`",
             ),
             Self::PostfixNotApplicable((t, _), p) => write!(
                 f,
-                "Postfix operator '{p}' not applicable to value of type '{t}'",
+                "Postfix operator `{p}` not applicable to value of type `{t}`",
             ),
             Self::InfixNotApplicable((a, _), i, (b, _)) => write!(
                 f,
-                "Infix operator '{i}' not applicable to values of type '{a}' and '{b}'",
+                "Infix operator `{i}` not applicable to values of type `{a}` and `{b}`",
             ),
             Self::AssignInfixNotApplicable((a, _), i, (b, _)) => write!(
                 f,
-                "Operator '{i}' not applicable to variable of type '{a}' and value of type '{b}'"
+                "Operator `{i}` not applicable to variable of type `{a}` and value of type `{b}`"
             ),
             Self::AssignNotApplicable((a, _), (b, _)) => write!(
                 f,
-                "Cannot assign value of type '{b}' to variable of type '{a}'"
+                "Cannot assign value of type `{b}` to variable of type `{a}`"
             ),
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
             Self::ImmutableAssign(name, _, _) => {
-                write!(f, "Cannot assign twice to immutable variable '{name}'")
+                write!(f, "Cannot assign twice to immutable variable `{name}`")
             }
             Self::ConstAssign((c, _), _) => {
-                write!(f, "Cannot assign to builtin constant '{c}'")
+                write!(f, "Cannot assign to builtin constant `{c}`")
             }
             Self::CastAlwaysFails((a, _), (b, _)) => {
-                write!(f, "Casting value of type '{a}' to '{b}' will always fail")
+                write!(f, "Casting value of type `{a}` to `{b}` will always fail")
             }
 
             // Eval
@@ -304,24 +304,24 @@ impl UserFacing for Error {
                 )
             }
             Self::CastFailed((a, _), b) => {
-                write!(f, "Casting value of type '{a}' to '{b}' failed")
+                write!(f, "Casting value of type `{a}` to `{b}` failed")
             }
             Self::NegativeNcr(r) => {
                 write!(
                     f,
-                    "Attempted to calculate the binomial coefficent with a negative value for r: '{r}'"
+                    "Attempted to calculate the binomial coefficent with a negative value for r: `{r}`"
                 )
             }
             Self::InvalidNcr(n, r) => {
                 write!(
                     f,
-                    "Attempted to calculate the binomial coefficent with n: '{n}' less than r: '{r}'"
+                    "Attempted to calculate the binomial coefficent with n: `{n}` less than r: `{r}`"
                 )
             }
             Self::InvalidClampBounds(min, max) => {
                 write!(
                     f,
-                    "Invalid clamp bounds min: '{min}' is greater than max: '{max}'"
+                    "Invalid clamp bounds min: `{min}` is greater than max: `{max}`"
                 )
             }
             Self::AssertFailed(_) => {
@@ -331,8 +331,8 @@ impl UserFacing for Error {
                 write!(
                     f,
                     "Assertion failed, values are not equal{ls}\n\
-                    {lp} left: '{a}'{ls}\n\
-                    {lp}right: '{b}'",
+                    {lp} left: `{a}`{ls}\n\
+                    {lp}right: `{b}`",
                     lp = line_prefix,
                     ls = line_suffix,
                 )
