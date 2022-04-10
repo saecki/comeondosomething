@@ -53,8 +53,18 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
             .last()
             .map_or(2, |(nr, _, _)| (*nr as f32).log10() as usize + 1);
 
-        for (nr, l, spans) in hl_lines {
-            mark_spans::<C>(f, nr, nr_width, l, &spans)?;
+        if let Some((first, others)) = hl_lines.split_first() {
+            let (nr, l, spans) = first;
+            mark_spans::<C>(f, *nr, nr_width, l, spans)?;
+
+            let mut last_nr = *nr;
+            for (nr, l, spans) in others {
+                if last_nr + 1 < *nr {
+                    writeln!(f, "{blue}...{esc}", blue = LBlue::bold(), esc = ANSI_ESC)?;
+                }
+                mark_spans::<C>(f, *nr, nr_width, l, spans)?;
+                last_nr = *nr;
+            }
         }
 
         let prefix = format!(
