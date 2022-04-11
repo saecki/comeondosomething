@@ -156,16 +156,23 @@ impl Scopes {
         self.scopes[0..(self.len)].iter_mut().rev()
     }
 
-    pub fn push(&mut self) {
+    fn push(&mut self) {
         if self.len >= self.scopes.len() {
             self.scopes.push(Scope::default())
         }
         self.len += 1;
     }
 
-    pub fn pop(&mut self) {
+    fn pop(&mut self) {
         self.current_mut().clear();
         self.len -= 1;
+    }
+
+    pub fn with_new<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.push();
+        let r = f(self);
+        self.pop();
+        r
     }
 
     pub fn clear(&mut self) {

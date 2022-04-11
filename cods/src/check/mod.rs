@@ -83,9 +83,9 @@ impl Context {
     ) -> crate::Result<Ast> {
         let span = block.span();
 
-        scopes.push();
-        let asts = self.check_types(scopes, block.csts, is_expr)?;
-        scopes.pop();
+        let asts = scopes.with_new(|scopes| {
+            self.check_types(scopes, block.csts, is_expr) //
+        })?;
 
         let data_type = asts
             .last()
@@ -108,10 +108,9 @@ impl Context {
         let if_block_span = i.if_block.block.span();
         {
             let cond = self.check_cond(scopes, *i.if_block.cond)?;
-
-            scopes.push();
-            let block = self.check_types(scopes, i.if_block.block.csts, is_expr)?;
-            scopes.pop();
+            let block = scopes.with_new(|scopes| {
+                self.check_types(scopes, i.if_block.block.csts, is_expr) //
+            })?;
 
             if is_expr {
                 data_type = block
@@ -126,10 +125,10 @@ impl Context {
         for e in i.else_if_blocks {
             let cond = self.check_cond(scopes, e.cond)?;
 
-            scopes.push();
             let block_span = e.block.span();
-            let block = self.check_types(scopes, e.block.csts, is_expr)?;
-            scopes.pop();
+            let block = scopes.with_new(|scopes| {
+                self.check_types(scopes, e.block.csts, is_expr) //
+            })?;
 
             if is_expr {
                 let d = block
@@ -150,10 +149,10 @@ impl Context {
         }
 
         let else_block = if let Some(e) = i.else_block {
-            scopes.push();
             let block_span = e.block.span();
-            let block = self.check_types(scopes, e.block.csts, is_expr)?;
-            scopes.pop();
+            let block = scopes.with_new(|scopes| {
+                self.check_types(scopes, e.block.csts, is_expr) //
+            })?;
 
             if is_expr {
                 let d = block
@@ -189,10 +188,9 @@ impl Context {
         let span = w.span();
 
         let cond = self.check_cond(scopes, *w.cond)?;
-
-        scopes.push();
-        let block = self.check_types(scopes, w.block.csts, false)?;
-        scopes.pop();
+        let block = scopes.with_new(|scopes| {
+            self.check_types(scopes, w.block.csts, false) //
+        })?;
 
         let whl_loop = ast::WhileLoop::new(Box::new(cond), block);
         Ok(Ast::statement(AstT::WhileLoop(whl_loop), span))
@@ -221,12 +219,12 @@ impl Context {
         }
         let iter_type = DataType::Int;
 
-        scopes.push();
         let inner = Rc::new(ast::Var::new(None));
-        let var = Var::new(f.ident, iter_type, true, false, Rc::clone(&inner));
-        self.def_var(scopes, var);
-        let block = self.check_types(scopes, f.block.csts, false)?;
-        scopes.pop();
+        let block = scopes.with_new(|scopes| {
+            let var = Var::new(f.ident, iter_type, true, false, Rc::clone(&inner));
+            self.def_var(scopes, var);
+            self.check_types(scopes, f.block.csts, false)
+        })?;
 
         let for_loop = ast::ForLoop::new(inner, Box::new(iter), block);
         Ok(Ast::statement(AstT::ForLoop(for_loop), span))
@@ -242,20 +240,20 @@ impl Context {
             params.push(FunParam::new(p.ident, typ, span));
         }
 
-        scopes.push();
         let mut inner_params = Vec::new();
-        for p in params.iter() {
-            let param = Rc::new(ast::Var::new(None));
-            self.def_var(
-                scopes,
-                Var::new(p.ident, p.data_type, true, false, Rc::clone(&param)),
-            );
-            inner_params.push(param);
-        }
         let block_span = f.block.span();
-        let is_expr = f.return_type.is_some();
-        let block = self.check_types(scopes, f.block.csts, is_expr)?;
-        scopes.pop();
+        let block = scopes.with_new(|scopes| {
+            for p in params.iter() {
+                let param = Rc::new(ast::Var::new(None));
+                self.def_var(
+                    scopes,
+                    Var::new(p.ident, p.data_type, true, false, Rc::clone(&param)),
+                );
+                inner_params.push(param);
+            }
+            let is_expr = f.return_type.is_some();
+            self.check_types(scopes, f.block.csts, is_expr)
+        })?;
 
         let block_type = block
             .last()
