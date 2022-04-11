@@ -375,7 +375,7 @@ impl Context {
                 let ident = parser.expect_ident()?;
 
                 let name = self.idents.name(ident.ident);
-                if BuiltinConst::from(name).is_some() {
+                if name.parse::<BuiltinConst>().is_ok() {
                     return Err(crate::Error::RedefinedBuiltinConst(
                         name.to_owned(),
                         ident.span,

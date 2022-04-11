@@ -7,3 +7,7 @@ edition = "2021"
 
 [lib]
 name = "cods"
+
+[dependencies]
+strum_macros = "0.24.0"
+strum= "0.24.0"

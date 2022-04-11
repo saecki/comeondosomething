@@ -199,9 +199,9 @@ impl UserFacing for Error {
             Self::ExpectedBlock(_) => write!(f, "Expected a block"),
             Self::ExpectedIdent(_) => write!(f, "Expected identifier"),
             Self::ExpectedOp(o, _) => write!(f, "Expected `{o}`"),
-            Self::ExpectedKw(k, _) => write!(f, "Expected `{}`", k.name()),
+            Self::ExpectedKw(k, _) => write!(f, "Expected `{k}`"),
             Self::ExpectedPct(s, _) => write!(f, "Expected `{s}`"),
-            Self::WrongContext(k) => write!(f, "`{}` wasn`t expected in this context", k.name()),
+            Self::WrongContext(k) => write!(f, "`{k}` wasn`t expected in this context"),
 
             // Check
             Self::UnknownType(name, _) => write!(f, "Unknown type `{name}`"),

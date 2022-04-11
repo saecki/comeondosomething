@@ -16,7 +16,7 @@ pub enum ResolvedVar<'a> {
 impl Context {
     pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<ResolvedFun> {
         let name = self.idents.name(id.ident);
-        if let Some(b) = BuiltinFun::from(name) {
+        if let Ok(b) = name.parse::<BuiltinFun>() {
             return Ok(ResolvedFun::Builtin(b));
         }
 
@@ -50,7 +50,7 @@ impl Context {
         id: &IdentSpan,
     ) -> crate::Result<ResolvedVar<'a>> {
         let name = self.idents.name(id.ident);
-        if let Some(b) = BuiltinConst::from(name) {
+        if let Ok(b) = name.parse::<BuiltinConst>() {
             return Ok(ResolvedVar::Const(b));
         }
 

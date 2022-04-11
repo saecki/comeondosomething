@@ -891,10 +891,8 @@ impl Context {
 
     fn resolve_data_type(&self, typ: &IdentSpan) -> crate::Result<DataType> {
         let name = self.idents.name(typ.ident);
-        match DataType::from(name) {
-            Some(d) => Ok(d),
-            None => Err(crate::Error::UnknownType(name.into(), typ.span)),
-        }
+        name.parse::<DataType>()
+            .map_err(|_| crate::Error::UnknownType(name.into(), typ.span))
     }
 
     fn collect_spill_vars<'a>(

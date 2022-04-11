@@ -1,6 +1,8 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
+use strum_macros::{Display, EnumString};
+
 use crate::{Ident, IdentSpan, Span};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -226,70 +228,62 @@ impl DerefMut for Op {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
 pub enum OpT {
+    #[strum(serialize = "=")]
     Assign,
+    #[strum(serialize = "..")]
     RangeEx,
+    #[strum(serialize = "..=")]
     RangeIn,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "+=")]
     AddAssign,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "-=")]
     SubAssign,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "*=")]
     MulAssign,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "/=")]
     DivAssign,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "mod")]
     RemEuclid,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     Ne,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     Le,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     Ge,
+    #[strum(serialize = "||")]
     Or,
+    #[strum(serialize = "&&")]
     And,
+    #[strum(serialize = "|")]
     BwOr,
+    #[strum(serialize = "&")]
     BwAnd,
-    /// Not or Factorial depending on position
+    #[strum(serialize = "!")]
     Bang,
+    #[strum(serialize = ".")]
     Dot,
+    #[strum(serialize = "as")]
     As,
+    #[strum(serialize = "is")]
     Is,
-}
-
-impl Display for OpT {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Assign => write!(f, "="),
-            Self::RangeEx => write!(f, ".."),
-            Self::RangeIn => write!(f, "..="),
-            Self::Add => write!(f, "+"),
-            Self::AddAssign => write!(f, "+="),
-            Self::Sub => write!(f, "-"),
-            Self::SubAssign => write!(f, "-="),
-            Self::Mul => write!(f, "*"),
-            Self::MulAssign => write!(f, "*="),
-            Self::Div => write!(f, "/"),
-            Self::DivAssign => write!(f, "/="),
-            Self::Rem => write!(f, "%"),
-            Self::RemEuclid => write!(f, "mod"),
-            Self::Eq => write!(f, "=="),
-            Self::Ne => write!(f, "!="),
-            Self::Lt => write!(f, "<"),
-            Self::Le => write!(f, "<="),
-            Self::Gt => write!(f, ">"),
-            Self::Ge => write!(f, ">="),
-            Self::Or => write!(f, "||"),
-            Self::And => write!(f, "&&"),
-            Self::BwOr => write!(f, "|"),
-            Self::BwAnd => write!(f, "&"),
-            Self::Bang => write!(f, "!"),
-            Self::Dot => write!(f, "."),
-            Self::As => write!(f, "as"),
-            Self::Is => write!(f, "is"),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -442,6 +436,12 @@ pub struct Kw {
     pub span: Span,
 }
 
+impl Display for Kw {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.typ)
+    }
+}
+
 impl Deref for Kw {
     type Target = KwT;
 
@@ -462,7 +462,8 @@ impl Kw {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum KwT {
     If,
     Else,
@@ -472,19 +473,4 @@ pub enum KwT {
     Fun,
     Val,
     Var,
-}
-
-impl KwT {
-    pub fn name(&self) -> &str {
-        match self {
-            KwT::If => "if",
-            KwT::Else => "else",
-            KwT::While => "while",
-            KwT::For => "for",
-            KwT::In => "in",
-            KwT::Fun => "fun",
-            KwT::Val => "val",
-            KwT::Var => "var",
-        }
-    }
 }

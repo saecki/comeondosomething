@@ -1,6 +1,8 @@
 use std::fmt::{self, Display};
 use std::ops::Deref;
 
+use strum_macros::{Display, EnumString};
+
 use crate::{OpT, Span};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,67 +31,60 @@ impl Infix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
 pub enum InfixT {
+    #[strum(serialize = "=")]
     Assign,
-    AddAssign,
-    SubAssign,
-    MulAssign,
-    DivAssign,
+    #[strum(serialize = "..")]
     RangeEx,
+    #[strum(serialize = "..=")]
     RangeIn,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "+=")]
+    AddAssign,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "-=")]
+    SubAssign,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "*=")]
+    MulAssign,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "/=")]
+    DivAssign,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "mod")]
     RemEuclid,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     Ne,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     Le,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     Ge,
-    BwOr,
-    BwAnd,
+    #[strum(serialize = "||")]
     Or,
+    #[strum(serialize = "&&")]
     And,
+    #[strum(serialize = "|")]
+    BwOr,
+    #[strum(serialize = "&")]
+    BwAnd,
+    #[strum(serialize = ".")]
     Dot,
+    #[strum(serialize = "as")]
     As,
+    #[strum(serialize = "is")]
     Is,
-}
-
-impl Display for InfixT {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Assign => write!(f, "="),
-            Self::AddAssign => write!(f, "+="),
-            Self::SubAssign => write!(f, "-="),
-            Self::MulAssign => write!(f, "*="),
-            Self::DivAssign => write!(f, "/="),
-            Self::RangeEx => write!(f, ".."),
-            Self::RangeIn => write!(f, "..="),
-            Self::Add => write!(f, "+"),
-            Self::Sub => write!(f, "-"),
-            Self::Mul => write!(f, "*"),
-            Self::Div => write!(f, "/"),
-            Self::Rem => write!(f, "%"),
-            Self::RemEuclid => write!(f, "mod"),
-            Self::Eq => write!(f, "=="),
-            Self::Ne => write!(f, "!="),
-            Self::Lt => write!(f, "<"),
-            Self::Le => write!(f, "<="),
-            Self::Gt => write!(f, ">"),
-            Self::Ge => write!(f, ">="),
-            Self::BwOr => write!(f, "|"),
-            Self::BwAnd => write!(f, "&"),
-            Self::Or => write!(f, "||"),
-            Self::And => write!(f, "&&"),
-            Self::Dot => write!(f, "."),
-            Self::As => write!(f, "as"),
-            Self::Is => write!(f, "is"),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -118,21 +113,14 @@ impl Prefix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
 pub enum PrefixT {
+    #[strum(serialize = "+")]
     UnaryPlus,
+    #[strum(serialize = "-")]
     UnaryMinus,
+    #[strum(serialize = "!")]
     Not,
-}
-
-impl Display for PrefixT {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnaryPlus => write!(f, "+"),
-            Self::UnaryMinus => write!(f, "-"),
-            Self::Not => write!(f, "!"),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,17 +149,10 @@ impl Postfix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
 pub enum PostfixT {
+    #[strum(serialize = "!")]
     Factorial,
-}
-
-impl Display for PostfixT {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Factorial => write!(f, "!"),
-        }
-    }
 }
 
 impl OpT {
