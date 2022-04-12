@@ -1,12 +1,13 @@
+use std::cmp::max;
 use std::rc::Rc;
 
 use crate::cst::{self, Cst};
 use crate::{
     BuiltinFun, Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span,
-    ValSpan,
+    ValSpan, VarRef,
 };
 
-pub use ast::{Ast, AstT, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
+pub use ast::{Ast, AstT, Asts, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
 use builtin::*;
 pub use scope::*;
 pub use types::*;
@@ -19,13 +20,18 @@ mod test;
 mod types;
 
 impl Context {
-    pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {
+    pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Asts> {
         let mut scopes = Scopes::default();
-        self.check_types(&mut scopes, csts, true)
+        self.check_with(csts, &mut scopes)
     }
 
-    pub fn check_with(&mut self, csts: Vec<Cst>, scopes: &mut Scopes) -> crate::Result<Vec<Ast>> {
-        self.check_types(scopes, csts, true)
+    pub fn check_with(&mut self, csts: Vec<Cst>, scopes: &mut Scopes) -> crate::Result<Asts> {
+        let asts = self.check_types(scopes, csts, true)?;
+        let global_frame_size = scopes.frame_size();
+        Ok(Asts {
+            asts,
+            global_frame_size,
+        })
     }
 
     fn check_types(
@@ -56,7 +62,7 @@ impl Context {
             Cst::Val(v) => Ast::val(v),
             Cst::Ident(i) => match self.get_var(scopes, &i)? {
                 ResolvedVar::Const(c) => Ast::val(ValSpan::new(c.val(), span)),
-                ResolvedVar::Var(var) => Ast::var(Rc::clone(&var.inner), var.data_type, i.span),
+                ResolvedVar::Var(var) => Ast::var(var.inner, var.data_type, i.span),
             },
             Cst::Par(_, c, _) => self.check_par(scopes, *c, is_expr)?,
             Cst::Block(b) => self.check_block(scopes, b, is_expr)?,
@@ -109,12 +115,17 @@ impl Context {
         let mut data_type = DataType::Unit;
         let span = i.span();
 
+        let init_frame_size = scopes.frame_size();
+        let mut max_branch_frame_size = 0;
         let if_block_span = i.if_block.block.span();
         {
             let cond = self.check_cond(scopes, *i.if_block.cond)?;
             let block = scopes.with_new(|scopes| {
-                self.check_types(scopes, i.if_block.block.csts, is_expr) //
+                let b = self.check_types(scopes, i.if_block.block.csts, is_expr)?;
+                max_branch_frame_size = scopes.frame_size();
+                Ok(b)
             })?;
+            scopes.set_frame_size(init_frame_size);
 
             if is_expr {
                 data_type = block
@@ -131,8 +142,11 @@ impl Context {
 
             let block_span = e.block.span();
             let block = scopes.with_new(|scopes| {
-                self.check_types(scopes, e.block.csts, is_expr) //
+                let b = self.check_types(scopes, e.block.csts, is_expr)?;
+                max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
+                Ok(b)
             })?;
+            scopes.set_frame_size(init_frame_size);
 
             if is_expr {
                 let d = block
@@ -155,7 +169,9 @@ impl Context {
         let else_block = if let Some(e) = i.else_block {
             let block_span = e.block.span();
             let block = scopes.with_new(|scopes| {
-                self.check_types(scopes, e.block.csts, is_expr) //
+                let b = self.check_types(scopes, e.block.csts, is_expr)?;
+                max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
+                Ok(b)
             })?;
 
             if is_expr {
@@ -179,6 +195,8 @@ impl Context {
         } else {
             None
         };
+
+        scopes.set_frame_size(max_branch_frame_size);
 
         let if_expr = ast::IfExpr::new(cases, else_block);
         if is_expr {
@@ -223,11 +241,10 @@ impl Context {
         }
         let iter_type = DataType::Int;
 
-        let inner = Rc::new(ast::Var::new(None));
-        let block = scopes.with_new(|scopes| {
-            let var = Var::new(f.ident, iter_type, true, false, Rc::clone(&inner));
-            self.def_var(scopes, var);
-            self.check_types(scopes, f.block.csts, false)
+        let (inner, block) = scopes.with_new(|scopes| {
+            let inner = self.def_var(scopes, f.ident, iter_type, true, false);
+            let block = self.check_types(scopes, f.block.csts, false)?;
+            Ok((inner, block))
         })?;
 
         let for_loop = ast::ForLoop::new(inner, Box::new(iter), block);
@@ -237,6 +254,9 @@ impl Context {
     fn check_fun_def(&mut self, scopes: &mut Scopes, f: cst::FunDef) -> crate::Result<Ast> {
         let span = f.span();
 
+        scopes.push_frame();
+
+        // Function signature
         let mut params = Vec::with_capacity(f.params.items.len());
         for p in f.params.items {
             let typ = self.resolve_data_type(&p.typ)?;
@@ -244,45 +264,52 @@ impl Context {
             params.push(FunParam::new(p.ident, typ, span));
         }
 
-        let mut inner_params = Vec::new();
+        let return_type = f
+            .return_type
+            .as_ref()
+            .map_or(Ok(DataType::Unit), |r| self.resolve_data_type(&r.typ))?;
+
+        // Define fun before checking block to support recursive calls
+        let inner = Rc::new(ast::Fun::new());
+        // PERF: avoid clone
+        let fun = Fun::new(f.ident, params.clone(), return_type, Rc::clone(&inner));
+        self.def_fun(scopes, fun)?;
+
         let block_span = f.block.span();
-        let block = scopes.with_new(|scopes| {
+        scopes.with_new(|scopes| {
+            let mut inner_params = Vec::new();
             for p in params.iter() {
-                let param = Rc::new(ast::Var::new(None));
-                self.def_var(
-                    scopes,
-                    Var::new(p.ident, p.data_type, true, false, Rc::clone(&param)),
-                );
+                let param = self.def_var(scopes, p.ident, p.data_type, true, false);
                 inner_params.push(param);
             }
+
+            // Check function block
             let is_expr = f.return_type.is_some();
-            self.check_types(scopes, f.block.csts, is_expr)
-        })?;
+            let block = self.check_types(scopes, f.block.csts, is_expr)?;
 
-        let block_type = block
-            .last()
-            .and_then(|a| a.data_type)
-            .unwrap_or(DataType::Unit);
-        let return_type = if let Some(r) = f.return_type {
-            let return_type = self.resolve_data_type(&r.typ)?;
+            let block_type = block
+                .last()
+                .and_then(|a| a.data_type)
+                .unwrap_or(DataType::Unit);
 
-            if block_type.is_not(return_type) {
-                let span = block.last().map_or(block_span, |a| a.span);
-                return Err(crate::Error::MismatchedType {
-                    expected: return_type,
-                    found: block_type,
-                    spans: vec![r.typ.span, span],
-                });
+            if let Some(r) = f.return_type {
+                if block_type.is_not(return_type) {
+                    let span = block.last().map_or(block_span, |a| a.span);
+                    return Err(crate::Error::MismatchedType {
+                        expected: return_type,
+                        found: block_type,
+                        spans: vec![r.typ.span, span],
+                    });
+                }
             }
 
-            Some(return_type)
-        } else {
-            None
-        };
+            // Initialize function
+            inner.init(inner_params, block, scopes.frame_size());
 
-        let inner = ast::Fun::new(inner_params, block);
-        let fun = Fun::new(f.ident, params, return_type, Rc::new(inner));
-        self.def_fun(scopes, fun)?;
+            Ok(())
+        })?;
+
+        scopes.pop_frame();
 
         Ok(Ast::statement(AstT::Unit, span))
     }
@@ -335,14 +362,9 @@ impl Context {
             args.push(val);
         }
 
-        let return_type = match fun.return_type {
-            Some(t) => t,
-            None => DataType::Unit,
-        };
-
         Ok(Ast::expr(
             AstT::FunCall(Rc::clone(&fun.inner), args),
-            return_type,
+            fun.return_type,
             span,
         ))
     }
@@ -430,7 +452,9 @@ impl Context {
 
         match fun {
             BuiltinFunCall::Spill => {
-                let vars = self.collect_spill_vars(scopes.iter().flat_map(Scope::vars));
+                // XXX
+                // TODO: support non local references
+                let vars = self.collect_spill_vars(scopes.current().vars());
                 return Ok(Ast::expr(AstT::Spill(vars), signature.return_type, span));
             }
             BuiltinFunCall::SpillLocal => {
@@ -469,9 +493,7 @@ impl Context {
         };
 
         let mutable = v.kw.typ == KwT::Var;
-        let inner = Rc::new(ast::Var::new(None));
-        let var = Var::new(v.ident, data_type, true, mutable, Rc::clone(&inner));
-        self.def_var(scopes, var);
+        let inner = self.def_var(scopes, v.ident, data_type, true, mutable);
 
         Ok(Ast::statement(AstT::VarDef(inner, Box::new(val)), span))
     }
@@ -561,8 +583,7 @@ impl Context {
                     ));
                 }
 
-                let inner = Rc::clone(&var.inner);
-
+                let inner = var.inner;
                 self.set_var(scopes, &ident, &expr)?;
 
                 Ast::statement(AstT::Assign(inner, Box::new(expr)), s)
@@ -868,7 +889,7 @@ impl Context {
                 return Err(crate::Error::ConstAssign((c, ident.span), i.span))
             }
         };
-        let var_expr = Ast::var(Rc::clone(&var.inner), var.data_type, ident.span);
+        let var_expr = Ast::var(var.inner, var.data_type, ident.span);
 
         let expr = match (var.data_type, b_data_type) {
             (DataType::Int, DataType::Int) => Ast::int(int(Box::new(var_expr), Box::new(b)), s),
@@ -884,7 +905,7 @@ impl Context {
             }
         };
 
-        let inner = Rc::clone(&var.inner);
+        let inner = var.inner;
 
         self.set_var(scopes, &ident, &expr)?;
 
@@ -900,14 +921,17 @@ impl Context {
     fn collect_spill_vars<'a>(
         &self,
         var_iter: impl Iterator<Item = &'a Var>,
-    ) -> Vec<(String, Rc<ast::Var>)> {
-        var_iter
+    ) -> Vec<(String, VarRef)> {
+        let mut vars: Vec<_> = var_iter
             .filter(|v| v.assigned)
             .map(|v| {
                 let name = self.idents.name(v.ident.ident).to_owned();
-                (name, Rc::clone(&v.inner))
+                (name, v.inner)
             })
-            .collect()
+            .collect();
+
+        vars.sort();
+        vars
     }
 }
 

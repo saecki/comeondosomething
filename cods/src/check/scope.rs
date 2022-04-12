@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::{ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan, Span};
+use crate::{
+    ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan, Span, VarRef,
+};
 
 pub enum ResolvedFun {
     Fun(Rc<Fun>),
@@ -83,9 +85,19 @@ impl Context {
         Ok(ResolvedVar::Var(var))
     }
 
-    pub fn def_var(&self, scopes: &mut Scopes, var: Var) {
-        let s = scopes.current_mut();
-        s.def_var(var);
+    pub fn def_var(
+        &self,
+        scopes: &mut Scopes,
+        ident: IdentSpan,
+        data_type: DataType,
+        assigned: bool,
+        mutable: bool,
+    ) -> VarRef {
+        let inner = VarRef::new(scopes.frame_size());
+        let var = Var::new(ident, data_type, assigned, mutable, inner);
+        scopes.extend_frame(1);
+        scopes.current_mut().def_var(var);
+        inner
     }
 
     pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
@@ -115,13 +127,27 @@ impl Context {
 #[derive(Debug)]
 pub struct Scopes {
     scopes: Vec<Scope>,
+    frames: Vec<Frame>,
     len: usize,
+}
+
+#[derive(Debug)]
+struct Frame {
+    scope_index: usize,
+    size: usize,
+}
+
+impl Frame {
+    fn new(scope_index: usize, size: usize) -> Self {
+        Self { scope_index, size }
+    }
 }
 
 impl Default for Scopes {
     fn default() -> Self {
         Self {
             scopes: vec![Scope::default()],
+            frames: vec![Frame::new(0, 0)],
             len: 1,
         }
     }
@@ -138,6 +164,15 @@ impl Scopes {
         self.scopes
             .get_mut(self.len - 1)
             .expect("Expected at least the global scope")
+    }
+
+    pub fn next_mut(&mut self) -> &mut Scope {
+        if self.len >= self.scopes.len() {
+            self.scopes.push(Scope::default())
+        }
+        self.scopes
+            .get_mut(self.len)
+            .expect("Expected to find next scope")
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Scope> {
@@ -192,7 +227,9 @@ impl Scopes {
     }
 
     fn var(&self, id: Ident) -> Option<&Var> {
-        for s in self.rev() {
+        // XXX
+        let scope_index = self.current_frame().scope_index;
+        for s in self.scopes[scope_index..].iter().rev() {
             if let Some(v) = s.var(id) {
                 return Some(v);
             }
@@ -201,12 +238,49 @@ impl Scopes {
     }
 
     fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
-        for s in self.rev_mut() {
+        // XXX
+        let scope_index = self.current_frame().scope_index;
+        for s in self.scopes[scope_index..].iter_mut().rev() {
             if let Some(v) = s.var_mut(id) {
                 return Some(v);
             }
         }
         None
+    }
+
+    pub fn push_frame(&mut self) {
+        self.frames.push(Frame::new(self.scopes.len(), 0));
+    }
+
+    pub fn pop_frame(&mut self) -> usize {
+        self.frames
+            .pop()
+            .expect("Expected stack frames to be non empty")
+            .size
+    }
+
+    pub fn frame_size(&self) -> usize {
+        self.current_frame().size
+    }
+
+    pub fn set_frame_size(&mut self, size: usize) {
+        self.current_frame_mut().size = size;
+    }
+
+    pub fn extend_frame(&mut self, size: usize) {
+        self.current_frame_mut().size += size;
+    }
+
+    fn current_frame(&self) -> &Frame {
+        self.frames
+            .last()
+            .expect("Expected stack frames to be non empty")
+    }
+
+    fn current_frame_mut(&mut self) -> &mut Frame {
+        self.frames
+            .last_mut()
+            .expect("Expected stack frames to be non empty")
     }
 }
 
@@ -234,7 +308,7 @@ impl Scope {
         self.vars.get_mut(&id)
     }
 
-    pub fn def_var(&mut self, var: Var) {
+    fn def_var(&mut self, var: Var) {
         self.vars.insert(var.ident.ident, var);
     }
 
@@ -243,12 +317,11 @@ impl Scope {
     }
 }
 
-// TODO: define fun before parsing body to support recursive calls
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fun {
     pub ident: IdentSpan,
     pub params: Vec<FunParam>,
-    pub return_type: Option<DataType>,
+    pub return_type: DataType,
     pub inner: Rc<ast::Fun>,
 }
 
@@ -256,7 +329,7 @@ impl Fun {
     pub const fn new(
         ident: IdentSpan,
         params: Vec<FunParam>,
-        return_type: Option<DataType>,
+        return_type: DataType,
         inner: Rc<ast::Fun>,
     ) -> Self {
         Self {
@@ -291,7 +364,7 @@ pub struct Var {
     pub data_type: DataType,
     pub assigned: bool,
     pub mutable: bool,
-    pub inner: Rc<ast::Var>,
+    pub inner: VarRef,
 }
 
 impl Var {
@@ -300,7 +373,7 @@ impl Var {
         data_type: DataType,
         assigned: bool,
         mutable: bool,
-        inner: Rc<ast::Var>,
+        inner: VarRef,
     ) -> Self {
         Self {
             ident,

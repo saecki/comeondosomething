@@ -207,3 +207,23 @@ fn statement_cannot_be_used_as_expr() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(error, crate::Error::ExpectedExpr(Span::of(9, 19)));
 }
+
+#[test]
+fn recursive_function_calls() {
+    // 0 1 1 2 3 5 8 13 21
+    let input = "
+        fun fib(i: int) -> int {
+            if i == 0 {
+                0
+            } else if i == 1 {
+                1
+            } else {
+                fib(i - 1) + fib(i - 2)
+            }
+        }
+        fib(8)
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(21));
+}

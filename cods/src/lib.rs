@@ -46,11 +46,11 @@ impl Context {
             return Err(self.errors.remove(0));
         }
 
-        let val = eval::eval_all(&asts)?;
+        let val = eval::eval(&asts)?;
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, input: &str) -> crate::Result<Vec<ast::Ast>> {
+    pub fn parse_str(&mut self, input: &str) -> crate::Result<Asts> {
         let tokens = self.lex(input.as_ref())?;
         let items = self.group(tokens)?;
         let csts = self.parse(items)?;

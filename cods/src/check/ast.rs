@@ -1,8 +1,14 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use crate::{DataType, Range, Span, Val, ValSpan};
+use crate::{DataType, Range, Span, Val, ValSpan, VarRef};
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Asts {
+    pub asts: Vec<Ast>,
+    pub global_frame_size: usize,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
@@ -39,7 +45,7 @@ impl Ast {
         }
     }
 
-    pub fn var(var: Rc<Var>, data_type: DataType, span: Span) -> Self {
+    pub fn var(var: VarRef, data_type: DataType, span: Span) -> Self {
         match data_type {
             DataType::Int => Self::expr(AstT::Var(var), data_type, span),
             DataType::Float => Self::expr(AstT::Var(var), data_type, span),
@@ -75,7 +81,7 @@ impl Ast {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstT {
     Error,
-    Var(Rc<Var>),
+    Var(VarRef),
     Int(IntExpr),
     Float(FloatExpr),
     Bool(BoolExpr),
@@ -86,11 +92,11 @@ pub enum AstT {
     IfExpr(IfExpr),
     WhileLoop(WhileLoop),
     ForLoop(ForLoop),
-    Assign(Rc<Var>, Box<Ast>),
-    VarDef(Rc<Var>, Box<Ast>),
+    Assign(VarRef, Box<Ast>),
+    VarDef(VarRef, Box<Ast>),
     FunCall(Rc<Fun>, Vec<Ast>),
     BuiltinFunCall(BuiltinFunCall, Vec<Ast>),
-    Spill(Vec<(String, Rc<Var>)>),
+    Spill(Vec<(String, VarRef)>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -194,61 +200,74 @@ impl WhileLoop {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
-    pub var: Rc<Var>,
+    pub var: VarRef,
     pub iter: Box<Ast>,
     pub block: Vec<Ast>,
 }
 
 impl ForLoop {
-    pub const fn new(var: Rc<Var>, iter: Box<Ast>, block: Vec<Ast>) -> Self {
+    pub const fn new(var: VarRef, iter: Box<Ast>, block: Vec<Ast>) -> Self {
         Self { var, iter, block }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Var {
-    value: RefCell<Option<Val>>,
-}
-
-impl Var {
-    pub fn new(value: Option<Val>) -> Self {
-        Self {
-            value: RefCell::new(value),
-        }
-    }
-
-    pub fn set(&self, value: Val) {
-        self.value.replace(Some(value));
-    }
-
-    // TODO: allocate values using bumpalo and only store references
-    // -> Use cell instead of refcell
-    pub fn get(&self) -> Val {
-        self.value
-            .borrow()
-            .as_ref()
-            .expect("Expected variable to be initialized")
-            .clone()
-    }
-}
+pub struct Fun(RefCell<Option<InnerFun>>);
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Fun {
-    params: Vec<Rc<Var>>,
+struct InnerFun {
+    params: Vec<VarRef>,
     block: Vec<Ast>,
+    frame_size: usize,
 }
 
 impl Fun {
-    pub fn new(params: Vec<Rc<Var>>, block: Vec<Ast>) -> Self {
-        Self { params, block }
+    pub fn new() -> Self {
+        Self(RefCell::new(None))
     }
 
-    pub fn params(&self) -> &[Rc<Var>] {
-        &self.params
+    pub fn init(&self, params: Vec<VarRef>, block: Vec<Ast>, frame_size: usize) {
+        self.0.replace(Some(InnerFun {
+            params,
+            block,
+            frame_size,
+        }));
+    }
+
+    pub fn borrow<'a>(&'a self) -> FunRef<'a> {
+        FunRef {
+            inner: self.0.borrow(),
+        }
+    }
+
+    pub fn frame_size(&self) -> usize {
+        self.0
+            .borrow()
+            .as_ref()
+            .expect("Expected function to be initialized")
+            .frame_size
+    }
+}
+
+pub struct FunRef<'a> {
+    inner: Ref<'a, Option<InnerFun>>,
+}
+
+impl FunRef<'_> {
+    pub fn params(&self) -> &[VarRef] {
+        &self
+            .inner
+            .as_ref()
+            .expect("Expected function to be initialized")
+            .params
     }
 
     pub fn block(&self) -> &[Ast] {
-        &self.block
+        &self
+            .inner
+            .as_ref()
+            .expect("Expected function to be initialized")
+            .block
     }
 }
 
