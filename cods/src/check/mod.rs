@@ -8,7 +8,7 @@ use crate::{
 
 pub use ast::{Ast, AstT, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
 use builtin::*;
-use scope::*;
+pub use scope::*;
 pub use types::*;
 
 pub mod ast;
@@ -22,6 +22,10 @@ impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Vec<Ast>> {
         let mut scopes = Scopes::default();
         self.check_types(&mut scopes, csts, true)
+    }
+
+    pub fn check_with(&mut self, csts: Vec<Cst>, scopes: &mut Scopes) -> crate::Result<Vec<Ast>> {
+        self.check_types(scopes, csts, true)
     }
 
     fn check_types(

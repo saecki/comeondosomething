@@ -1,4 +1,3 @@
-use std::iter::Peekable;
 use std::rc::Rc;
 
 use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, Var, WhileLoop};
@@ -23,11 +22,11 @@ pub fn eval_all(asts: &[Ast]) -> crate::Result<Val> {
     }
 }
 
-pub fn eval_iter(asts: &[Ast]) -> Peekable<impl Iterator<Item = crate::Result<Val>> + '_> {
-    asts.iter().map(eval_ast).peekable()
+fn eval_iter(asts: &[Ast]) -> impl Iterator<Item = crate::Result<Val>> + '_ {
+    asts.iter().map(eval_ast)
 }
 
-pub fn eval_ast(ast: &Ast) -> crate::Result<Val> {
+fn eval_ast(ast: &Ast) -> crate::Result<Val> {
     match &ast.typ {
         AstT::Error => Err(crate::Error::Parsing(ast.span)),
         AstT::Var(v) => Ok(v.get()),

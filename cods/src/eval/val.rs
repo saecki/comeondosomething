@@ -22,7 +22,7 @@ impl Val {
         }
     }
 
-    pub fn ininto_str(self) -> Option<String> {
+    pub fn into_str(self) -> Option<String> {
         match self {
             Self::Str(s) => Some(s),
             _ => None,
