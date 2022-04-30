@@ -1,4 +1,4 @@
-use strum_macros::{Display, EnumString};
+use strum::{Display, EnumString};
 
 #[derive(Clone, Copy, Debug, PartialEq, EnumString, Display)]
 #[strum(serialize_all = "snake_case")]

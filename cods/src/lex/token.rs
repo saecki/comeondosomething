@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use strum_macros::{Display, EnumString};
+use strum::{Display, EnumString};
 
 use crate::{Ident, IdentSpan, Span};
 

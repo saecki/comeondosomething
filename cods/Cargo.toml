@@ -9,5 +9,4 @@ edition = "2021"
 name = "cods"
 
 [dependencies]
-strum_macros = "0.24.0"
-strum= "0.24.0"
+strum = { version = "0.24.0", features = ["derive"] }
