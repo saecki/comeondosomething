@@ -123,12 +123,17 @@ fn int_div() {
 #[test]
 fn remainder() {
     assert("8 % 3", Val::Int(2));
+    assert("-8 % 3", Val::Int(-2));
+    assert("8 % -3", Val::Int(2));
+    assert("-8 % -3", Val::Int(-2));
 }
 
 #[test]
 fn remainder_euclid() {
+    assert("8 % 3", Val::Int(2));
     assert("-8 mod 3", Val::Int(1));
     assert("8 mod -5", Val::Int(-2));
+    assert("-8 mod -5", Val::Int(-3));
 }
 
 #[test]
