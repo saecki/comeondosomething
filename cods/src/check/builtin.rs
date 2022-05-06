@@ -150,7 +150,7 @@ const MAX_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
 };
 const CLAMP_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
     ClampInt(Int, Int, Int) -> Int
-    ClampFloat(Float, Float, Float) -> Int
+    ClampFloat(Float, Float, Float) -> Float
 };
 const ABS_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
     AbsInt(Int) -> Int
