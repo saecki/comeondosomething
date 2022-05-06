@@ -509,6 +509,14 @@ fn eval_builtin_fun_call(fun: BuiltinFunCall, args: &[Ast]) -> crate::Result<Val
             }
             Val::Float(num.clamp(min, max))
         }
+        BuiltinFunCall::AbsInt => {
+            let num = eval_ast(&args[0])?.unwrap_int();
+            Val::Int(num.abs())
+        }
+        BuiltinFunCall::AbsFloat => {
+            let num = eval_ast(&args[0])?.unwrap_float();
+            Val::Float(num.abs())
+        }
         BuiltinFunCall::Print => {
             eval_print(args)?;
             Val::Unit

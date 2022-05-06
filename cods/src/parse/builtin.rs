@@ -20,6 +20,7 @@ pub enum BuiltinFun {
     Min,
     Max,
     Clamp,
+    Abs,
     Print,
     Println,
     Spill,

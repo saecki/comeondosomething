@@ -251,6 +251,14 @@ fn clamp_bounds_float() {
 }
 
 #[test]
+fn abs() {
+    assert("abs(34)", Val::Int(34));
+    assert("abs(-34)", Val::Int(34));
+    assert("abs(54.32)", Val::Float(54.32));
+    assert("abs(-54.32)", Val::Float(54.32));
+}
+
+#[test]
 fn eq() {
     assert("false == false", Val::Bool(true));
     assert("false == true", Val::Bool(false));

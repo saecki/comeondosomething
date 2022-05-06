@@ -275,6 +275,8 @@ pub enum BuiltinFunCall {
     MaxFloat,
     ClampInt,
     ClampFloat,
+    AbsInt,
+    AbsFloat,
     Print,
     Println,
     Spill,

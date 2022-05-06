@@ -152,6 +152,10 @@ const CLAMP_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
     ClampInt(Int, Int, Int) -> Int
     ClampFloat(Float, Float, Float) -> Int
 };
+const ABS_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+    AbsInt(Int) -> Int
+    AbsFloat(Float) -> Float
+};
 const PRINT_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
     Print(..Any) -> Unit
 };
@@ -196,6 +200,7 @@ impl BuiltinFun {
             BuiltinFun::Min => &MIN_SIGNATURES,
             BuiltinFun::Max => &MAX_SIGNATURES,
             BuiltinFun::Clamp => &CLAMP_SIGNATURES,
+            BuiltinFun::Abs => &ABS_SIGNATURES,
             BuiltinFun::Print => &PRINT_SIGNATURES,
             BuiltinFun::Println => &PRINTLN_SIGNATURES,
             BuiltinFun::Spill => &SPILL_SIGNATURES,
