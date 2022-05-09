@@ -203,6 +203,13 @@ impl Scopes {
         self.len -= 1;
     }
 
+    pub fn with_new_frame<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.push_frame();
+        let r = self.with_new(f);
+        self.pop_frame();
+        r
+    }
+
     pub fn with_new<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.push();
         let r = f(self);
@@ -248,11 +255,11 @@ impl Scopes {
         None
     }
 
-    pub fn push_frame(&mut self) {
+    fn push_frame(&mut self) {
         self.frames.push(Frame::new(self.scopes.len(), 0));
     }
 
-    pub fn pop_frame(&mut self) -> usize {
+    fn pop_frame(&mut self) -> usize {
         self.frames
             .pop()
             .expect("Expected stack frames to be non empty")

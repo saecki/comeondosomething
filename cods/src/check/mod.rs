@@ -254,8 +254,6 @@ impl Context {
     fn check_fun_def(&mut self, scopes: &mut Scopes, f: cst::FunDef) -> crate::Result<Ast> {
         let span = f.span();
 
-        scopes.push_frame();
-
         // Function signature
         let mut params = Vec::with_capacity(f.params.items.len());
         for p in f.params.items {
@@ -276,7 +274,8 @@ impl Context {
         self.def_fun(scopes, fun)?;
 
         let block_span = f.block.span();
-        scopes.with_new(|scopes| {
+
+        scopes.with_new_frame(|scopes| {
             let mut inner_params = Vec::new();
             for p in params.iter() {
                 let param = self.def_var(scopes, p.ident, p.data_type, true, false);
@@ -308,8 +307,6 @@ impl Context {
 
             Ok(())
         })?;
-
-        scopes.pop_frame();
 
         Ok(Ast::statement(AstT::Unit, span))
     }
