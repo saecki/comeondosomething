@@ -1,0 +1,14 @@
+val W = 41
+var w = 1
+while w < W {
+    val space = (W - w) / 2
+    for _ in 0..space {
+        print(" ")
+    }
+    for _ in 0..w {
+        print("*")
+    }
+    println()
+
+    w += 2
+}

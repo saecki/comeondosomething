@@ -1,0 +1,12 @@
+fun euclid_gcd(a: int, b: int) -> int {
+    if a == b {
+        b
+    } else if a > b {
+        euclid_gcd(a - b, b)
+    } else {
+        euclid_gcd(a, b - a)
+    }
+}
+
+assert_eq(euclid_gcd(16, 24), 8)
+assert_eq(euclid_gcd(7, 13), 1)

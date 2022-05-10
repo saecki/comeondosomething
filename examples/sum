@@ -1,0 +1,10 @@
+fun sum(n: int) -> int {
+    var sum = 0
+    for i in 1..n {
+        sum += i
+    }
+    sum
+}
+
+assert_eq(sum(10), 45)
+assert_eq(sum(23432), 274517596)
