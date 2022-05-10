@@ -22,10 +22,10 @@ mod types;
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Asts> {
         let mut scopes = Scopes::default();
-        self.check_with(csts, &mut scopes)
+        self.check_with(&mut scopes, csts)
     }
 
-    pub fn check_with(&mut self, csts: Vec<Cst>, scopes: &mut Scopes) -> crate::Result<Asts> {
+    pub fn check_with(&mut self, scopes: &mut Scopes, csts: Vec<Cst>) -> crate::Result<Asts> {
         let asts = self.check_types(scopes, csts, true)?;
         let global_frame_size = scopes.frame_size();
         Ok(Asts {
