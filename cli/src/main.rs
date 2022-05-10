@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{Context, Scopes, Val, Stack};
+use cods::{Context, Scopes, Stack, Val};
 
 use display::*;
 use style::*;

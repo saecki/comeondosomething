@@ -316,7 +316,6 @@ fn cannot_capture_var_in_dyn_scope() {
     );
 }
 
-
 #[test]
 fn cannot_capture_var_to_write_in_dyn_scope() {
     // 0 1 1 2 3 5 8 13 21
