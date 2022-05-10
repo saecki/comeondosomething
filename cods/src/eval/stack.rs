@@ -1,17 +1,9 @@
 use crate::Val;
 
+#[derive(Default)]
 pub struct Stack {
     values: Vec<Option<Val>>,
     frames: Vec<usize>,
-}
-
-impl Default for Stack {
-    fn default() -> Self {
-        Self {
-            values: Vec::new(),
-            frames: Vec::new(),
-        }
-    }
 }
 
 impl Stack {

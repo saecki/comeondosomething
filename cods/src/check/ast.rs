@@ -221,11 +221,13 @@ struct InnerFun {
     frame_size: usize,
 }
 
-impl Fun {
-    pub fn new() -> Self {
+impl Default for Fun {
+    fn default() -> Self {
         Self(RefCell::new(None))
     }
+}
 
+impl Fun {
     pub fn init(&self, params: Vec<VarRef>, block: Vec<Ast>, frame_size: usize) {
         self.0.replace(Some(InnerFun {
             params,
@@ -234,7 +236,7 @@ impl Fun {
         }));
     }
 
-    pub fn borrow<'a>(&'a self) -> FunRef<'a> {
+    pub fn borrow(&self) -> FunRef<'_> {
         FunRef {
             inner: self.0.borrow(),
         }

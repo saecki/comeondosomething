@@ -285,7 +285,7 @@ impl Context {
             .map_or(Ok(DataType::Unit), |r| self.resolve_data_type(&r.typ))?;
 
         // Define fun before checking block to support recursive calls
-        let inner = Rc::new(ast::Fun::new());
+        let inner = Rc::new(ast::Fun::default());
         let fun = Fun::new(f.ident, params, return_type, Rc::clone(&inner));
         self.def_fun(scopes, fun)?;
 

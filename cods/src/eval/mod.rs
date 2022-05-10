@@ -377,7 +377,7 @@ fn eval_var_def(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Va
 fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> crate::Result<Val> {
     let fun_ref = fun.borrow();
     let mut arg_vals = Vec::with_capacity(fun_ref.params().len());
-    for (p, a) in fun_ref.params().iter().zip(args.into_iter()) {
+    for (p, a) in fun_ref.params().iter().zip(args.iter()) {
         let val = eval_ast(stack, a)?;
         arg_vals.push((p, val));
     }
@@ -589,7 +589,7 @@ fn eval_print(stack: &mut Stack, args: &[Ast]) -> crate::Result<()> {
 
 fn eval_spill(stack: &mut Stack, vars: &[(String, VarRef)]) -> crate::Result<Val> {
     for (n, v) in vars {
-        println!("{n} = {}", stack.get_local(&v));
+        println!("{n} = {}", stack.get_local(v));
     }
     Ok(Val::Unit)
 }
