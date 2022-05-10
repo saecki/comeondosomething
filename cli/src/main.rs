@@ -2,13 +2,20 @@ use std::env::args;
 use std::io::{self, Write};
 use std::process::exit;
 
-use cods::{Context, Val};
+use cods::{Context, Scopes, Val, Stack};
 
 use display::*;
 use style::*;
 
 mod display;
 mod style;
+
+#[derive(Default)]
+struct State {
+    ctx: Context,
+    scopes: Scopes,
+    stack: Stack,
+}
 
 fn main() {
     let mut args = args().skip(1);
@@ -33,10 +40,10 @@ fn repl() {
     let mut output = io::stdout();
     let input = io::stdin();
     let mut buf = String::new();
-    let mut ctx = Context::default();
+    let mut state = State::default();
     loop {
         buf.clear();
-        ctx.clear_errors();
+        state.ctx.clear_errors();
 
         bprint!(LBlue, " >> ");
         let _ = output.flush();
@@ -51,7 +58,7 @@ fn repl() {
                 print!("\x1b[1;1H\x1B[2J");
                 let _ = output.flush();
             }
-            _ => print_calc(&mut ctx, &buf),
+            _ => print_calc(&mut state, &buf),
         }
     }
 }
@@ -67,8 +74,8 @@ fn calc_file(path: Option<String>) {
 
     match std::fs::read_to_string(&p) {
         Ok(input) => {
-            let mut ctx = Context::default();
-            print_calc(&mut ctx, &input);
+            let mut state = State::default();
+            print_calc(&mut state, &input);
         }
         Err(_) => {
             bprintln!(LRed, "Error reading file: {p}");
@@ -79,17 +86,17 @@ fn calc_file(path: Option<String>) {
 
 fn calc_args(first: String, args: impl Iterator<Item = String>) {
     let input = args.fold(first, |a, b| a + " " + &b);
-    let mut ctx = Context::default();
-    print_calc(&mut ctx, &input);
+    let mut state = State::default();
+    print_calc(&mut state, &input);
 }
 
-fn print_calc(ctx: &mut Context, input: &str) {
-    match ctx.parse_and_eval(input) {
+fn print_calc(state: &mut State, input: &str) {
+    match calc(state, input) {
         Ok(v) => {
-            for w in ctx.warnings.iter().rev() {
+            for w in state.ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            for e in ctx.errors.iter().rev() {
+            for e in state.ctx.errors.iter().rev() {
                 println!("{}\n", e.display(input));
             }
             if v != Val::Unit {
@@ -97,15 +104,23 @@ fn print_calc(ctx: &mut Context, input: &str) {
             }
         }
         Err(e) => {
-            for w in ctx.warnings.iter().rev() {
+            for w in state.ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            for e in ctx.errors.iter().rev() {
+            for e in state.ctx.errors.iter().rev() {
                 println!("{}\n", e.display(input));
             }
             println!("{}\n", e.display(input));
         }
     }
+}
+
+fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
+    let tokens = state.ctx.lex(input.as_ref())?;
+    let items = state.ctx.group(tokens)?;
+    let csts = state.ctx.parse(items)?;
+    let asts = state.ctx.check_with(&mut state.scopes, csts)?;
+    cods::eval_with(&mut state.stack, &asts)
 }
 
 fn help() {
