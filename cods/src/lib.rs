@@ -59,7 +59,7 @@ impl Context {
     }
 }
 
-pub fn eval(input: &str) -> crate::Result<Val> {
+pub fn eval_str(input: &str) -> crate::Result<Val> {
     let mut ctx = Context::default();
     ctx.parse_and_eval(input)
 }
