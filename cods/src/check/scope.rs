@@ -256,7 +256,7 @@ impl Scopes {
     }
 
     fn push_frame(&mut self) {
-        self.frames.push(Frame::new(self.scopes.len(), 0));
+        self.frames.push(Frame::new(self.len, 0));
     }
 
     fn pop_frame(&mut self) -> usize {

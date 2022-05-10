@@ -229,6 +229,27 @@ fn recursive_function_calls() {
 }
 
 #[test]
+fn recursive_function_calls2() {
+    let input = "
+        val a = first(23)
+        fun first(a: int) -> int {
+            if a < 0 {
+                0
+            } else {
+                second(a)
+            }
+        }
+        fun second(b: int) -> int {
+            first(b - 1)
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(0));
+}
+
+#[test]
 fn function_call_before_definition() {
     // 0 1 1 2 3 5 8 13 21
     let input = "
