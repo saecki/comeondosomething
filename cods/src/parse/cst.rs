@@ -159,6 +159,7 @@ pub struct FunDef {
     pub params: FunParams,
     pub return_type: Option<ReturnType>,
     pub block: Block,
+    pub defined: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -217,6 +218,7 @@ impl FunDef {
             params,
             return_type: return_typ,
             block,
+            defined: false,
         }
     }
 

@@ -40,6 +40,15 @@ impl Context {
         mut csts: Vec<Cst>,
         is_expr: bool,
     ) -> crate::Result<Vec<Ast>> {
+        for c in csts.iter_mut() {
+            if let Cst::FunDef(f) = c {
+                if !f.defined {
+                    self.check_fun_def_signature(scopes, f)?;
+                    f.defined = true;
+                }
+            }
+        }
+
         let mut asts = Vec::with_capacity(csts.len());
         if let Some(last) = csts.pop() {
             for c in csts {
@@ -69,7 +78,13 @@ impl Context {
             Cst::IfExpr(i) => self.check_if_expr(scopes, i, is_expr)?,
             Cst::WhileLoop(w) => self.check_while_loop(scopes, w)?,
             Cst::ForLoop(f) => self.check_for_loop(scopes, f)?,
-            Cst::FunDef(f) => self.check_fun_def(scopes, f)?,
+            Cst::FunDef(mut f) => {
+                if !f.defined {
+                    self.check_fun_def_signature(scopes, &f)?;
+                    f.defined = true;
+                }
+                self.check_fun_def_block(scopes, f)?
+            }
             Cst::FunCall(f) => self.check_fun_call(scopes, f)?,
             Cst::VarDef(v) => self.check_var_def(scopes, v)?,
             Cst::Prefix(p, a) => self.check_prefix(scopes, p, *a, span)?,
@@ -251,12 +266,14 @@ impl Context {
         Ok(Ast::statement(AstT::ForLoop(for_loop), span))
     }
 
-    fn check_fun_def(&mut self, scopes: &mut Scopes, f: cst::FunDef) -> crate::Result<Ast> {
-        let span = f.span();
-
+    fn check_fun_def_signature(
+        &mut self,
+        scopes: &mut Scopes,
+        f: &cst::FunDef,
+    ) -> crate::Result<()> {
         // Function signature
         let mut params = Vec::with_capacity(f.params.items.len());
-        for p in f.params.items {
+        for p in f.params.items.iter() {
             let typ = self.resolve_data_type(&p.typ)?;
             let span = Span::across(p.ident.span, p.typ.span);
             params.push(FunParam::new(p.ident, typ, span));
@@ -269,15 +286,24 @@ impl Context {
 
         // Define fun before checking block to support recursive calls
         let inner = Rc::new(ast::Fun::new());
-        // PERF: avoid clone
-        let fun = Fun::new(f.ident, params.clone(), return_type, Rc::clone(&inner));
+        let fun = Fun::new(f.ident, params, return_type, Rc::clone(&inner));
         self.def_fun(scopes, fun)?;
 
+        Ok(())
+    }
+
+    fn check_fun_def_block(&mut self, scopes: &mut Scopes, f: cst::FunDef) -> crate::Result<Ast> {
+        let span = f.span();
         let block_span = f.block.span();
+
+        let fun = match self.resolve_fun(scopes, &f.ident)? {
+            ResolvedFun::Fun(f) => f,
+            ResolvedFun::Builtin(_) => panic!("Expected user defined function"),
+        };
 
         scopes.with_new_frame(|scopes| {
             let mut inner_params = Vec::new();
-            for p in params.iter() {
+            for p in fun.params.iter() {
                 let param = self.def_var(scopes, p.ident, p.data_type, true, false);
                 inner_params.push(param);
             }
@@ -292,10 +318,10 @@ impl Context {
                 .unwrap_or(DataType::Unit);
 
             if let Some(r) = f.return_type {
-                if block_type.is_not(return_type) {
+                if block_type.is_not(fun.return_type) {
                     let span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::MismatchedType {
-                        expected: return_type,
+                        expected: fun.return_type,
                         found: block_type,
                         spans: vec![r.typ.span, span],
                     });
@@ -303,7 +329,7 @@ impl Context {
             }
 
             // Initialize function
-            inner.init(inner_params, block, scopes.frame_size());
+            fun.inner.init(inner_params, block, scopes.frame_size());
 
             Ok(())
         })?;

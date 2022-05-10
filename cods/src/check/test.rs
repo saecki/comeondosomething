@@ -227,3 +227,18 @@ fn recursive_function_calls() {
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(21));
 }
+
+#[test]
+fn function_call_before_definition() {
+    // 0 1 1 2 3 5 8 13 21
+    let input = "
+        val a = test(23)
+        fun test(i: int) -> int {
+            i * 3
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(69));
+}
