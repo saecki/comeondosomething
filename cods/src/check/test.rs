@@ -263,3 +263,79 @@ fn function_call_before_definition() {
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(69));
 }
+
+#[test]
+fn can_capture_global_var() {
+    // 0 1 1 2 3 5 8 13 21
+    let input = "
+        val a = 3
+        fun captures() -> int {
+            a
+        }
+        captures()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(3));
+}
+
+#[test]
+fn can_write_to_captured_global_var() {
+    // 0 1 1 2 3 5 8 13 21
+    let input = "
+        var a = 3
+        fun captures() {
+            a *= 2
+        }
+        captures()
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(6));
+}
+
+#[test]
+fn cannot_capture_var_in_dyn_scope() {
+    let input = "
+        fun outer() {
+            val a = 3
+            fun inner() -> int {
+                a
+            }
+        }
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::NotImplemented(
+            "Capturing variables from a dynamic scope is not yet implemented",
+            Span::pos(39)
+        )
+    );
+}
+
+
+#[test]
+fn cannot_capture_var_to_write_in_dyn_scope() {
+    // 0 1 1 2 3 5 8 13 21
+    let input = "
+        fun outer() {
+            var a = 3
+            fun inner() {
+                a *= 3
+            }
+            a
+        }
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::NotImplemented(
+            "Capturing variables from a dynamic scope is not yet implemented",
+            Span::pos(39)
+        )
+    );
+}

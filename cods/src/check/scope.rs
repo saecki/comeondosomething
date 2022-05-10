@@ -56,7 +56,7 @@ impl Context {
             return Ok(ResolvedVar::Const(b));
         }
 
-        match scopes.var(id.ident) {
+        match scopes.var(id.ident)? {
             Some(v) => Ok(ResolvedVar::Var(v)),
             None => Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
         }
@@ -93,7 +93,7 @@ impl Context {
         assigned: bool,
         mutable: bool,
     ) -> VarRef {
-        let inner = VarRef::Local(scopes.frame_size());
+        let inner = scopes.var_ref();
         let var = Var::new(ident, data_type, assigned, mutable, inner);
         scopes.extend_frame(1);
         scopes.current_mut().def_var(var);
@@ -101,7 +101,7 @@ impl Context {
     }
 
     pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
-        match scopes.var_mut(id.ident) {
+        match scopes.var_mut(id.ident)? {
             Some(v) => {
                 if !v.mutable && v.assigned {
                     let name = self.idents.name(id.ident);
@@ -233,26 +233,55 @@ impl Scopes {
         None
     }
 
-    fn var(&self, id: Ident) -> Option<&Var> {
-        // XXX
-        let scope_index = self.current_frame().scope_index;
-        for s in self.scopes[scope_index..].iter().rev() {
+    fn var(&self, id: Ident) -> crate::Result<Option<&Var>> {
+        let current_scope_index = self.current_frame().scope_index;
+        for s in self.scopes[current_scope_index..].iter().rev() {
             if let Some(v) = s.var(id) {
-                return Some(v);
+                return Ok(Some(v));
             }
         }
-        None
+        if let Some(f) = self.frames.get(1) {
+            for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
+                if let Some(v) = s.var(id) {
+                    return Err(crate::Error::NotImplemented(
+                        "Capturing variables from a dynamic scope is not yet implemented",
+                        v.ident.span,
+                    ));
+                }
+            }
+            for s in self.scopes[..f.scope_index].iter().rev() {
+                if let Some(v) = s.var(id) {
+                    return Ok(Some(v));
+                }
+            }
+        }
+        Ok(None)
     }
 
-    fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
-        // XXX
-        let scope_index = self.current_frame().scope_index;
-        for s in self.scopes[scope_index..].iter_mut().rev() {
+    fn var_mut(&mut self, id: Ident) -> crate::Result<Option<&mut Var>> {
+        let current_scope_index = self.current_frame().scope_index;
+        for s in self.scopes[current_scope_index..].iter_mut().rev() {
             if let Some(v) = s.var_mut(id) {
-                return Some(v);
+                // workaround for lifetime issue: https://github.com/rust-lang/rust/issues/54663
+                return Ok(Some(unsafe { std::mem::transmute::<_, _>(v) }));
             }
         }
-        None
+        if let Some(f) = self.frames.get(1) {
+            for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
+                if let Some(v) = s.var(id) {
+                    return Err(crate::Error::NotImplemented(
+                        "Capturing variables from a dynamic scope is not yet implemented",
+                        v.ident.span,
+                    ));
+                }
+            }
+            for s in self.scopes[..f.scope_index].iter_mut().rev() {
+                if let Some(v) = s.var_mut(id) {
+                    return Ok(Some(v));
+                }
+            }
+        }
+        Ok(None)
     }
 
     fn push_frame(&mut self) {
@@ -276,6 +305,13 @@ impl Scopes {
 
     pub fn extend_frame(&mut self, size: usize) {
         self.current_frame_mut().size += size;
+    }
+
+    pub fn var_ref(&self) -> VarRef {
+        match self.frames.len() {
+            1 => VarRef::Global(self.frame_size()),
+            _ => VarRef::Local(self.frame_size()),
+        }
     }
 
     fn current_frame(&self) -> &Frame {
