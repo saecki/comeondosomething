@@ -14,9 +14,13 @@ mod val;
 
 pub fn eval(asts: &Asts) -> crate::Result<Val> {
     let mut stack = Stack::default();
-    stack.push(asts.global_frame_size);
-    let val = eval_asts(&mut stack, &asts.asts)?;
-    stack.pop();
+    let val = eval_with(&mut stack, asts)?;
+    Ok(val)
+}
+
+pub fn eval_with(stack: &mut Stack, asts: &Asts) -> crate::Result<Val> {
+    stack.extend_to(asts.global_frame_size);
+    let val = eval_asts(stack, &asts.asts)?;
     Ok(val)
 }
 

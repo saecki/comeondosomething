@@ -1,14 +1,40 @@
 use crate::Val;
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct Stack {
+    /// The frame data.
     values: Vec<Option<Val>>,
+    /// The starting indices of the frames.
     frames: Vec<usize>,
+}
+
+impl Default for Stack {
+    fn default() -> Self {
+        Self {
+            values: Vec::new(),
+            frames: vec![0],
+        }
+    }
 }
 
 impl Stack {
     fn frame_start(&self) -> usize {
         *self.frames.last().expect("Expected frames to be non empty")
+    }
+    
+    fn frame_size(&self) -> usize {
+        self.values.len() - self.frame_start()
+    }
+
+    /// Extends the current frame to `size`.
+    /// 
+    /// Panics if `size` is less than the current frame size.
+    pub fn extend_to(&mut self, size: usize) {
+        let additional = size - self.frame_size();
+        self.values.reserve(additional);
+        for _ in 0..additional {
+            self.values.push(None);
+        }
     }
 
     pub fn push(&mut self, size: usize) {
