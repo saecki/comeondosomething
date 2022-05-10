@@ -93,7 +93,7 @@ impl Context {
         assigned: bool,
         mutable: bool,
     ) -> VarRef {
-        let inner = VarRef::new(scopes.frame_size());
+        let inner = VarRef::Local(scopes.frame_size());
         let var = Var::new(ident, data_type, assigned, mutable, inner);
         scopes.extend_frame(1);
         scopes.current_mut().def_var(var);

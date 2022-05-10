@@ -52,14 +52,20 @@ impl Stack {
     }
 
     pub fn set_local(&mut self, var: &VarRef, val: Val) {
-        let start = self.frame_start();
-        self.values[start + var.idx] = Some(val);
+        let idx = match var {
+            VarRef::Local(i) => self.frame_start() + i,
+            VarRef::Global(i) => *i,
+        };
+        self.values[idx] = Some(val);
     }
 
     pub fn get_local(&mut self, var: &VarRef) -> Val {
-        let start = self.frame_start();
+        let idx = match var {
+            VarRef::Local(i) => self.frame_start() + i,
+            VarRef::Global(i) => *i,
+        };
         self.values
-            .get(start + var.idx)
+            .get(idx)
             .unwrap()
             .as_ref()
             .expect("Expected value to be initialized")
@@ -68,14 +74,9 @@ impl Stack {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VarRef {
-    // XXX: only local values
-    // TODO: capture values from outer scope
-    idx: usize,
-}
-
-impl VarRef {
-    pub fn new(idx: usize) -> Self {
-        Self { idx }
-    }
+pub enum VarRef {
+    /// The position relative to the frame start.
+    Local(usize),
+    /// The position relative to the start of the stack.
+    Global(usize),
 }
