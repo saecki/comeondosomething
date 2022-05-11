@@ -6,7 +6,6 @@ pub use ident::*;
 pub use lex::*;
 pub use parse::*;
 pub use span::*;
-pub use stdio::*;
 pub use util::*;
 
 mod check;
@@ -17,13 +16,11 @@ mod ident;
 mod lex;
 mod parse;
 mod span;
-mod stdio;
 mod util;
 
 #[derive(Debug, Default)]
 pub struct Context {
     pub idents: Idents,
-    pub stdio: Stdio,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
 }
