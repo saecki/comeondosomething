@@ -47,7 +47,7 @@ fn eval_iter<'a>(
 fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
     match &ast.typ {
         AstT::Error => Err(crate::Error::Parsing(ast.span)),
-        AstT::Var(v) => Ok(stack.get_local(v)),
+        AstT::Var(v) => Ok(stack.get(v)),
         AstT::Int(i) => eval_int_expr(stack, i),
         AstT::Float(f) => eval_float_expr(stack, f),
         AstT::Bool(b) => eval_bool_expr(stack, b),
@@ -359,7 +359,7 @@ fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> crate::Result<Val> {
     let iter = eval_ast(stack, &for_loop.iter)?.unwrap_range();
 
     for i in iter.iter() {
-        stack.set_local(&for_loop.var, Val::Int(i));
+        stack.set(&for_loop.var, Val::Int(i));
         eval_asts(stack, &for_loop.block)?;
     }
 
@@ -368,13 +368,13 @@ fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> crate::Result<Val> {
 
 fn eval_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
     let val = eval_ast(stack, expr)?;
-    stack.set_local(var, val);
+    stack.set(var, val);
     Ok(Val::Unit)
 }
 
 fn eval_var_def(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
     let val = eval_ast(stack, expr)?;
-    stack.set_local(var, val);
+    stack.set(var, val);
     Ok(Val::Unit)
 }
 
@@ -388,7 +388,7 @@ fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> crate::Resul
 
     stack.push(fun.frame_size());
     for (p, a) in arg_vals {
-        stack.set_local(p, a);
+        stack.set(p, a);
     }
     let block = fun_ref.block();
     let val = eval_asts(stack, block);
@@ -593,7 +593,7 @@ fn eval_print(stack: &mut Stack, args: &[Ast]) -> crate::Result<()> {
 
 fn eval_spill(stack: &mut Stack, vars: &[(String, VarRef)]) -> crate::Result<Val> {
     for (n, v) in vars {
-        println!("{n} = {}", stack.get_local(v));
+        println!("{n} = {}", stack.get(v));
     }
     Ok(Val::Unit)
 }

@@ -51,7 +51,7 @@ impl Stack {
         self.values.truncate(len);
     }
 
-    pub fn set_local(&mut self, var: &VarRef, val: Val) {
+    pub fn set(&mut self, var: &VarRef, val: Val) {
         let idx = match var {
             VarRef::Local(i) => self.frame_start() + i,
             VarRef::Global(i) => *i,
@@ -59,7 +59,7 @@ impl Stack {
         self.values[idx] = Some(val);
     }
 
-    pub fn get_local(&mut self, var: &VarRef) -> Val {
+    pub fn get(&mut self, var: &VarRef) -> Val {
         let idx = match var {
             VarRef::Local(i) => self.frame_start() + i,
             VarRef::Global(i) => *i,
