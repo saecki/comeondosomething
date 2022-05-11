@@ -17,7 +17,7 @@ pub trait UserFacing: Sized + Debug + Display {
     fn spans(&self) -> Vec<Span>;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     NotImplemented(&'static str, Span),
 

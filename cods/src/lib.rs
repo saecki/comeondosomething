@@ -18,7 +18,7 @@ mod parse;
 mod span;
 mod util;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Context {
     pub idents: Idents,
     pub errors: Vec<crate::Error>,

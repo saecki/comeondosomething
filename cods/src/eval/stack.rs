@@ -1,6 +1,6 @@
 use crate::Val;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Stack {
     /// The frame data.
     values: Vec<Option<Val>>,

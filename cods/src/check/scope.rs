@@ -124,14 +124,14 @@ impl Context {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Scopes {
     scopes: Vec<Scope>,
     frames: Vec<Frame>,
     len: usize,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Frame {
     scope_index: usize,
     size: usize,
@@ -327,7 +327,7 @@ impl Scopes {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Scope {
     funs: HashMap<Ident, Rc<Fun>>,
     vars: HashMap<Ident, Var>,
