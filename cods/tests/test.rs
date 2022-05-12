@@ -486,3 +486,8 @@ fn function() {
 fn spill() {
     assert("spill()", Val::Unit)
 }
+
+#[test]
+fn line_comment() {
+    assert("val a = // yeeet\n 5; a", Val::Int(5))
+}

@@ -78,7 +78,20 @@ impl Context {
                     }
                 },
                 '*' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
-                '/' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
+                '/' => match lexer.peek() {
+                    Some('=') => {
+                        lexer.next();
+                        let s = Span::of(span.start, lexer.pos() + 1);
+                        self.new_atom(&mut lexer, Token::op(OpT::DivAssign, s))?;
+                    }
+                    Some('/') => {
+                        lexer.next();
+                        self.line_comment(&mut lexer)?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Div, span))?;
+                    }
+                },
                 '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, span))?,
                 '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
                 '.' => match lexer.peek() {
@@ -253,6 +266,15 @@ impl Context {
         let span = Span::of(start, lexer.pos() + 1);
         lexer.tokens.push(Token::val(str, span));
         lexer.literal.clear();
+        Ok(())
+    }
+
+    fn line_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+        while let Some(c) = lexer.next() {
+            if c == '\n' {
+                break;
+            }
+        }
         Ok(())
     }
 }
