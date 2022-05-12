@@ -489,5 +489,10 @@ fn spill() {
 
 #[test]
 fn line_comment() {
-    assert("val a = // yeeet\n 5; a", Val::Int(5))
+    assert("val a = // yeeet\n 5; a", Val::Int(5));
+}
+
+#[test]
+fn block_comment() {
+    assert("val a = /* yeeet */ 5; a", Val::Int(5));
 }

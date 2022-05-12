@@ -88,6 +88,10 @@ impl Context {
                         lexer.next();
                         self.line_comment(&mut lexer)?;
                     }
+                    Some('*') => {
+                        lexer.next();
+                        self.block_comment(&mut lexer)?;
+                    }
                     _ => {
                         self.new_atom(&mut lexer, Token::op(OpT::Div, span))?;
                     }
@@ -272,6 +276,15 @@ impl Context {
     fn line_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
         while let Some(c) = lexer.next() {
             if c == '\n' {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn block_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+        while let Some(c) = lexer.next() {
+            if c == '*' && lexer.next_if('/').is_some() {
                 break;
             }
         }
