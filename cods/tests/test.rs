@@ -97,9 +97,9 @@ fn string_multi_line() {
 
 #[test]
 fn unicode_operators() {
-    assert(
+    assert_err(
         "(23423.0 × 423.0 + (423.0 − 234.0) ÷ 654.0 + 4324.0) × 4234.0",
-        Val::Float(41968480425.587155963),
+        crate::Error::InvalidChar(Span::pos(9)),
     );
 }
 

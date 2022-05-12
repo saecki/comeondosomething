@@ -62,7 +62,7 @@ impl Context {
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
                 '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?,
                 '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
-                '-' | '−' => match lexer.peek() {
+                '-' => match lexer.peek() {
                     Some('=') => {
                         lexer.next();
                         let s = Span::of(span.start, lexer.pos() + 1);
@@ -77,8 +77,8 @@ impl Context {
                         self.new_atom(&mut lexer, Token::op(OpT::Sub, span))?;
                     }
                 },
-                '*' | '×' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
-                '/' | '÷' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
+                '*' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
+                '/' => self.two_char_op(&mut lexer, OpT::Div, OpT::DivAssign, '=')?,
                 '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, span))?,
                 '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
                 '.' => match lexer.peek() {
