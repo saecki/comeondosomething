@@ -26,7 +26,6 @@ OPTIONS:
 - Add char datatype
 - structs `struct A { b: int, c: float }`
 - Generics for functions `fun a<T>(i: T) -> T { i }`
-- Comments
 - Warnings
     - Unnecessary semicolons (if a newline is following)
     - Unused variables
