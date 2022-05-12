@@ -18,6 +18,19 @@ fn assert_err(input: &str, expected: crate::Error) {
     }
 }
 
+fn assert_errs(input: &str, expected: Vec<crate::Error>) {
+    let mut ctx = Context::default();
+    match ctx.lex(input) {
+        Ok(_) => {
+            assert_eq!(ctx.errors, expected)
+        }
+        Err(e) => {
+            ctx.errors.push(e);
+            assert_eq!(ctx.errors, expected)
+        }
+    }
+}
+
 #[test]
 fn simple_add() {
     assert(
@@ -149,5 +162,22 @@ fn str_missing_unicode_esc_par() {
     assert_err(
         r#""hello there \u{24432   ""#,
         crate::Error::MissingClosingUnicodeEscapePar(Span::pos(15), Span::pos(21)),
+    );
+}
+
+#[test]
+fn char_empty_literal() {
+    assert_err("''", crate::Error::EmptyCharLiteral(Span::of(0, 2)));
+}
+
+#[test]
+fn char_recover_from_unclosed_literal() {
+    assert_errs(
+        "
+        val c = 'i
+        var n = 234
+        n += 43
+        ",
+        vec![crate::Error::MissingClosingQuote(Span::pos(17))],
     );
 }

@@ -39,6 +39,7 @@ impl Ast {
             Val::Int(i) => Self::expr(AstT::Int(IntExpr::Val(i)), DataType::Int, val.span),
             Val::Float(f) => Self::expr(AstT::Float(FloatExpr::Val(f)), DataType::Float, val.span),
             Val::Bool(b) => Self::expr(AstT::Bool(BoolExpr::Val(b)), DataType::Bool, val.span),
+            Val::Char(c) => Self::expr(AstT::Char(CharExpr::Val(c)), DataType::Char, val.span),
             Val::Str(s) => Self::expr(AstT::Str(StrExpr::Val(s)), DataType::Str, val.span),
             Val::Range(r) => Self::expr(AstT::Range(RangeExpr::Val(r)), DataType::Range, val.span),
             Val::Unit => Self::expr(AstT::Unit, DataType::Unit, val.span),
@@ -46,15 +47,7 @@ impl Ast {
     }
 
     pub fn var(var: VarRef, data_type: DataType, span: Span) -> Self {
-        match data_type {
-            DataType::Int => Self::expr(AstT::Var(var), data_type, span),
-            DataType::Float => Self::expr(AstT::Var(var), data_type, span),
-            DataType::Bool => Self::expr(AstT::Var(var), data_type, span),
-            DataType::Str => Self::expr(AstT::Var(var), data_type, span),
-            DataType::Range => Self::expr(AstT::Var(var), data_type, span),
-            DataType::Unit => Self::expr(AstT::Unit, data_type, span),
-            DataType::Any => Self::expr(AstT::Var(var), data_type, span),
-        }
+        Self::expr(AstT::Var(var), data_type, span)
     }
 
     pub fn int(expr: IntExpr, span: Span) -> Self {
@@ -85,6 +78,7 @@ pub enum AstT {
     Int(IntExpr),
     Float(FloatExpr),
     Bool(BoolExpr),
+    Char(CharExpr),
     Str(StrExpr),
     Range(RangeExpr),
     Unit,
@@ -146,6 +140,12 @@ pub enum BoolExpr {
     Or(Box<Ast>, Box<Ast>),
     And(Box<Ast>, Box<Ast>),
     Is(Box<Ast>, DataType),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum CharExpr {
+    Val(char),
+    Cast(Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

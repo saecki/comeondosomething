@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, WhileLoop};
+use crate::ast::{BuiltinFunCall, CharExpr, ForLoop, Fun, IfExpr, WhileLoop};
 use crate::{
     Ast, AstT, Asts, BoolExpr, DataType, FloatExpr, IntExpr, Range, RangeExpr, StrExpr, Val,
     ValSpan,
@@ -51,6 +51,7 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
         AstT::Int(i) => eval_int_expr(stack, i),
         AstT::Float(f) => eval_float_expr(stack, f),
         AstT::Bool(b) => eval_bool_expr(stack, b),
+        AstT::Char(c) => eval_char_expr(stack, c),
         AstT::Str(s) => eval_str_expr(stack, s),
         AstT::Range(r) => eval_range_expr(stack, r),
         AstT::Unit => Ok(Val::Unit),
@@ -288,6 +289,23 @@ fn eval_bool_expr(stack: &mut Stack, expr: &BoolExpr) -> crate::Result<Val> {
     };
 
     Ok(Val::Bool(bool))
+}
+
+fn eval_char_expr(stack: &mut Stack, expr: &CharExpr) -> crate::Result<Val> {
+    let char = match expr {
+        CharExpr::Val(s) => s.clone(),
+        CharExpr::Cast(a) => match eval_ast(stack, a)? {
+            Val::Char(c) => c,
+            v => {
+                return Err(crate::Error::CastFailed(
+                    (v.data_type(), a.span),
+                    DataType::Char,
+                ));
+            }
+        },
+    };
+
+    Ok(Val::Char(char))
 }
 
 fn eval_str_expr(stack: &mut Stack, expr: &StrExpr) -> crate::Result<Val> {

@@ -86,6 +86,19 @@ fn string_escape() {
 }
 
 #[test]
+fn char_escape() {
+    assert(r#"'\b'"#, Val::Char('\x08'));
+    assert(r#"'\t'"#, Val::Char('\t'));
+    assert(r#"'\n'"#, Val::Char('\n'));
+    assert(r#"'\r'"#, Val::Char('\r'));
+    assert(r#"'\x1b'"#, Val::Char('\x1b'));
+    assert(r#"'\x{1a}'"#, Val::Char('\u{1a}'));
+    assert(r#"'\u03a0'"#, Val::Char('\u{03a0}'));
+    assert(r#"'\u{102230}'"#, Val::Char('\u{102230}'));
+    assert(r#"  '\u03c0'  "#, Val::Char('\u{03c0}'));
+}
+
+#[test]
 fn string_multi_line() {
     assert(
         r#""hello \

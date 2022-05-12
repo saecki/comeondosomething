@@ -36,6 +36,7 @@ pub enum Error {
     OverlongUnicodeEscape(Span),
     InvalidUnicodeScalar(u32, Span),
     MissingClosingQuote(Span),
+    EmptyCharLiteral(Span),
 
     // Group
     MissingClosingPar(Par),
@@ -166,6 +167,7 @@ impl UserFacing for Error {
                 write!(f, "Invalid unicode scalar value: `{cp:x}`")
             }
             Self::MissingClosingQuote(_) => write!(f, "Missing closing quote"),
+            Self::EmptyCharLiteral(_) => write!(f, "Empty character literal"),
 
             // Group
             Self::MissingClosingPar(_) => write!(f, "Missing closing parenthesis"),
@@ -358,6 +360,7 @@ impl UserFacing for Error {
             Self::OverlongUnicodeEscape(s) => vec![*s],
             Self::InvalidUnicodeScalar(_, s) => vec![*s],
             Self::MissingClosingQuote(s) => vec![*s],
+            Self::EmptyCharLiteral(s) => vec![*s],
 
             // Group
             Self::MissingClosingPar(p) => vec![p.span],
