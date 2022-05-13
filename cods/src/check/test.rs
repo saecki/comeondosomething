@@ -210,7 +210,6 @@ fn statement_cannot_be_used_as_expr() {
 
 #[test]
 fn recursive_function_calls() {
-    // 0 1 1 2 3 5 8 13 21
     let input = "
         fun fib(i: int) -> int {
             if i == 0 {
@@ -251,7 +250,6 @@ fn recursive_function_calls2() {
 
 #[test]
 fn function_call_before_definition() {
-    // 0 1 1 2 3 5 8 13 21
     let input = "
         val a = test(23)
         fun test(i: int) -> int {
@@ -266,7 +264,6 @@ fn function_call_before_definition() {
 
 #[test]
 fn can_capture_global_var() {
-    // 0 1 1 2 3 5 8 13 21
     let input = "
         val a = 3
         fun captures() -> int {
@@ -281,7 +278,6 @@ fn can_capture_global_var() {
 
 #[test]
 fn can_write_to_captured_global_var() {
-    // 0 1 1 2 3 5 8 13 21
     let input = "
         var a = 3
         fun captures() {
@@ -318,7 +314,6 @@ fn cannot_capture_var_in_dyn_scope() {
 
 #[test]
 fn cannot_capture_var_to_write_in_dyn_scope() {
-    // 0 1 1 2 3 5 8 13 21
     let input = "
         fun outer() {
             var a = 3
