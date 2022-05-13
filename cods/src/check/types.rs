@@ -27,11 +27,13 @@ pub enum DataType {
     Range,
     Unit,
     Any,
+    Never,
 }
 
 impl DataType {
     pub fn is(self, requirement: Self) -> bool {
         match (self, requirement) {
+            (DataType::Never, _) => true,
             (_, DataType::Any) => true,
             (a, b) => a == b,
         }

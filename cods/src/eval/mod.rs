@@ -62,6 +62,7 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
         AstT::Assign(v, e) => eval_assign(stack, v, e),
         AstT::VarDef(v, e) => eval_var_def(stack, v, e),
         AstT::FunCall(f, a) => eval_fun_call(stack, f, a),
+        AstT::Return(v) => eval_return(stack, v),
         AstT::BuiltinFunCall(f, a) => eval_builtin_fun_call(stack, *f, a),
         AstT::Spill(v) => eval_spill(stack, v),
     }
@@ -409,9 +410,17 @@ fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> crate::Resul
         stack.set(p, a);
     }
     let block = fun_ref.block();
-    let val = eval_asts(stack, block);
+    let val = match eval_asts(stack, block) {
+        Err(crate::Error::Return(v)) => Ok(v),
+        r => r,
+    };
     stack.pop();
     val
+}
+
+fn eval_return(stack: &mut Stack, val: &Ast) -> crate::Result<Val> {
+    let val = eval_ast(stack, val)?;
+    Err(crate::Error::Return(val))
 }
 
 fn eval_builtin_fun_call(

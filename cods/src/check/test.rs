@@ -333,3 +333,103 @@ fn cannot_capture_var_to_write_in_dyn_scope() {
         )
     );
 }
+
+#[test]
+fn early_return() {
+    let input = "
+        fun test() -> int {
+            if true {
+                return 12
+            }
+
+            0
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(12));
+}
+
+#[test]
+fn simple_return() {
+    let input = "
+        fun test() -> int {
+            return 32
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(32));
+}
+
+#[test]
+fn cannot_return_from_global_context() {
+    let input = "return 3";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(err, crate::Error::GlobalContextReturn(Span::of(0, 6)),);
+}
+
+#[test]
+fn early_return_data_type_doesnt_match() {
+    let input = "
+        fun test() -> bool {
+            if true {
+                return 12
+            }
+
+            false
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::MismatchedType {
+            expected: DataType::Bool,
+            found: DataType::Int,
+            spans: vec![Span::of(75, 77), Span::of(23, 27)]
+        }
+    );
+}
+
+#[test]
+fn if_expr_early_return_data_type_1() {
+    let input = "
+        fun test() -> int {
+            val a = if false {
+                return 12
+            } else {
+                1
+            }
+
+            a
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(1));
+}
+
+#[test]
+fn if_expr_early_return_data_type_2() {
+    let input = "
+        fun test() -> int {
+            val a = if true {
+                1
+            } else {
+                return 12
+            }
+
+            a
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(1));
+}

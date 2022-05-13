@@ -86,6 +86,7 @@ impl Context {
                 self.check_fun_def_block(scopes, f)?
             }
             Cst::FunCall(f) => self.check_fun_call(scopes, f)?,
+            Cst::Return(r) => self.check_return(scopes, r)?,
             Cst::VarDef(v) => self.check_var_def(scopes, v)?,
             Cst::Prefix(p, a) => self.check_prefix(scopes, p, *a, span)?,
             Cst::Postfix(a, p) => self.check_postfix(scopes, *a, p, span)?,
@@ -168,7 +169,10 @@ impl Context {
                     .last()
                     .and_then(|a| a.data_type)
                     .unwrap_or(DataType::Unit);
-                if d.is_not(data_type) {
+
+                if data_type == DataType::Never {
+                    data_type = d;
+                } else if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
                     let else_expr_span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::IfBranchIncompatibleType(
@@ -194,7 +198,10 @@ impl Context {
                     .last()
                     .and_then(|a| a.data_type)
                     .unwrap_or(DataType::Unit);
-                if d.is_not(data_type) {
+
+                if data_type == DataType::Never {
+                    data_type = d;
+                } else if d.is_not(data_type) {
                     let if_expr_span = cases[0].block.last().map_or(if_block_span, |a| a.span);
                     let else_expr_span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::IfBranchIncompatibleType(
@@ -286,7 +293,8 @@ impl Context {
 
         // Define fun before checking block to support recursive calls
         let inner = Rc::new(ast::Fun::default());
-        let fun = Fun::new(f.ident, params, return_type, Rc::clone(&inner));
+        let ret = ReturnType::new(return_type, f.return_type.as_ref().map(|r| r.typ.span));
+        let fun = Fun::new(f.ident, params, ret, Rc::clone(&inner));
         self.def_fun(scopes, fun)?;
 
         Ok(())
@@ -301,7 +309,7 @@ impl Context {
             ResolvedFun::Builtin(_) => panic!("Expected user defined function"),
         };
 
-        scopes.with_new_frame(|scopes| {
+        scopes.with_new_frame(Rc::clone(&fun), |scopes| {
             let mut inner_params = Vec::new();
             for p in fun.params.iter() {
                 let param = self.def_var(scopes, p.ident, p.data_type, true, false);
@@ -318,10 +326,10 @@ impl Context {
                 .unwrap_or(DataType::Unit);
 
             if let Some(r) = f.return_type {
-                if block_type.is_not(fun.return_type) {
+                if block_type.is_not(fun.return_type.data_type) {
                     let span = block.last().map_or(block_span, |a| a.span);
                     return Err(crate::Error::MismatchedType {
-                        expected: fun.return_type,
+                        expected: fun.return_type.data_type,
                         found: block_type,
                         spans: vec![r.typ.span, span],
                     });
@@ -387,7 +395,7 @@ impl Context {
 
         Ok(Ast::expr(
             AstT::FunCall(Rc::clone(&fun.inner), args),
-            fun.return_type,
+            fun.return_type.data_type,
             span,
         ))
     }
@@ -491,6 +499,39 @@ impl Context {
         Ok(Ast::expr(
             AstT::BuiltinFunCall(*fun, args),
             return_type,
+            span,
+        ))
+    }
+
+    fn check_return(&mut self, scopes: &mut Scopes, r: cst::Return) -> crate::Result<Ast> {
+        let fun = match scopes.fun_context() {
+            Some(f) => f,
+            None => return Err(crate::Error::GlobalContextReturn(r.kw.span)),
+        };
+
+        let span = r.span();
+        let val = match r.val {
+            Some(val) => self.check_type(scopes, *val, true)?,
+            None => Ast::expr(AstT::Unit, DataType::Unit, span),
+        };
+
+        let data_type = expect_expr(&val)?;
+        if data_type.is_not(fun.return_type.data_type) {
+            let mut spans = vec![val.span];
+            if let Some(s) = fun.return_type.span {
+                spans.push(s);
+            }
+            return Err(crate::Error::MismatchedType {
+                expected: fun.return_type.data_type,
+                found: data_type,
+                spans,
+            });
+        }
+        // TODO: check for unreachable code
+
+        Ok(Ast::expr(
+            AstT::Return(Box::new(val)),
+            DataType::Never,
             span,
         ))
     }

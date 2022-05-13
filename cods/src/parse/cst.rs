@@ -13,6 +13,7 @@ pub enum Cst {
     ForLoop(ForLoop),
     FunDef(FunDef),
     FunCall(FunCall),
+    Return(Return),
     VarDef(VarDef),
     Prefix(Prefix, Box<Cst>),
     Postfix(Box<Cst>, Postfix),
@@ -261,6 +262,25 @@ impl FunCall {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Return {
+    pub kw: Kw,
+    pub val: Option<Box<Cst>>,
+}
+
+impl Return {
+    pub fn new(kw: Kw, val: Option<Box<Cst>>) -> Self {
+        Self { kw, val }
+    }
+
+    pub fn span(&self) -> Span {
+        match &self.val {
+            Some(v) => Span::across(self.kw.span, v.span()),
+            None => self.kw.span,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     pub l_par: Par,
     pub r_par: Par,
@@ -320,6 +340,7 @@ impl Cst {
             Self::VarDef(v) => v.span(),
             Self::FunDef(f) => f.span(),
             Self::FunCall(f) => f.span(),
+            Self::Return(r) => r.span(),
             Self::Prefix(p, a) => Span::across(p.span, a.span()),
             Self::Postfix(a, p) => Span::across(a.span(), p.span),
             Self::Infix(a, _, b) => Span::across(a.span(), b.span()),

@@ -473,6 +473,7 @@ pub enum KwT {
     For,
     In,
     Fun,
+    Return,
     Val,
     Var,
 }

@@ -89,6 +89,7 @@ pub enum AstT {
     Assign(VarRef, Box<Ast>),
     VarDef(VarRef, Box<Ast>),
     FunCall(Rc<Fun>, Vec<Ast>),
+    Return(Box<Ast>),
     BuiltinFunCall(BuiltinFunCall, Vec<Ast>),
     Spill(Vec<(String, VarRef)>),
 }

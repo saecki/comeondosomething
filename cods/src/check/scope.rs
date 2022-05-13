@@ -133,13 +133,18 @@ pub struct Scopes {
 
 #[derive(Clone, Debug)]
 struct Frame {
+    fun: Option<Rc<Fun>>,
     scope_index: usize,
     size: usize,
 }
 
 impl Frame {
-    fn new(scope_index: usize, size: usize) -> Self {
-        Self { scope_index, size }
+    fn new(fun: Option<Rc<Fun>>, scope_index: usize, size: usize) -> Self {
+        Self {
+            fun,
+            scope_index,
+            size,
+        }
     }
 }
 
@@ -147,7 +152,7 @@ impl Default for Scopes {
     fn default() -> Self {
         Self {
             scopes: vec![Scope::default()],
-            frames: vec![Frame::new(0, 0)],
+            frames: vec![Frame::new(None, 0, 0)],
             len: 1,
         }
     }
@@ -203,8 +208,8 @@ impl Scopes {
         self.len -= 1;
     }
 
-    pub fn with_new_frame<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.push_frame();
+    pub fn with_new_frame<T>(&mut self, fun: Rc<Fun>, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.push_frame(fun);
         let r = self.with_new(f);
         self.pop_frame();
         r
@@ -284,8 +289,8 @@ impl Scopes {
         Ok(None)
     }
 
-    fn push_frame(&mut self) {
-        self.frames.push(Frame::new(self.len, 0));
+    fn push_frame(&mut self, fun: Rc<Fun>) {
+        self.frames.push(Frame::new(Some(fun), self.len, 0));
     }
 
     fn pop_frame(&mut self) -> usize {
@@ -312,6 +317,10 @@ impl Scopes {
             1 => VarRef::Global(self.frame_size()),
             _ => VarRef::Local(self.frame_size()),
         }
+    }
+
+    pub fn fun_context(&self) -> Option<Rc<Fun>> {
+        self.current_frame().fun.clone()
     }
 
     fn current_frame(&self) -> &Frame {
@@ -364,7 +373,7 @@ impl Scope {
 pub struct Fun {
     pub ident: IdentSpan,
     pub params: Vec<FunParam>,
-    pub return_type: DataType,
+    pub return_type: ReturnType,
     pub inner: Rc<ast::Fun>,
 }
 
@@ -372,7 +381,7 @@ impl Fun {
     pub const fn new(
         ident: IdentSpan,
         params: Vec<FunParam>,
-        return_type: DataType,
+        return_type: ReturnType,
         inner: Rc<ast::Fun>,
     ) -> Self {
         Self {
@@ -398,6 +407,18 @@ impl FunParam {
             data_type,
             span,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReturnType {
+    pub data_type: DataType,
+    pub span: Option<Span>,
+}
+
+impl ReturnType {
+    pub fn new(data_type: DataType, span: Option<Span>) -> Self {
+        Self { data_type, span }
     }
 }
 

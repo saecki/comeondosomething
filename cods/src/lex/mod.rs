@@ -181,6 +181,7 @@ impl Context {
             "for" => Token::kw(KwT::For, span),
             "in" => Token::kw(KwT::In, span),
             "fun" => Token::kw(KwT::Fun, span),
+            "return" => Token::kw(KwT::Return, span),
             "val" => Token::kw(KwT::Val, span),
             "var" => Token::kw(KwT::Var, span),
             _ => {

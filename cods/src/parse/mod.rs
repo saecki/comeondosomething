@@ -371,6 +371,17 @@ impl Context {
                 let fun = cst::FunDef::new(kw, ident, params, return_type, block);
                 Ok(Cst::FunDef(fun))
             }
+            KwT::Return => {
+                parser.eat_newlns();
+                let val = if parser.current_newln {
+                    None
+                } else {
+                    let v = self.parse_bp(parser, 0, StopOn::Nothing)?;
+                    Some(Box::new(v))
+                };
+                let r = cst::Return::new(kw, val);
+                Ok(Cst::Return(r))
+            }
             KwT::Val | KwT::Var => {
                 let ident = parser.expect_ident()?;
 
