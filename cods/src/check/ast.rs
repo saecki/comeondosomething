@@ -14,60 +14,83 @@ pub struct Asts {
 pub struct Ast {
     pub typ: AstT,
     pub data_type: Option<DataType>,
+    pub returns: bool,
     pub span: Span,
 }
 
 impl Ast {
-    pub const fn expr(typ: AstT, data_type: DataType, span: Span) -> Self {
+    pub const fn expr(typ: AstT, data_type: DataType, returns: bool, span: Span) -> Self {
         Self {
             typ,
             data_type: Some(data_type),
+            returns,
             span,
         }
     }
 
-    pub const fn statement(typ: AstT, span: Span) -> Self {
+    pub const fn statement(typ: AstT, returns: bool, span: Span) -> Self {
         Self {
             typ,
             data_type: None,
+            returns,
             span,
         }
     }
 
     pub fn val(val: ValSpan) -> Self {
         match val.val {
-            Val::Int(i) => Self::expr(AstT::Int(IntExpr::Val(i)), DataType::Int, val.span),
-            Val::Float(f) => Self::expr(AstT::Float(FloatExpr::Val(f)), DataType::Float, val.span),
-            Val::Bool(b) => Self::expr(AstT::Bool(BoolExpr::Val(b)), DataType::Bool, val.span),
-            Val::Char(c) => Self::expr(AstT::Char(CharExpr::Val(c)), DataType::Char, val.span),
-            Val::Str(s) => Self::expr(AstT::Str(StrExpr::Val(s)), DataType::Str, val.span),
-            Val::Range(r) => Self::expr(AstT::Range(RangeExpr::Val(r)), DataType::Range, val.span),
-            Val::Unit => Self::expr(AstT::Unit, DataType::Unit, val.span),
+            Val::Int(i) => Self::expr(AstT::Int(IntExpr::Val(i)), DataType::Int, false, val.span),
+            Val::Float(f) => Self::expr(
+                AstT::Float(FloatExpr::Val(f)),
+                DataType::Float,
+                false,
+                val.span,
+            ),
+            Val::Bool(b) => Self::expr(
+                AstT::Bool(BoolExpr::Val(b)),
+                DataType::Bool,
+                false,
+                val.span,
+            ),
+            Val::Char(c) => Self::expr(
+                AstT::Char(CharExpr::Val(c)),
+                DataType::Char,
+                false,
+                val.span,
+            ),
+            Val::Str(s) => Self::expr(AstT::Str(StrExpr::Val(s)), DataType::Str, false, val.span),
+            Val::Range(r) => Self::expr(
+                AstT::Range(RangeExpr::Val(r)),
+                DataType::Range,
+                false,
+                val.span,
+            ),
+            Val::Unit => Self::expr(AstT::Unit, DataType::Unit, false, val.span),
         }
     }
 
-    pub fn var(var: VarRef, data_type: DataType, span: Span) -> Self {
-        Self::expr(AstT::Var(var), data_type, span)
+    pub fn var(var: VarRef, data_type: DataType, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Var(var), data_type, returns, span)
     }
 
-    pub fn int(expr: IntExpr, span: Span) -> Self {
-        Self::expr(AstT::Int(expr), DataType::Int, span)
+    pub fn int(expr: IntExpr, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Int(expr), DataType::Int, returns, span)
     }
 
-    pub fn float(expr: FloatExpr, span: Span) -> Self {
-        Self::expr(AstT::Float(expr), DataType::Float, span)
+    pub fn float(expr: FloatExpr, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Float(expr), DataType::Float, returns, span)
     }
 
-    pub fn bool(expr: BoolExpr, span: Span) -> Self {
-        Self::expr(AstT::Bool(expr), DataType::Bool, span)
+    pub fn bool(expr: BoolExpr, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Bool(expr), DataType::Bool, returns, span)
     }
 
-    pub fn str(expr: StrExpr, span: Span) -> Self {
-        Self::expr(AstT::Str(expr), DataType::Str, span)
+    pub fn str(expr: StrExpr, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Str(expr), DataType::Str, returns, span)
     }
 
-    pub fn range(expr: RangeExpr, span: Span) -> Self {
-        Self::expr(AstT::Range(expr), DataType::Range, span)
+    pub fn range(expr: RangeExpr, returns: bool, span: Span) -> Self {
+        Self::expr(AstT::Range(expr), DataType::Range, returns, span)
     }
 }
 

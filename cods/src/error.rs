@@ -440,7 +440,9 @@ impl UserFacing for Error {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Warning {}
+pub enum Warning {
+    Unreachable(Span),
+}
 
 impl Display for Warning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -451,14 +453,20 @@ impl Display for Warning {
 impl UserFacing for Warning {
     fn description(
         &self,
-        _f: &mut fmt::Formatter<'_>,
-        _line_prefix: &str,
-        _line_suffix: &str,
+        f: &mut fmt::Formatter<'_>,
+        line_prefix: &str,
+        line_suffix: &str,
     ) -> fmt::Result {
-        todo!()
+        f.write_str(line_prefix)?;
+        match self {
+            Warning::Unreachable(_) => write!(f, "Unreachable code"),
+        }?;
+        f.write_str(line_suffix)
     }
 
     fn spans(&self) -> Vec<Span> {
-        todo!()
+        match self {
+            Warning::Unreachable(s) => vec![*s],
+        }
     }
 }
