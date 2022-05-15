@@ -653,16 +653,16 @@ impl Context {
                 Ast::statement(AstT::Assign(inner, Box::new(expr)), s)
             }
             InfixT::AddAssign => {
-                self.check_infix_assign(scopes, a, i, b, IntExpr::Add, FloatExpr::Add, s)?
+                self.check_infix_assign(scopes, (a, i, b), IntExpr::Add, FloatExpr::Add, s)?
             }
             InfixT::SubAssign => {
-                self.check_infix_assign(scopes, a, i, b, IntExpr::Sub, FloatExpr::Sub, s)?
+                self.check_infix_assign(scopes, (a, i, b), IntExpr::Sub, FloatExpr::Sub, s)?
             }
             InfixT::MulAssign => {
-                self.check_infix_assign(scopes, a, i, b, IntExpr::Mul, FloatExpr::Mul, s)?
+                self.check_infix_assign(scopes, (a, i, b), IntExpr::Mul, FloatExpr::Mul, s)?
             }
             InfixT::DivAssign => {
-                self.check_infix_assign(scopes, a, i, b, IntExpr::Div, FloatExpr::Div, s)?
+                self.check_infix_assign(scopes, (a, i, b), IntExpr::Div, FloatExpr::Div, s)?
             }
             InfixT::RangeEx => {
                 let a = self.check_type(scopes, a, true)?;
@@ -933,13 +933,12 @@ impl Context {
     fn check_infix_assign(
         &mut self,
         scopes: &mut Scopes,
-        a: Cst,
-        i: Infix,
-        b: Cst,
+        stmt: (Cst, Infix, Cst),
         int: fn(Box<Ast>, Box<Ast>) -> IntExpr,
         float: fn(Box<Ast>, Box<Ast>) -> FloatExpr,
         s: Span,
     ) -> crate::Result<Ast> {
+        let (a, i, b) = stmt;
         let ident = match a {
             Cst::Ident(i) => i,
             _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
