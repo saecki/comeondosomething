@@ -294,7 +294,7 @@ fn eval_bool_expr(stack: &mut Stack, expr: &BoolExpr) -> crate::Result<Val> {
 
 fn eval_char_expr(stack: &mut Stack, expr: &CharExpr) -> crate::Result<Val> {
     let char = match expr {
-        CharExpr::Val(s) => s.clone(),
+        CharExpr::Val(s) => *s,
         CharExpr::Cast(a) => match eval_ast(stack, a)? {
             Val::Char(c) => c,
             v => {
