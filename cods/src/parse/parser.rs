@@ -1,16 +1,16 @@
 use std::collections::VecDeque;
 
-use crate::{Group, IdentSpan, Item, Kw, KwT, Op, OpT, Pct, PctT, Span};
+use crate::{Group, IdentSpan, Item, Kw, KwT, Op, OpT, Pct, PctT, Span, Pos};
 
 pub struct Parser {
     items: VecDeque<Item>,
-    pub pos: u32,
+    pub pos: Pos,
     pub current_newln: bool,
     pub last_newln: bool,
 }
 
 impl Parser {
-    pub fn new(items: Vec<Item>, pos: u32) -> Self {
+    pub fn new(items: Vec<Item>, pos: Pos) -> Self {
         Self {
             items: VecDeque::from(items),
             pos,
@@ -70,7 +70,7 @@ impl Parser {
         match self.next() {
             Some(Item::Group(g)) if g.par_kind().is_curly() => Ok(g),
             Some(i) => Err(crate::Error::ExpectedBlock(i.span())),
-            None => Err(crate::Error::ExpectedBlock(Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedBlock(Span::from(self.pos))),
         }
     }
 
@@ -78,7 +78,7 @@ impl Parser {
         match self.next() {
             Some(Item::Group(g)) if g.par_kind().is_round() => Ok(g),
             Some(i) => Err(crate::Error::ExpectedFunPars(i.span())),
-            None => Err(crate::Error::ExpectedFunPars(Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedFunPars(Span::from(self.pos))),
         }
     }
 
@@ -86,7 +86,7 @@ impl Parser {
         match self.next() {
             Some(Item::Ident(id)) => Ok(id),
             Some(i) => Err(crate::Error::ExpectedIdent(i.span())),
-            None => Err(crate::Error::ExpectedIdent(Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedIdent(Span::from(self.pos))),
         }
     }
 
@@ -94,7 +94,7 @@ impl Parser {
         match self.next() {
             Some(Item::Op(o)) if o.typ == op => Ok(o),
             Some(i) => Err(crate::Error::ExpectedOp(op, i.span())),
-            None => Err(crate::Error::ExpectedOp(op, Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedOp(op, Span::from(self.pos))),
         }
     }
 
@@ -102,7 +102,7 @@ impl Parser {
         match self.next() {
             Some(Item::Kw(k)) if k.typ == kw => Ok(k),
             Some(i) => Err(crate::Error::ExpectedKw(kw, i.span())),
-            None => Err(crate::Error::ExpectedKw(kw, Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedKw(kw, Span::from(self.pos))),
         }
     }
 
@@ -110,7 +110,7 @@ impl Parser {
         match self.next() {
             Some(Item::Pct(p)) if p.typ == pct => Ok(p),
             Some(i) => Err(crate::Error::ExpectedPct(pct, i.span())),
-            None => Err(crate::Error::ExpectedPct(pct, Span::pos(self.pos))),
+            None => Err(crate::Error::ExpectedPct(pct, Span::from(self.pos))),
         }
     }
 }

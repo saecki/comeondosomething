@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use crate::{Context, Span};
+use crate::{Context, Pos, Span};
 
 pub use token::*;
 
@@ -14,7 +14,7 @@ struct Lexer<'a> {
     tokens: Vec<Token>,
     literal: String,
     chars: Peekable<Chars<'a>>,
-    cursor: u32,
+    cursor: Pos,
 }
 
 impl<'a> Lexer<'a> {
@@ -23,12 +23,12 @@ impl<'a> Lexer<'a> {
             tokens: Vec::new(),
             literal: String::new(),
             chars: input.chars().peekable(),
-            cursor: 0,
+            cursor: Pos::new(0, 0),
         }
     }
 
     fn next(&mut self) -> Option<char> {
-        self.cursor += 1;
+        self.cursor.col += 1;
         self.chars.next()
     }
 
@@ -46,8 +46,17 @@ impl<'a> Lexer<'a> {
         None
     }
 
-    const fn pos(&self) -> u32 {
-        self.cursor.saturating_sub(1)
+    fn new_line(&mut self) {
+        self.cursor.line += 1;
+        self.cursor.col = 0;
+    }
+
+    const fn pos(&self) -> Pos {
+        Pos::new(self.cursor.line, self.cursor.col.saturating_sub(1))
+    }
+
+    const fn end_pos(&self) -> Pos {
+        self.cursor
     }
 }
 
@@ -56,22 +65,25 @@ impl Context {
         let mut lexer = Lexer::new(string);
 
         while let Some(c) = lexer.next() {
-            let span = Span::pos(lexer.pos());
+            let span = Span::from(lexer.pos());
             match c {
                 '"' => self.string_literal(&mut lexer)?,
                 '\'' => self.char_literal(&mut lexer)?,
                 ' ' | '\r' => self.end_literal(&mut lexer)?,
-                '\n' => self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?,
+                '\n' => {
+                    self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?;
+                    lexer.new_line();
+                }
                 '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
                 '-' => match lexer.peek() {
                     Some('=') => {
                         lexer.next();
-                        let s = Span::of(span.start, lexer.pos() + 1);
+                        let s = Span::new(span.start, lexer.end_pos());
                         self.new_atom(&mut lexer, Token::op(OpT::SubAssign, s))?;
                     }
                     Some('>') => {
                         lexer.next();
-                        let s = Span::of(span.start, lexer.pos() + 1);
+                        let s = Span::new(span.start, lexer.end_pos());
                         self.new_atom(&mut lexer, Token::pct(PctT::Arrow, s))?;
                     }
                     _ => {
@@ -82,7 +94,7 @@ impl Context {
                 '/' => match lexer.peek() {
                     Some('=') => {
                         lexer.next();
-                        let s = Span::of(span.start, lexer.pos() + 1);
+                        let s = Span::new(span.start, lexer.end_pos());
                         self.new_atom(&mut lexer, Token::op(OpT::DivAssign, s))?;
                     }
                     Some('/') => {
@@ -106,7 +118,7 @@ impl Context {
                             Some(_) => OpT::RangeIn,
                             None => OpT::RangeEx,
                         };
-                        let s = Span::of(span.start, lexer.pos() + 1);
+                        let s = Span::new(span.start, lexer.end_pos());
                         self.new_atom(&mut lexer, Token::op(op, s))?;
                     }
                     Some(c) if c.is_digit(10) => lexer.literal.push('.'),
@@ -148,13 +160,14 @@ impl Context {
         two: OpT,
         expected: char,
     ) -> crate::Result<()> {
+        let start = lexer.pos();
         match lexer.next_if(expected) {
             Some(_) => {
-                let s = Span::of(lexer.pos() - 1, lexer.pos() + 1);
+                let s = Span::new(start, lexer.end_pos());
                 self.new_atom(lexer, Token::op(two, s))
             }
             None => {
-                let s = Span::pos(lexer.pos());
+                let s = Span::from(start);
                 self.new_atom(lexer, Token::op(one, s))
             }
         }
@@ -165,8 +178,9 @@ impl Context {
             return Ok(());
         }
 
-        let start = lexer.pos() - lexer.literal.chars().count() as u32;
-        let span = Span::of(start, lexer.pos());
+        let end = lexer.pos();
+        let start_col = end.col - lexer.literal.chars().count() as u32;
+        let span = Span::new(Pos::new(end.line, start_col), end);
 
         let literal = lexer.literal.as_str();
         let token = match literal {
@@ -203,7 +217,8 @@ impl Context {
                             '_' => (),
                             _ => {
                                 return Err(crate::Error::InvalidChar(Span::pos(
-                                    span.start + i as u32,
+                                    span.start.line,
+                                    start_col + i as u32,
                                 )))
                             }
                         }
@@ -227,7 +242,7 @@ impl Context {
         let start = lexer.pos();
         let char = match lexer.next() {
             Some('\'') => {
-                let span = Span::of(start, lexer.pos() + 1);
+                let span = Span::new(start, lexer.end_pos());
                 self.errors.push(crate::Error::EmptyCharLiteral(span));
                 lexer.tokens.push(Token::val(Val::Char('\0'), span));
                 return Ok(());
@@ -236,24 +251,24 @@ impl Context {
                 Ok(c) => c,
                 Err(e) => {
                     self.errors.push(e.error);
-                    let span = Span::of(start, lexer.pos() + 1);
+                    let span = Span::new(start, lexer.end_pos());
                     lexer.tokens.push(Token::val(Val::Char('\0'), span));
                     return Ok(());
                 }
             },
             Some(c) => c,
             None => {
-                let span = Span::of(start, lexer.pos() + 1);
+                let span = Span::new(start, lexer.end_pos());
                 return Err(crate::Error::EmptyCharLiteral(span));
             }
         };
 
         if lexer.next_if('\'').is_none() {
-            let s = Span::pos(start);
+            let s = Span::from(start);
             self.errors.push(crate::Error::MissingClosingQuote(s));
         }
 
-        let span = Span::of(start, lexer.pos() + 1);
+        let span = Span::new(start, lexer.end_pos());
         lexer.tokens.push(Token::val(Val::Char(char), span));
 
         Ok(())
@@ -301,13 +316,13 @@ impl Context {
             }
         }
 
-        let s = Span::pos(start);
+        let s = Span::from(start);
         Err(crate::Error::MissingClosingQuote(s))
     }
 
-    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: u32) -> crate::Result<()> {
+    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: Pos) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
-        let span = Span::of(start, lexer.pos() + 1);
+        let span = Span::new(start, lexer.end_pos());
         lexer.tokens.push(Token::val(str, span));
         lexer.literal.clear();
         Ok(())
@@ -324,7 +339,9 @@ impl Context {
 
     fn block_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
         while let Some(c) = lexer.next() {
-            if c == '*' && lexer.next_if('/').is_some() {
+            if c == '\n' {
+                lexer.new_line();
+            } else if c == '*' && lexer.next_if('/').is_some() {
                 break;
             }
         }

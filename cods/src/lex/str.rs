@@ -1,4 +1,4 @@
-use crate::{Context, Span};
+use crate::{Context, Pos, Span};
 
 use super::Lexer;
 
@@ -8,7 +8,7 @@ impl Context {
         let c = match lexer.next() {
             Some(c) => c,
             None => {
-                let s = Span::pos(lexer.pos());
+                let s = Span::from(lexer.pos());
                 return Err(EscError {
                     error: crate::Error::MissingEscapeChar(s),
                     end_str: false,
@@ -30,7 +30,7 @@ impl Context {
                 '\\' => '\\',
                 _ => {
                     return Err(EscError {
-                        error: crate::Error::InvalidEscapeChar(c, Span::pos(lexer.pos())),
+                        error: crate::Error::InvalidEscapeChar(c, Span::from(lexer.pos())),
                         end_str: false,
                         fail: false,
                     })
@@ -51,7 +51,7 @@ pub struct EscError {
 fn unicode_escape_char(
     lexer: &mut Lexer<'_>,
     expected: usize,
-    esc_start: u32,
+    esc_start: Pos,
 ) -> Result<char, EscError> {
     if let Some('{') = lexer.peek() {
         lexer.next();
@@ -62,7 +62,7 @@ fn unicode_escape_char(
     let mut i = 0;
     while let Some(c) = lexer.next() {
         if c == ' ' || c == '"' {
-            let span = Span::pos(lexer.pos());
+            let span = Span::from(lexer.pos());
             let end_str = c == '"';
             return Err(EscError {
                 error: crate::Error::MissingUnicodeEscapeChar {
@@ -90,7 +90,7 @@ fn unicode_escape_char(
     parse_unicode_cp(lexer, cp, esc_start)
 }
 
-fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: u32) -> Result<char, EscError> {
+fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: Pos) -> Result<char, EscError> {
     let mut cp = 0;
     let mut i = 0;
     while let Some(c) = lexer.next() {
@@ -99,8 +99,9 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: u32) -> Result<c
         }
 
         if c == ' ' || c == '"' {
-            let a_s = Span::pos(lexer.pos());
-            let b_s = Span::pos(lexer.pos() - (i + 1));
+            let pos = lexer.pos();
+            let a_s = Span::from(pos);
+            let b_s = Span::pos(pos.line, pos.col - (i + 1));
             let end_str = c == '"';
             return Err(EscError {
                 error: crate::Error::MissingClosingUnicodeEscapePar(b_s, a_s),
@@ -118,7 +119,7 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: u32) -> Result<c
     }
 
     if i > 6 {
-        let s = Span::of(esc_start, lexer.pos() + 1);
+        let s = Span::new(esc_start, lexer.end_pos());
         return Err(EscError {
             error: crate::Error::OverlongUnicodeEscape(s),
             end_str: false,
@@ -135,7 +136,7 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
         'a'..='f' => Ok(c as u32 - 'a' as u32 + 10),
         'A'..='F' => Ok(c as u32 - 'A' as u32 + 10),
         _ => {
-            let s = Span::pos(lexer.pos());
+            let s = Span::from(lexer.pos());
             Err(EscError {
                 error: crate::Error::InvalidUnicodeEscapeChar(c, s),
                 end_str: false,
@@ -145,11 +146,11 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
     }
 }
 
-fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: u32) -> Result<char, EscError> {
+fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: Pos) -> Result<char, EscError> {
     match char::from_u32(cp) {
         Some(char) => Ok(char),
         None => {
-            let s = Span::of(esc_start, lexer.pos() + 1);
+            let s = Span::new(esc_start, lexer.end_pos());
             Err(EscError {
                 error: crate::Error::InvalidUnicodeScalar(cp, s),
                 end_str: false,

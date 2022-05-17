@@ -21,7 +21,7 @@ enum StopOn {
 
 impl Context {
     pub fn parse(&mut self, items: Vec<Item>) -> crate::Result<Vec<Cst>> {
-        let span = items_span(&items).unwrap_or(Span::of(0, 0));
+        let span = items_span(&items).unwrap_or(Span::pos(0, 0));
         self.parse_items(items, span)
     }
 
@@ -110,7 +110,7 @@ impl Context {
                 parser.next();
                 self.parse_lang_construct(parser, k)?
             }
-            None => return Ok(Cst::Empty(Span::pos(parser.pos))),
+            None => return Ok(Cst::Empty(Span::from(parser.pos))),
         };
 
         loop {

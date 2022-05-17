@@ -8,11 +8,11 @@ fn semicolon() {
     let csts = ctx.parse(items).unwrap();
     let expected = vec![
         Cst::Infix(
-            Box::new(Cst::Ident(IdentSpan::new(Ident(0), Span::pos(0)))),
-            Infix::new(InfixT::Assign, Span::pos(2)),
-            Box::new(Cst::Val(ValSpan::new(Val::Int(34), Span::of(4, 6)))),
+            Box::new(Cst::Ident(IdentSpan::new(Ident(0), Span::pos(0, 0)))),
+            Infix::new(InfixT::Assign, Span::pos(0, 2)),
+            Box::new(Cst::Val(ValSpan::new(Val::Int(34), Span::cols(0, 4, 6)))),
         ),
-        Cst::Ident(IdentSpan::new(Ident(0), Span::of(8, 9))),
+        Cst::Ident(IdentSpan::new(Ident(0), Span::cols(0, 8, 9))),
     ];
     assert_eq!(expected, csts);
 }
@@ -22,5 +22,5 @@ fn postfix_op_on_newline() {
     let mut ctx = Context::default();
     let error = ctx.parse_str("y = 3\n! true").unwrap_err();
 
-    assert_eq!(error, crate::Error::MissingOperator(Span::pos(7)));
+    assert_eq!(error, crate::Error::MissingOperator(Span::pos(1, 1)));
 }

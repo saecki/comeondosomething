@@ -1,9 +1,8 @@
-use std::cmp::min;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::marker::PhantomData;
 
-use cods::{Span, UserFacing};
+use cods::UserFacing;
 use unicode_width::UnicodeWidthChar;
 
 use crate::style::{LRed, LYellow};
@@ -30,17 +29,20 @@ pub struct FmtUserFacing<'a, U: DisplayUserFacing<C>, C: Color> {
 impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let spans = self.error.spans();
-        let lines = spanned_lines(self.input);
-
         let mut hl_lines = Vec::new();
-        for (nr, (lr, l)) in lines.iter().enumerate() {
+        for (nr, l) in self.input.lines().enumerate() {
+            let nr = nr as u32;
             let intersecting: Vec<_> = spans
                 .iter()
-                .filter(|r| r.intersects(lr))
-                .map(|r| {
-                    let ms = r.start.saturating_sub(lr.start);
-                    let me = min(r.end.saturating_sub(lr.start), lr.len());
-                    Span::of(ms, me)
+                .filter(|s| s.start.line <= nr && s.end.line >= nr)
+                .map(|s| {
+                    let hl_start = if s.start.line == nr { s.start.col } else { 0 };
+                    let hl_end = if s.end.line == nr {
+                        s.end.col
+                    } else {
+                        l.chars().count() as u32
+                    };
+                    (hl_start, hl_end)
                 })
                 .collect();
 
@@ -83,10 +85,10 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
 #[allow(clippy::mut_range_bound)]
 fn mark_spans<C: Color>(
     f: &mut fmt::Formatter<'_>,
-    line_nr: usize,
+    line_nr: u32,
     nr_width: usize,
     line: &str,
-    spans: &[Span],
+    spans: &[(u32, u32)],
 ) -> fmt::Result {
     write!(
         f,
@@ -103,9 +105,9 @@ fn mark_spans<C: Color>(
     let mut pos = 0;
     let mut peeked = 0;
 
-    for s in spans {
+    for &(start, end) in spans {
         let mut offset = 0;
-        for _ in pos..(s.start) {
+        for _ in pos..start {
             if let Some(c) = chars.next() {
                 pos += 1;
                 offset += c.width().unwrap_or(0);
@@ -119,7 +121,7 @@ fn mark_spans<C: Color>(
         }
 
         let mut width = 0;
-        for _ in pos..(s.end) {
+        for _ in pos..end {
             if let Some(c) = chars.next() {
                 pos += 1;
                 width += c.width().unwrap_or(0);
@@ -148,47 +150,4 @@ fn mark_spans<C: Color>(
     f.write_char('\n')?;
 
     Ok(())
-}
-
-fn spanned_lines(string: &str) -> Vec<(Span, &str)> {
-    let mut lines = Vec::new();
-    let mut line_start = (0, 0);
-    let mut pos = (0, 0);
-    let mut pushed_line = false;
-
-    let mut chars = string.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '\r' => {
-                let span = Span::of(line_start.0, pos.0 + 1);
-                let line = &string[line_start.1..pos.1];
-                lines.push((span, line));
-                pushed_line = true;
-            }
-            '\n' => {
-                if !pushed_line {
-                    let span = Span::of(line_start.0, pos.0 + 1);
-                    let line = &string[line_start.1..pos.1];
-                    lines.push((span, line));
-                }
-
-                // We know this char is 1 byte wide
-                line_start = (pos.0 + 1, pos.1 + 1);
-                // Also push empty lines
-                pushed_line = false;
-            }
-            _ => pushed_line = false,
-        }
-
-        pos.0 += 1;
-        pos.1 = string.len() - chars.as_str().len();
-    }
-
-    if !pushed_line {
-        let span = Span::of(line_start.0, pos.0 + 1);
-        let line = &string[line_start.1..pos.1];
-        lines.push((span, line));
-    }
-
-    lines
 }

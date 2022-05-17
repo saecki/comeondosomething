@@ -112,7 +112,7 @@ fn string_multi_line() {
 fn unicode_operators() {
     assert_err(
         "(23423.0 × 423.0 + (423.0 − 234.0) ÷ 654.0 + 4324.0) × 4234.0",
-        crate::Error::InvalidChar(Span::pos(9)),
+        crate::Error::InvalidChar(Span::pos(0, 9)),
     );
 }
 
@@ -165,7 +165,7 @@ fn factorial() {
 fn factorial_overflow() {
     assert_err(
         "34!",
-        Error::FactorialOverflow(ValSpan::new(Val::Int(34), Span::of(0, 2))),
+        Error::FactorialOverflow(ValSpan::new(Val::Int(34), Span::cols(0, 0, 2))),
     );
 }
 
@@ -173,7 +173,7 @@ fn factorial_overflow() {
 fn factorial_negative() {
     assert_err(
         "(-3)!",
-        Error::NegativeFactorial(ValSpan::new(Val::Int(-3), Span::of(1, 3))),
+        Error::NegativeFactorial(ValSpan::new(Val::Int(-3), Span::cols(0, 1, 3))),
     );
 }
 
@@ -193,8 +193,8 @@ fn binomial_coefficient_invalid() {
     assert_err(
         "ncr(3, 4)",
         Error::InvalidNcr(
-            ValSpan::new(Val::Int(3), Span::pos(4)),
-            ValSpan::new(Val::Int(4), Span::pos(7)),
+            ValSpan::new(Val::Int(3), Span::pos(0, 4)),
+            ValSpan::new(Val::Int(4), Span::pos(0, 7)),
         ),
     );
 }
@@ -203,7 +203,7 @@ fn binomial_coefficient_invalid() {
 fn binomial_coefficient_negative() {
     assert_err(
         "ncr(5, -3)",
-        Error::NegativeNcr(ValSpan::new(Val::Int(-3), Span::of(7, 9))),
+        Error::NegativeNcr(ValSpan::new(Val::Int(-3), Span::cols(0, 7, 9))),
     );
 }
 
@@ -246,8 +246,8 @@ fn clamp_bounds() {
     assert_err(
         "clamp(0, 5, 4)",
         Error::InvalidClampBounds(
-            ValSpan::new(Val::Int(5), Span::pos(9)),
-            ValSpan::new(Val::Int(4), Span::pos(12)),
+            ValSpan::new(Val::Int(5), Span::pos(0, 9)),
+            ValSpan::new(Val::Int(4), Span::pos(0, 12)),
         ),
     );
 }
@@ -257,8 +257,8 @@ fn clamp_bounds_float() {
     assert_err(
         "clamp(0.0, 5.3, 4.5)",
         Error::InvalidClampBounds(
-            ValSpan::new(Val::Float(5.3), Span::of(11, 14)),
-            ValSpan::new(Val::Float(4.5), Span::of(16, 19)),
+            ValSpan::new(Val::Float(5.3), Span::cols(0, 11, 14)),
+            ValSpan::new(Val::Float(4.5), Span::cols(0, 16, 19)),
         ),
     );
 }
@@ -355,7 +355,7 @@ fn not() {
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
-        Error::UnexpectedPar(Par::new(ParT::RoundClose, Span::pos(2))),
+        Error::UnexpectedPar(Par::new(ParT::RoundClose, Span::pos(0, 2))),
     );
 }
 
@@ -381,7 +381,7 @@ fn assertion() {
 
 #[test]
 fn assertion_failed() {
-    assert_err("assert(4 == 5)", Error::AssertFailed(Span::of(7, 13)));
+    assert_err("assert(4 == 5)", Error::AssertFailed(Span::cols(0, 7, 13)));
 }
 
 #[test]
@@ -394,8 +394,8 @@ fn assertion_eq_failed() {
     assert_err(
         "assert_eq(false, 5 == 5)",
         Error::AssertEqFailed(
-            ValSpan::new(Val::Bool(false), Span::of(10, 15)),
-            ValSpan::new(Val::Bool(true), Span::of(17, 23)),
+            ValSpan::new(Val::Bool(false), Span::cols(0, 10, 15)),
+            ValSpan::new(Val::Bool(true), Span::cols(0, 17, 23)),
         ),
     );
 }

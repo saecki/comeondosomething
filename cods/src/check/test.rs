@@ -7,7 +7,10 @@ fn undefined_var() {
     let input = "print(x)";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(error, crate::Error::UndefinedVar("x".into(), Span::pos(6)));
+    assert_eq!(
+        error,
+        crate::Error::UndefinedVar("x".into(), Span::pos(0, 6))
+    );
 }
 
 #[test]
@@ -15,7 +18,10 @@ fn undefined_outside_scope() {
     let input = "{ val x = 7 }; println(x);";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(error, crate::Error::UndefinedVar("x".into(), Span::pos(23)));
+    assert_eq!(
+        error,
+        crate::Error::UndefinedVar("x".into(), Span::pos(0, 23))
+    );
 }
 
 #[test]
@@ -41,7 +47,7 @@ fn cannot_assign_twice_to_immutable_var() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::ImmutableAssign("x".into(), Span::pos(11), Span::pos(15)),
+        crate::Error::ImmutableAssign("x".into(), Span::pos(0, 11), Span::pos(0, 15)),
     );
 }
 
@@ -52,7 +58,10 @@ fn cannot_assign_twice_to_builtin_const() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::ConstAssign((BuiltinConst::Tau, Span::of(0, 3)), Span::of(4, 6)),
+        crate::Error::ConstAssign(
+            (BuiltinConst::Tau, Span::cols(0, 0, 3)),
+            Span::cols(0, 4, 6)
+        ),
     );
 }
 
@@ -71,7 +80,7 @@ fn cannot_redefine_function() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::RedefinedFun("a".into(), Span::pos(4), Span::pos(23)),
+        crate::Error::RedefinedFun("a".into(), Span::pos(0, 4), Span::pos(0, 23)),
     );
 }
 
@@ -98,7 +107,7 @@ fn cast_from_any_fails_at_runtime() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::CastFailed((DataType::Int, Span::pos(17)), DataType::Str)
+        crate::Error::CastFailed((DataType::Int, Span::pos(0, 17)), DataType::Str)
     );
 }
 
@@ -110,8 +119,8 @@ fn cast_int_to_str_fails_while_type_checking() {
     assert_eq!(
         error,
         crate::Error::CastAlwaysFails(
-            (DataType::Int, Span::pos(17)),
-            (DataType::Str, Span::of(22, 25))
+            (DataType::Int, Span::pos(0, 17)),
+            (DataType::Str, Span::cols(0, 22, 25))
         )
     );
 }
@@ -123,7 +132,7 @@ fn cast_int_coerced_as_any_to_str_fails_at_runtime() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::CastFailed((DataType::Int, Span::pos(17)), DataType::Str)
+        crate::Error::CastFailed((DataType::Int, Span::pos(0, 17)), DataType::Str)
     );
 }
 
@@ -176,8 +185,8 @@ fn if_expr_branch_types_are_enforced() {
     assert_eq!(
         error,
         crate::Error::IfBranchIncompatibleType(
-            (DataType::Int, Span::pos(59)),
-            (DataType::Float, Span::of(99, 103))
+            (DataType::Int, Span::pos(3, 12)),
+            (DataType::Float, Span::cols(5, 12, 16))
         ),
     );
 }
@@ -205,7 +214,7 @@ fn statement_cannot_be_used_as_expr() {
     let input = "val a = (val b = 12)";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(error, crate::Error::ExpectedExpr(Span::of(9, 19)));
+    assert_eq!(error, crate::Error::ExpectedExpr(Span::cols(0, 9, 19)));
 }
 
 #[test]
@@ -307,7 +316,7 @@ fn cannot_capture_var_in_dyn_scope() {
         err,
         crate::Error::NotImplemented(
             "Capturing variables from a dynamic scope is not yet implemented",
-            Span::pos(39)
+            Span::pos(2, 16)
         )
     );
 }
@@ -329,7 +338,7 @@ fn cannot_capture_var_to_write_in_dyn_scope() {
         err,
         crate::Error::NotImplemented(
             "Capturing variables from a dynamic scope is not yet implemented",
-            Span::pos(39)
+            Span::pos(2, 16)
         )
     );
 }
@@ -369,7 +378,7 @@ fn cannot_return_from_global_context() {
     let input = "return 3";
     let mut ctx = Context::default();
     let err = ctx.parse_and_eval(input).unwrap_err();
-    assert_eq!(err, crate::Error::GlobalContextReturn(Span::of(0, 6)),);
+    assert_eq!(err, crate::Error::GlobalContextReturn(Span::cols(0, 0, 6)),);
 }
 
 #[test]
@@ -391,7 +400,7 @@ fn early_return_data_type_doesnt_match() {
         crate::Error::MismatchedType {
             expected: DataType::Bool,
             found: DataType::Int,
-            spans: vec![Span::of(75, 77), Span::of(23, 27)]
+            spans: vec![Span::cols(3, 23, 25), Span::cols(1, 22, 26)]
         }
     );
 }
