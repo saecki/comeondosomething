@@ -1,4 +1,4 @@
-use crate::{Context, Group, IdentSpan, Item, Kw, KwT, OpT, ParKind, PctT, Span, BuiltinConst};
+use crate::{Context, Group, IdentSpan, Item, Kw, KwT, OpT, ParKind, PctT, Span, BuiltinConst, BuiltinFun};
 
 pub use cst::Cst;
 pub use op::*;
@@ -323,6 +323,14 @@ impl Context {
             KwT::In => Err(crate::Error::WrongContext(kw)),
             KwT::Fun => {
                 let ident = parser.expect_ident()?;
+
+                let name = self.idents.name(ident.ident);
+                if name.parse::<BuiltinFun>().is_ok() {
+                    self.errors.push(crate::Error::RedefinedBuiltinFun(
+                        name.to_owned(),
+                        ident.span,
+                    ));
+                }
 
                 let param_group = parser.expect_fun_pars()?;
                 let params = {
