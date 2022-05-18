@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 use crate::cst::{self, Cst};
 use crate::{
-    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span,
-    ValSpan, VarRef,
+    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, ValSpan,
+    VarRef,
 };
 
 pub use ast::{Ast, AstT, Asts, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
