@@ -3,12 +3,12 @@ use std::rc::Rc;
 
 use crate::cst::{self, Cst};
 use crate::{
-    BuiltinFun, Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span,
+    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span,
     ValSpan, VarRef,
 };
 
 pub use ast::{Ast, AstT, Asts, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
-use builtin::*;
+pub use builtin::*;
 pub use scope::*;
 pub use types::*;
 

@@ -1,12 +1,51 @@
 use std::f64::consts;
 
+use strum::{Display, EnumString};
+
 use crate::ast::BuiltinFunCall::{self, *};
 use crate::DataType::*;
-use crate::{BuiltinConst, BuiltinFun, DataType, Val};
+use crate::{DataType, Val};
 
 const PI: Val = Val::Float(consts::PI);
 const TAU: Val = Val::Float(consts::TAU);
 const E: Val = Val::Float(consts::E);
+
+#[derive(Clone, Copy, Debug, PartialEq, EnumString, Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum BuiltinFun {
+    Pow,
+    Ln,
+    Log,
+    Sqrt,
+    Ncr,
+    ToDeg,
+    ToRad,
+    Sin,
+    Cos,
+    Tan,
+    Asin,
+    Acos,
+    Atan,
+    Gcd,
+    Min,
+    Max,
+    Clamp,
+    Abs,
+    Print,
+    Println,
+    Spill,
+    SpillLocal,
+    Assert,
+    AssertEq,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, EnumString, Display)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BuiltinConst {
+    Pi,
+    Tau,
+    E,
+}
 
 impl BuiltinConst {
     pub const fn val(&self) -> Val {
