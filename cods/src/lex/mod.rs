@@ -206,7 +206,22 @@ impl Context {
             "var" => Token::kw(KwT::Var, span),
             _ => {
                 if literal.chars().next().unwrap().is_digit(10) {
-                    let num = if let Ok(i) = literal.parse::<i128>() {
+                    let num = if literal.starts_with("0b") {
+                        match i128::from_str_radix(&literal[2..], 2) {
+                            Ok(i) => Val::Int(i),
+                            Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
+                        }
+                    } else if literal.starts_with("0o") {
+                        match i128::from_str_radix(&literal[2..], 8) {
+                            Ok(i) => Val::Int(i),
+                            Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
+                        }
+                    } else if literal.starts_with("0x") {
+                        match i128::from_str_radix(&literal[2..], 16) {
+                            Ok(i) => Val::Int(i),
+                            Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
+                        }
+                    } else if let Ok(i) = literal.parse::<i128>() {
                         Val::Int(i)
                     } else if let Ok(f) = literal.parse::<f64>() {
                         Val::Float(f)

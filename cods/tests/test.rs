@@ -73,6 +73,14 @@ fn to_rad() {
 }
 
 #[test]
+fn int_literals() {
+    assert("0b010010", Val::Int(0b010010));
+    assert("0o72454", Val::Int(0o72454));
+    assert("0xbc34", Val::Int(0xbc34));
+    assert("442423", Val::Int(442423));
+}
+
+#[test]
 fn string_escape() {
     assert(r#""\b""#, Val::Str("\x08".into()));
     assert(r#""\t""#, Val::Str("\t".into()));
