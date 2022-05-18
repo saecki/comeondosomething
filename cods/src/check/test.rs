@@ -74,6 +74,28 @@ fn can_resolve_builtin_const() {
 }
 
 #[test]
+fn cannot_redefine_builtin_const() {
+    let input = "val PI = 3.14";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::RedefinedBuiltinConst("PI".into(), Span::cols(0, 4, 6)),
+    );
+}
+
+#[test]
+fn cannot_redefine_builtin_function() {
+    let input = "fun sqrt() { }";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::RedefinedBuiltinFun("sqrt".into(), Span::cols(0, 4, 8)),
+    );
+}
+
+#[test]
 fn cannot_redefine_function() {
     let input = "fun a(i: int) { }; fun a() { }";
     let mut ctx = Context::default();
