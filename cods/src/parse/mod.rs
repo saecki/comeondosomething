@@ -393,7 +393,7 @@ impl Context {
 
                 let name = self.idents.name(ident.ident);
                 if name.parse::<BuiltinConst>().is_ok() {
-                    return Err(crate::Error::RedefinedBuiltinConst(
+                    self.errors.push(crate::Error::RedefinedBuiltinConst(
                         name.to_owned(),
                         ident.span,
                     ));
