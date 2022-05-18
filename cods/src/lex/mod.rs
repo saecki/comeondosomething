@@ -121,10 +121,13 @@ impl Context {
                         let s = Span::new(span.start, lexer.end_pos());
                         self.new_atom(&mut lexer, Token::op(op, s))?;
                     }
-                    Some(_) if lexer.literal.is_empty() => {
-                        self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?;
+                    Some(c)
+                        if !lexer.literal.is_empty()
+                            && lexer.literal.chars().all(|c| c.is_digit(10))
+                            && c.is_digit(10) =>
+                    {
+                        lexer.literal.push('.')
                     }
-                    Some(c) if c.is_digit(10) => lexer.literal.push('.'),
                     _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?,
                 },
                 '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,

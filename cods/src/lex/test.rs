@@ -196,3 +196,15 @@ fn leading_dot() {
         ],
     )
 }
+
+#[test]
+fn ident_tuple_index() {
+    assert(
+        "abc1.2",
+        vec![
+            Token::Ident(IdentSpan::new(Ident(0), Span::cols(0, 0, 4))),
+            Token::Op(Op::new(OpT::Dot, Span::pos(0, 4))),
+            Token::Val(ValSpan::new(Val::Int(2), Span::pos(0, 5))),
+        ],
+    )
+}
