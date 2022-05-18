@@ -305,7 +305,7 @@ impl Context {
 
         let fun = match self.resolve_fun(scopes, &f.ident)? {
             ResolvedFun::Fun(f) => f,
-            ResolvedFun::Builtin(_) => panic!("Expected user defined function"),
+            ResolvedFun::Builtin(_) => return Ok(Ast::statement(AstT::Unit, span)),
         };
 
         scopes.with_new_frame(Rc::clone(&fun), |scopes| {
