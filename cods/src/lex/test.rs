@@ -1,4 +1,4 @@
-use crate::Ident;
+use crate::{Ident, IdentSpan};
 
 use super::*;
 
@@ -183,4 +183,16 @@ fn char_recover_from_unclosed_literal() {
         ",
         vec![crate::Error::MissingClosingQuote(Span::pos(1, 16))],
     );
+}
+
+#[test]
+fn leading_dot() {
+    assert(
+        "abc .3",
+        vec![
+            Token::Ident(IdentSpan::new(Ident(0), Span::cols(0, 0, 3))),
+            Token::Op(Op::new(OpT::Dot, Span::pos(0, 4))),
+            Token::Val(ValSpan::new(Val::Int(3), Span::pos(0, 5))),
+        ],
+    )
 }
