@@ -278,7 +278,6 @@ impl Context {
         scopes: &mut Scopes,
         f: &cst::FunDef,
     ) -> crate::Result<()> {
-        // Function signature
         let mut params = Vec::with_capacity(f.params.items.len());
         for p in f.params.items.iter() {
             let typ = self.resolve_data_type(&p.typ)?;
