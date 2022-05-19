@@ -26,10 +26,22 @@ pub struct FmtUserFacing<'a, U: DisplayUserFacing<C>, C: Color> {
     c: PhantomData<C>,
 }
 
+struct HlLine<'a> {
+    nr: u32,
+    text: &'a str,
+    spans: Vec<(u32, u32)>,
+}
+
+impl<'a> HlLine<'a> {
+    fn new(nr: u32, text: &'a str, spans: Vec<(u32, u32)>) -> Self {
+        Self { nr, text, spans }
+    }
+}
+
 impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let spans = self.error.spans();
-        let mut hl_lines = Vec::new();
+        let mut visible_lines = Vec::new();
         for (nr, l) in self.input.lines().enumerate() {
             let nr = nr as u32;
             let intersecting: Vec<_> = spans
@@ -47,25 +59,55 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
                 .collect();
 
             if !intersecting.is_empty() {
-                hl_lines.push((nr + 1, l, intersecting));
+                visible_lines.push(HlLine::new(nr + 1, l, intersecting));
             }
         }
 
-        let nr_width = hl_lines
+        {
+            let mut i = 0;
+            while i + 1 < visible_lines.len() {
+                let a = &visible_lines[i];
+                let b = &visible_lines[i + 1];
+
+                let gap = b.nr - a.nr - 1;
+                if gap <= 10 {
+                    for (nr, l) in self
+                        .input
+                        .lines()
+                        .enumerate()
+                        .skip(a.nr as usize)
+                        .take(gap as usize)
+                    {
+                        let hl_line = HlLine::new(nr as u32 + 1, l, Vec::new());
+                        visible_lines.insert(i + 1, hl_line);
+                        i += 1;
+                    }
+                }
+                i += 1;
+            }
+        }
+
+        let nr_width = visible_lines
             .last()
-            .map_or(2, |(nr, _, _)| (*nr as f32).log10() as usize + 1);
+            .map_or(2, |hl_line| (hl_line.nr as f32).log10() as usize + 1);
 
-        if let Some((first, others)) = hl_lines.split_first() {
-            let (nr, l, spans) = first;
-            mark_spans::<C>(f, *nr, nr_width, l, spans)?;
+        if let Some((first, others)) = visible_lines.split_first() {
+            let hl_line = first;
+            print_line(f, hl_line.nr, nr_width, hl_line.text)?;
+            if !hl_line.spans.is_empty() {
+                mark_spans::<C>(f, nr_width, hl_line.text, &hl_line.spans)?;
+            }
 
-            let mut last_nr = *nr;
-            for (nr, l, spans) in others {
-                if last_nr + 1 < *nr {
+            let mut last_nr = hl_line.nr;
+            for hl_line in others {
+                if last_nr + 1 < hl_line.nr {
                     writeln!(f, "{blue}...{esc}", blue = LBlue::bold(), esc = ANSI_ESC)?;
                 }
-                mark_spans::<C>(f, *nr, nr_width, l, spans)?;
-                last_nr = *nr;
+                print_line(f, hl_line.nr, nr_width, hl_line.text)?;
+                if !hl_line.spans.is_empty() {
+                    mark_spans::<C>(f, nr_width, hl_line.text, &hl_line.spans)?;
+                }
+                last_nr = hl_line.nr;
             }
         }
 
@@ -82,19 +124,33 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     }
 }
 
-fn mark_spans<C: Color>(
+fn print_line(
     f: &mut fmt::Formatter<'_>,
     line_nr: u32,
+    nr_width: usize,
+    line: &str,
+) -> fmt::Result {
+    writeln!(
+        f,
+        "{blue}{nr:nr_w$} │{esc} {ln}",
+        nr = line_nr,
+        nr_w = nr_width,
+        ln = line,
+        blue = LBlue::bold(),
+        esc = ANSI_ESC,
+    )
+}
+
+fn mark_spans<C: Color>(
+    f: &mut fmt::Formatter<'_>,
     nr_width: usize,
     line: &str,
     spans: &[(u32, u32)],
 ) -> fmt::Result {
     write!(
         f,
-        "{blue}{nr:nr_w$} │{esc} {ln}\n{spc:nr_w$} {blue}│{esc} ",
-        nr = line_nr,
+        "{spc:nr_w$} {blue}│{esc} ",
         nr_w = nr_width,
-        ln = line,
         spc = ' ',
         blue = LBlue::bold(),
         esc = ANSI_ESC,
