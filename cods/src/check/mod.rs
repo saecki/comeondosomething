@@ -878,7 +878,7 @@ impl Context {
             InfixT::Dot => {
                 return Err(crate::Error::NotImplemented(
                     "Field access is not yet implemented",
-                    s,
+                    vec![s],
                 ))
             }
             InfixT::As => {

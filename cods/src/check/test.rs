@@ -338,7 +338,7 @@ fn cannot_capture_var_in_dyn_scope() {
         err,
         crate::Error::NotImplemented(
             "Capturing variables from a dynamic scope is not yet implemented",
-            Span::pos(2, 16)
+            vec![Span::pos(2, 16), Span::pos(4, 16)],
         )
     );
 }
@@ -360,7 +360,7 @@ fn cannot_capture_var_to_write_in_dyn_scope() {
         err,
         crate::Error::NotImplemented(
             "Capturing variables from a dynamic scope is not yet implemented",
-            Span::pos(2, 16)
+            vec![Span::pos(2, 16), Span::pos(4, 16)],
         )
     );
 }

@@ -64,7 +64,7 @@ impl Context {
                     ParKind::Square => {
                         self.errors.push(crate::Error::NotImplemented(
                             "Arrays are not yet implemented",
-                            g.span(),
+                            vec![g.span()],
                         ));
                         return Ok(Cst::Error(g.span()));
                     }
@@ -140,7 +140,7 @@ impl Context {
                             ParKind::Square => {
                                 return Err(crate::Error::NotImplemented(
                                     "Array access is not yet implemented",
-                                    g.span(),
+                                    vec![g.span()],
                                 ));
                             }
                             _ => (),

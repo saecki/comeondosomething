@@ -19,7 +19,7 @@ pub trait UserFacing: Sized + Debug + Display {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    NotImplemented(&'static str, Span),
+    NotImplemented(&'static str, Vec<Span>),
 
     // Lex
     InvalidChar(Span),
@@ -356,7 +356,7 @@ impl UserFacing for Error {
 
     fn spans(&self) -> Vec<Span> {
         match self {
-            Self::NotImplemented(_, s) => vec![*s],
+            Self::NotImplemented(_, spans) => spans.clone(),
 
             // Lex
             Self::InvalidChar(s) => vec![*s],

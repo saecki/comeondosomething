@@ -15,6 +15,11 @@ pub enum ResolvedVar<'a> {
     Const(BuiltinConst),
 }
 
+pub enum ResolveError {
+    NotFound,
+    DynCapture(Span),
+}
+
 impl Context {
     pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<ResolvedFun> {
         let name = self.idents.name(id.ident);
@@ -56,9 +61,15 @@ impl Context {
             return Ok(ResolvedVar::Const(b));
         }
 
-        match scopes.var(id.ident)? {
-            Some(v) => Ok(ResolvedVar::Var(v)),
-            None => Err(crate::Error::UndefinedVar(name.to_owned(), id.span)),
+        match scopes.var(id.ident) {
+            Ok(v) => Ok(ResolvedVar::Var(v)),
+            Err(ResolveError::DynCapture(s)) => Err(crate::Error::NotImplemented(
+                "Capturing variables from a dynamic scope is not yet implemented",
+                vec![s, id.span],
+            )),
+            Err(ResolveError::NotFound) => {
+                Err(crate::Error::UndefinedVar(name.to_owned(), id.span))
+            }
         }
     }
 
@@ -101,8 +112,8 @@ impl Context {
     }
 
     pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
-        match scopes.var_mut(id.ident)? {
-            Some(v) => {
+        match scopes.var_mut(id.ident) {
+            Ok(v) => {
                 if !v.mutable && v.assigned {
                     let name = self.idents.name(id.ident);
                     return Err(crate::Error::ImmutableAssign(
@@ -116,7 +127,11 @@ impl Context {
 
                 Ok(())
             }
-            None => {
+            Err(ResolveError::DynCapture(s)) => Err(crate::Error::NotImplemented(
+                "Capturing variables from a dynamic scope is not yet implemented",
+                vec![s, id.span],
+            )),
+            Err(ResolveError::NotFound) => {
                 let name = self.idents.name(id.ident);
                 Err(crate::Error::UndefinedVar(name.to_owned(), id.span))
             }
@@ -238,55 +253,49 @@ impl Scopes {
         None
     }
 
-    fn var(&self, id: Ident) -> crate::Result<Option<&Var>> {
+    fn var(&self, id: Ident) -> Result<&Var, ResolveError> {
         let current_scope_index = self.current_frame().scope_index;
         for s in self.scopes[current_scope_index..].iter().rev() {
             if let Some(v) = s.var(id) {
-                return Ok(Some(v));
+                return Ok(v);
             }
         }
         if let Some(f) = self.frames.get(1) {
             for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
                 if let Some(v) = s.var(id) {
-                    return Err(crate::Error::NotImplemented(
-                        "Capturing variables from a dynamic scope is not yet implemented",
-                        v.ident.span,
-                    ));
+                    return Err(ResolveError::DynCapture(v.ident.span));
                 }
             }
             for s in self.scopes[..f.scope_index].iter().rev() {
                 if let Some(v) = s.var(id) {
-                    return Ok(Some(v));
+                    return Ok(v);
                 }
             }
         }
-        Ok(None)
+        Err(ResolveError::NotFound)
     }
 
-    fn var_mut(&mut self, id: Ident) -> crate::Result<Option<&mut Var>> {
+    fn var_mut(&mut self, id: Ident) -> Result<&mut Var, ResolveError> {
         let current_scope_index = self.current_frame().scope_index;
         for s in self.scopes[current_scope_index..].iter_mut().rev() {
             if let Some(v) = s.var_mut(id) {
                 // workaround for lifetime issue: https://github.com/rust-lang/rust/issues/54663
-                return Ok(Some(unsafe { std::mem::transmute::<_, _>(v) }));
+                return Ok(unsafe { std::mem::transmute::<_, _>(v) });
             }
         }
         if let Some(f) = self.frames.get(1) {
             for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
                 if let Some(v) = s.var(id) {
-                    return Err(crate::Error::NotImplemented(
-                        "Capturing variables from a dynamic scope is not yet implemented",
-                        v.ident.span,
-                    ));
+                    return Err(ResolveError::DynCapture(v.ident.span));
                 }
             }
             for s in self.scopes[..f.scope_index].iter_mut().rev() {
                 if let Some(v) = s.var_mut(id) {
-                    return Ok(Some(v));
+                    return Ok(v);
                 }
             }
         }
-        Ok(None)
+        Err(ResolveError::NotFound)
     }
 
     fn push_frame(&mut self, fun: Rc<Fun>) {
