@@ -82,7 +82,6 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
     }
 }
 
-#[allow(clippy::mut_range_bound)]
 fn mark_spans<C: Color>(
     f: &mut fmt::Formatter<'_>,
     line_nr: u32,
@@ -101,50 +100,30 @@ fn mark_spans<C: Color>(
         esc = ANSI_ESC,
     )?;
 
-    let mut chars = line.chars();
-    let mut pos = 0;
-    let mut peeked = 0;
-
-    for &(start, end) in spans {
-        let mut offset = 0;
-        for _ in pos..start {
-            if let Some(c) = chars.next() {
-                pos += 1;
-                offset += c.width().unwrap_or(0);
+    let mut inside = 0;
+    for (i, c) in line.chars().enumerate() {
+        let i = i as u32;
+        for &(start, end) in spans {
+            if start == i {
+                inside += 1;
             }
-        }
-        for _ in 0..peeked {
-            if offset > 0 {
-                offset -= 1;
-                peeked -= 1;
+            if end == i {
+                inside -= 1;
             }
         }
 
-        let mut width = 0;
-        for _ in pos..end {
-            if let Some(c) = chars.next() {
-                pos += 1;
-                width += c.width().unwrap_or(0);
+        let width = c.width().unwrap_or(0);
+        if inside == 0 {
+            for _ in 0..width {
+                f.write_char(' ')?;
             }
-        }
-        if width == 0 && peeked == 0 {
-            width = 1;
-        };
-        for _ in 0..peeked {
-            if width > 1 {
-                offset -= 1;
-                peeked -= 1;
+        } else {
+            write!(f, "{}", C::bold())?;
+            for _ in 0..width {
+                f.write_char('^')?;
             }
+            f.write_str(ANSI_ESC)?;
         }
-
-        for _ in 0..offset {
-            f.write_char(' ')?;
-        }
-        write!(f, "{}", C::bold())?;
-        for _ in 0..width {
-            f.write_char('^')?;
-        }
-        f.write_str(ANSI_ESC)?;
     }
 
     f.write_char('\n')?;
