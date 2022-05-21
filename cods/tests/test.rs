@@ -83,6 +83,7 @@ fn int_literals() {
 #[test]
 fn string_escape() {
     assert(r#""\b""#, Val::Str("\x08".into()));
+    assert(r#""\e""#, Val::Str("\x1b".into()));
     assert(r#""\t""#, Val::Str("\t".into()));
     assert(r#""\n""#, Val::Str("\n".into()));
     assert(r#""\r""#, Val::Str("\r".into()));
@@ -96,6 +97,7 @@ fn string_escape() {
 #[test]
 fn char_escape() {
     assert(r#"'\b'"#, Val::Char('\x08'));
+    assert(r#"'\e'"#, Val::Char('\x1b'.into()));
     assert(r#"'\t'"#, Val::Char('\t'));
     assert(r#"'\n'"#, Val::Char('\n'));
     assert(r#"'\r'"#, Val::Char('\r'));

@@ -22,6 +22,7 @@ impl Context {
             'u' => unicode_escape_char(lexer, 4, esc_start)?,
             '0' => '\0',
             'b' => '\u{8}',
+            'e' => '\u{1b}',
             't' => '\t',
             'n' => '\n',
             'r' => '\r',
