@@ -20,22 +20,20 @@ impl Context {
         let escaped = match c {
             'x' => unicode_escape_char(lexer, 2, esc_start)?,
             'u' => unicode_escape_char(lexer, 4, esc_start)?,
-            _ => match c {
-                '0' => '\0',
-                'b' => '\u{8}',
-                't' => '\t',
-                'n' => '\n',
-                'r' => '\r',
-                '"' => '"',
-                '\\' => '\\',
-                _ => {
-                    return Err(EscError {
-                        error: crate::Error::InvalidEscapeChar(c, Span::from(lexer.pos())),
-                        end_str: false,
-                        fail: false,
-                    })
-                }
-            },
+            '0' => '\0',
+            'b' => '\u{8}',
+            't' => '\t',
+            'n' => '\n',
+            'r' => '\r',
+            '"' => '"',
+            '\\' => '\\',
+            _ => {
+                return Err(EscError {
+                    error: crate::Error::InvalidEscapeChar(c, Span::from(lexer.pos())),
+                    end_str: false,
+                    fail: false,
+                })
+            }
         };
 
         Ok(escaped)
