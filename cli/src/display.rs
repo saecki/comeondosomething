@@ -156,33 +156,48 @@ fn mark_spans<C: Color>(
         esc = ANSI_ESC,
     )?;
 
-    let mut inside = 0;
-    for (i, c) in line.chars().enumerate() {
-        let i = i as u32;
-        for &(start, end) in spans {
-            if start == i {
-                inside += 1;
+    let mut errors = 0;
+    let mut mark_start = 0;
+    let mut pos = (0, 0);
+    for c in line.chars().chain(std::iter::once(' ')) {
+        for &(start, _) in spans {
+            if start == pos.0 {
+                if errors == 0 {
+                    for _ in mark_start..pos.1 {
+                        f.write_char(' ')?;
+                    }
+                    mark_start = pos.1;
+                }
+                errors += 1;
             }
-            if end == i {
-                inside -= 1;
+        }
+        for &(_, end) in spans {
+            if end == pos.0 {
+                errors -= 1;
+                if errors == 0 {
+                    mark_error::<C>(f, pos.1 - mark_start)?;
+                    mark_start = pos.1;
+                }
             }
         }
 
         let width = c.width().unwrap_or(0);
-        if inside == 0 {
-            for _ in 0..width {
-                f.write_char(' ')?;
-            }
-        } else {
-            write!(f, "{}", C::bold())?;
-            for _ in 0..width {
-                f.write_char('^')?;
-            }
-            f.write_str(ANSI_ESC)?;
-        }
+        pos.0 += 1;
+        pos.1 += width;
+    }
+    if errors > 0 {
+        mark_error::<C>(f, pos.1 - mark_start)?;
     }
 
     f.write_char('\n')?;
 
     Ok(())
+}
+
+fn mark_error<C: Color>(f: &mut fmt::Formatter<'_>, n: usize) -> fmt::Result {
+    write!(f, "{}", C::bold())?;
+    for _ in 0..n {
+        f.write_char('^')?;
+    }
+    f.write_str(ANSI_ESC)
 }

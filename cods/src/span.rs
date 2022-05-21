@@ -29,8 +29,14 @@ impl Span {
         Self::new(a.start, b.end)
     }
 
-    pub const fn between(a: Self, b: Self) -> Self {
-        Self::new(a.end, b.start)
+    pub fn between(a: Self, b: Self) -> Self {
+        let end_line = u32::max(a.start.line, b.start.line);
+        let end_col = if end_line == a.end.line {
+            u32::max(a.end.col + 1, b.start.col)
+        } else {
+            b.start.col
+        };
+        Self::new(a.end, Pos::new(end_line, end_col))
     }
 
     pub const fn before(&self) -> Self {
