@@ -26,6 +26,6 @@ fun outer() {
         .unwrap()
         .arg(input)
         .assert()
-        .success()
+        .failure()
         .stdout(output);
 }

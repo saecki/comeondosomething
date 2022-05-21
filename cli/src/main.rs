@@ -1,6 +1,6 @@
 use std::env::args;
 use std::io::{self, Write};
-use std::process::exit;
+use std::process::{exit, ExitCode};
 
 use cods::{Context, Scopes, Stack, Val};
 
@@ -17,24 +17,30 @@ struct State {
     stack: Stack,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let mut args = args().skip(1);
     if let Some(first) = args.next() {
         match first.as_str() {
             "-i" | "--interactive" => repl(),
             "-p" | "--path" => calc_file(args.next()),
-            "-h" | "--help" => help(),
-            "-v" | "--version" => version(),
+            "-h" | "--help" => {
+                help();
+                ExitCode::SUCCESS
+            }
+            "-v" | "--version" => {
+                version();
+                ExitCode::SUCCESS
+            }
             _ => calc_args(first, args),
         }
     } else {
         bprintln!(LRed, "Error: missing arguments\n");
         help();
-        exit(1);
+        ExitCode::FAILURE
     }
 }
 
-fn repl() {
+fn repl() -> ExitCode {
     bprintln!(LBlue, "Started interactive repl");
 
     let mut output = io::stdout();
@@ -58,12 +64,16 @@ fn repl() {
                 print!("\x1b[1;1H\x1B[2J");
                 let _ = output.flush();
             }
-            _ => print_calc(&mut state, &buf),
+            _ => {
+                print_calc(&mut state, &buf);
+            }
         }
     }
+
+    ExitCode::SUCCESS
 }
 
-fn calc_file(path: Option<String>) {
+fn calc_file(path: Option<String>) -> ExitCode {
     let p = match path {
         Some(p) => p,
         None => {
@@ -75,33 +85,31 @@ fn calc_file(path: Option<String>) {
     match std::fs::read_to_string(&p) {
         Ok(input) => {
             let mut state = State::default();
-            print_calc(&mut state, &input);
+            print_calc(&mut state, &input)
         }
         Err(_) => {
             bprintln!(LRed, "Error reading file: {p}");
-            exit(1);
+            ExitCode::FAILURE
         }
     }
 }
 
-fn calc_args(first: String, args: impl Iterator<Item = String>) {
+fn calc_args(first: String, args: impl Iterator<Item = String>) -> ExitCode {
     let input = args.fold(first, |a, b| a + " " + &b);
     let mut state = State::default();
-    print_calc(&mut state, &input);
+    print_calc(&mut state, &input)
 }
 
-fn print_calc(state: &mut State, input: &str) {
+fn print_calc(state: &mut State, input: &str) -> ExitCode {
     match calc(state, input) {
         Ok(v) => {
             for w in state.ctx.warnings.iter().rev() {
                 println!("{}\n", w.display(input));
             }
-            for e in state.ctx.errors.iter().rev() {
-                println!("{}\n", e.display(input));
-            }
             if v != Val::Unit {
                 println!("{v}")
             }
+            ExitCode::SUCCESS
         }
         Err(e) => {
             for w in state.ctx.warnings.iter().rev() {
@@ -111,6 +119,7 @@ fn print_calc(state: &mut State, input: &str) {
                 println!("{}\n", e.display(input));
             }
             println!("{}\n", e.display(input));
+            ExitCode::FAILURE
         }
     }
 }
@@ -120,6 +129,9 @@ fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
     let items = state.ctx.group(tokens)?;
     let csts = state.ctx.parse(items)?;
     let asts = state.ctx.check_with(&mut state.scopes, csts)?;
+    if !state.ctx.errors.is_empty() {
+        return Err(state.ctx.errors.remove(0));
+    }
     cods::eval_with(&mut state.stack, &asts)
 }
 
