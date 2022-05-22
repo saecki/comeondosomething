@@ -108,7 +108,7 @@ impl Context {
             },
             Some(&Item::Kw(k)) => {
                 parser.next();
-                self.parse_lang_construct(parser, k)?
+                self.parse_lang_construct(parser, k, stop)?
             }
             None => return Ok(Cst::Empty(Span::from(parser.pos))),
         };
@@ -266,7 +266,12 @@ impl Context {
         Ok(cst::FunArgs::new(group.l_par, group.r_par, args))
     }
 
-    fn parse_lang_construct(&mut self, parser: &mut Parser, kw: Kw) -> crate::Result<Cst> {
+    fn parse_lang_construct(
+        &mut self,
+        parser: &mut Parser,
+        kw: Kw,
+        stop: StopOn,
+    ) -> crate::Result<Cst> {
         match kw.typ {
             KwT::If => {
                 let if_block = {
@@ -384,7 +389,7 @@ impl Context {
                 let val = if parser.current_newln {
                     None
                 } else {
-                    let v = self.parse_bp(parser, 0, StopOn::Nothing)?;
+                    let v = self.parse_bp(parser, 0, stop)?;
                     Some(Box::new(v))
                 };
                 let r = cst::Return::new(kw, val);
@@ -412,7 +417,7 @@ impl Context {
 
                 let value = {
                     let op = parser.expect_op(OpT::Assign)?;
-                    let val = self.parse_bp(parser, 0, StopOn::Nothing)?;
+                    let val = self.parse_bp(parser, 0, stop)?;
                     (op, Box::new(val))
                 };
 
