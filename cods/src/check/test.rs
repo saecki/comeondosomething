@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use crate::{BuiltinConst, Context, DataType, Span, Val};
+use crate::{BuiltinConst, Context, DataType, Pos, Span, Val};
 
 #[test]
 fn undefined_var() {
@@ -463,4 +463,71 @@ fn if_expr_early_return_data_type_2() {
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(1));
+}
+
+#[test]
+fn code_after_return_is_unreachable() {
+    let input = r#"
+        fun test() {
+            return
+
+            println("unreachable")
+        }
+    "#;
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::Unreachable(Span::cols(4, 12, 34))],
+    );
+}
+
+#[test]
+fn code_after_if_expr_is_unreachable() {
+    let input = "
+        fun test(a: bool, b: bool) {
+            if a {
+                return
+            } else if b {
+                return
+            } else {
+                return
+            }
+
+            val u = 3
+        }
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::Unreachable(Span::cols(10, 12, 21))],
+    );
+}
+
+#[test]
+fn if_cond_returns_block_unreachable() {
+    let input = "
+        fun test() -> int {
+            if return 42 {
+                32
+            } else if false {
+                4
+            } else {
+                9
+            }
+        }
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::Unreachable(Span::new(
+            Pos::new(2, 25),
+            Pos::new(8, 13)
+        ))],
+    );
 }
