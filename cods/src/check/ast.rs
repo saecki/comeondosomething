@@ -324,8 +324,6 @@ pub enum BuiltinFunCall {
     AbsFloat,
     Print,
     Println,
-    Spill,
-    SpillLocal,
     Assert,
     AssertEq,
 }

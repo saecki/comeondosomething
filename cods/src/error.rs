@@ -1,9 +1,10 @@
 use std::error;
 use std::fmt::{self, Debug, Display};
 
-use crate::{BuiltinConst, BuiltinFun, DataType, Val};
-use crate::{Infix, Postfix, Prefix, ValSpan};
-use crate::{Item, Kw, KwT, Op, OpT, Par, PctT, Span};
+use crate::{
+    BuiltinConst, DataType, Infix, Item, Kw, KwT, Op, OpT, Par, PctT, Postfix, Prefix, Signature,
+    Span, Val, ValSpan,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -82,7 +83,12 @@ pub enum Error {
     UndefinedFun(String, Span),
     RedefinedFun(String, Span, Span),
     RedefinedBuiltinFun(String, Span),
-    NoMatchingSignature(BuiltinFun, Span),
+    NoMatchingBuiltinFunSignature {
+        name: String,
+        args: Vec<DataType>,
+        signatures: Vec<Signature>,
+        span: Span,
+    },
     PrefixNotApplicable(Prefix, (DataType, Span)),
     PostfixNotApplicable((DataType, Span), Postfix),
     InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
@@ -230,13 +236,18 @@ impl UserFacing for Error {
             Self::UndefinedFun(name, _) => write!(f, "Undefined function `{name}`"),
             Self::RedefinedFun(name, _, _) => write!(f, "Redefined function `{name}`"),
             Self::RedefinedBuiltinFun(name, _) => write!(f, "Redefined builtin function `{name}`"),
-            Self::NoMatchingSignature(b, _) => {
+            Self::NoMatchingBuiltinFunSignature {
+                name,
+                args,
+                signatures,
+                ..
+            } => {
                 writeln!(
                     f,
-                    "No matching signature for builtin function `{b}`{line_suffix}"
+                    "No matching signature for builtin function `{name}`:{line_suffix}"
                 )?;
-                for (_, s) in b.signatures() {
-                    write!(f, "{line_prefix}    {b}(")?;
+                for s in signatures.iter() {
+                    write!(f, "{line_prefix}    {name}(")?;
                     if let Some((last, others)) = s.params.split_last() {
                         for p in others {
                             write!(f, "{p}, ")?;
@@ -250,6 +261,17 @@ impl UserFacing for Error {
                     }
                     writeln!(f, "{line_suffix}")?;
                 }
+                writeln!(f, "{line_prefix}{line_suffix}")?;
+
+                writeln!(f, "{line_prefix}Called with args of type:{line_suffix}")?;
+                write!(f, "{line_prefix}    {name}(")?;
+                if let Some((last, others)) = args.split_last() {
+                    for a in others {
+                        write!(f, "{a}, ")?;
+                    }
+                    write!(f, "{last}")?;
+                }
+                writeln!(f, "){line_suffix}")?;
 
                 Ok(())
             }
@@ -403,7 +425,7 @@ impl UserFacing for Error {
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, s) => vec![*s],
-            Self::NoMatchingSignature(_, s) => vec![*s],
+            Self::NoMatchingBuiltinFunSignature { span, .. } => vec![*span],
             Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
             Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
             Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],

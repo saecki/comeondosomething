@@ -581,8 +581,6 @@ fn eval_builtin_fun_call(
             println!();
             Val::Unit
         }
-        BuiltinFunCall::Spill => unreachable!(), // TODO: cleanup
-        BuiltinFunCall::SpillLocal => unreachable!(),
         BuiltinFunCall::Assert => {
             let va = eval_ast(stack, &args[0])?.unwrap_bool();
             if !va {

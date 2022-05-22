@@ -475,8 +475,65 @@ impl Context {
             args.push(self.check_type(scopes, a, true)?);
         }
 
+        let signatures: &[_] = match b {
+            BuiltinFun::Pow => &builtin::POW_SIGNATURES,
+            BuiltinFun::Ln => &builtin::LN_SIGNATURES,
+            BuiltinFun::Log => &builtin::LOG_SIGNATURES,
+            BuiltinFun::Sqrt => &builtin::SQRT_SIGNATURES,
+            BuiltinFun::Ncr => &builtin::NCR_SIGNATURES,
+            BuiltinFun::ToDeg => &builtin::TO_DEG_SIGNATURES,
+            BuiltinFun::ToRad => &builtin::TO_RAD_SIGNATURES,
+            BuiltinFun::Sin => &builtin::SIN_SIGNATURES,
+            BuiltinFun::Cos => &builtin::COS_SIGNATURES,
+            BuiltinFun::Tan => &builtin::TAN_SIGNATURES,
+            BuiltinFun::Asin => &builtin::ASIN_SIGNATURES,
+            BuiltinFun::Acos => &builtin::ACOS_SIGNATURES,
+            BuiltinFun::Atan => &builtin::ATAN_SIGNATURES,
+            BuiltinFun::Gcd => &builtin::GCD_SIGNATURES,
+            BuiltinFun::Min => &builtin::MIN_SIGNATURES,
+            BuiltinFun::Max => &builtin::MAX_SIGNATURES,
+            BuiltinFun::Clamp => &builtin::CLAMP_SIGNATURES,
+            BuiltinFun::Abs => &builtin::ABS_SIGNATURES,
+            BuiltinFun::Print => &builtin::PRINT_SIGNATURES,
+            BuiltinFun::Println => &builtin::PRINTLN_SIGNATURES,
+            BuiltinFun::Assert => &builtin::ASSERT_SIGNATURES,
+            BuiltinFun::AssertEq => &builtin::ASSERT_EQ_SIGNATURES,
+            BuiltinFun::Spill => {
+                // XXX
+                // TODO: support non local references
+                if !args.is_empty() {
+                    return Err(crate::Error::NoMatchingBuiltinFunSignature {
+                        name: b.to_string(),
+                        args: args
+                            .iter()
+                            .map(|a| expect_expr(a))
+                            .collect::<crate::Result<Vec<DataType>>>()?,
+                        signatures: vec![Signature::empty()],
+                        span,
+                    });
+                }
+                let vars = self.collect_spill_vars(scopes.current().vars());
+                return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
+            }
+            BuiltinFun::SpillLocal => {
+                if !args.is_empty() {
+                    return Err(crate::Error::NoMatchingBuiltinFunSignature {
+                        name: b.to_string(),
+                        args: args
+                            .iter()
+                            .map(|a| expect_expr(a))
+                            .collect::<crate::Result<Vec<DataType>>>()?,
+                        signatures: vec![Signature::empty()],
+                        span,
+                    });
+                }
+                let vars = self.collect_spill_vars(scopes.current().vars());
+                return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
+            }
+        };
+
         let mut fun = None;
-        'signatures: for (c, s) in b.signatures() {
+        'signatures: for (c, s) in signatures {
             let (last, others) = match s.params.split_last() {
                 Some(params) => params,
                 None if args.is_empty() => {
@@ -541,30 +598,20 @@ impl Context {
         }
         let (fun, signature) = match fun {
             Some(s) => s,
-            None => return Err(crate::Error::NoMatchingSignature(b, span)),
+            None => {
+                return Err(crate::Error::NoMatchingBuiltinFunSignature {
+                    name: b.to_string(),
+                    args: args
+                        .iter()
+                        .map(|a| expect_expr(a))
+                        .collect::<crate::Result<Vec<DataType>>>()?,
+                    signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
+            }
         };
 
         match fun {
-            BuiltinFunCall::Spill => {
-                // XXX
-                // TODO: support non local references
-                let vars = self.collect_spill_vars(scopes.current().vars());
-                return Ok(Ast::expr(
-                    AstT::Spill(vars),
-                    signature.return_type,
-                    false,
-                    span,
-                ));
-            }
-            BuiltinFunCall::SpillLocal => {
-                let vars = self.collect_spill_vars(scopes.current().vars());
-                return Ok(Ast::expr(
-                    AstT::Spill(vars),
-                    signature.return_type,
-                    false,
-                    span,
-                ));
-            }
             _ => (),
         }
 
