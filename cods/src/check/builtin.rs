@@ -66,14 +66,14 @@ impl BuiltinConst {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Signature {
+pub struct FunSignature {
     pub params: &'static [DataType],
     /// Repetition for the last parameter
     pub repetition: Repetition,
     pub return_type: DataType,
 }
 
-impl Signature {
+impl FunSignature {
     pub const fn new(
         params: &'static [DataType],
         repetition: Repetition,
@@ -101,19 +101,19 @@ pub enum Repetition {
     OneOrMore,
 }
 
-macro_rules! signatures {
+macro_rules! fun_signatures {
     ($($builtin:ident($($params:tt)*) -> $return_type:ident)*) => {{
         [
-            $(signature!($builtin($($params)*) -> $return_type)),*
+            $(fun_signature!($builtin($($params)*) -> $return_type)),*
         ]
     }};
 }
 
-macro_rules! signature {
+macro_rules! fun_signature {
     ($builtin:ident($($params:ident),*) -> $return_type:ident) => {{
         (
             $builtin,
-            Signature::new(
+            FunSignature::new(
                 &[$($params),*],
                 Repetition::One,
                 $return_type,
@@ -123,7 +123,7 @@ macro_rules! signature {
     ($builtin:ident($($params:ident,)* ..$last:ident) -> $return_type:ident) => {{
         (
             $builtin,
-            Signature::new(
+            FunSignature::new(
                 &[$($params),* $last],
                 Repetition::ZeroOrMore,
                 $return_type,
@@ -133,7 +133,7 @@ macro_rules! signature {
     ($builtin:ident($($params:ident,)* ...$last:ident) -> $return_type:ident) => {{
         (
             $builtin,
-            Signature::new(
+            FunSignature::new(
                 &[$($params),* $last],
                 Repetition::OneOrMore,
                 $return_type,
@@ -142,75 +142,75 @@ macro_rules! signature {
     }};
 }
 
-pub const POW_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+pub const POW_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     PowInt(Int, Int) -> Int
     PowFloat(Float, Float) -> Float
 };
-pub const LN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const LN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Ln(Float) -> Float
 };
-pub const SQRT_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const SQRT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Sqrt(Float) -> Float
 };
-pub const LOG_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const LOG_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Log(Float, Float) -> Float
 };
-pub const NCR_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const NCR_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Ncr(Int, Int) -> Int
 };
-pub const TO_DEG_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const TO_DEG_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     ToDeg(Float) -> Float
 };
-pub const TO_RAD_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const TO_RAD_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     ToRad(Float) -> Float
 };
-pub const SIN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const SIN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Sin(Float) -> Float
 };
-pub const COS_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const COS_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Cos(Float) -> Float
 };
-pub const TAN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const TAN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Tan(Float) -> Float
 };
-pub const ASIN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const ASIN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Asin(Float) -> Float
 };
-pub const ACOS_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const ACOS_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Acos(Float) -> Float
 };
-pub const ATAN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const ATAN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Atan(Float) -> Float
 };
-pub const GCD_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const GCD_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Gcd(Int, Int) -> Int
 };
-pub const MIN_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+pub const MIN_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     MinInt(...Int) -> Int
     MinFloat(...Float) -> Int
 };
-pub const MAX_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+pub const MAX_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     MaxInt(...Int) -> Int
     MaxFloat(...Float) -> Int
 };
-pub const CLAMP_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+pub const CLAMP_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     ClampInt(Int, Int, Int) -> Int
     ClampFloat(Float, Float, Float) -> Float
 };
-pub const ABS_SIGNATURES: [(BuiltinFunCall, Signature); 2] = signatures! {
+pub const ABS_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     AbsInt(Int) -> Int
     AbsFloat(Float) -> Float
 };
-pub const PRINT_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const PRINT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Print(..Any) -> Unit
 };
-pub const PRINTLN_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const PRINTLN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Println(..Any) -> Unit
 };
-pub const ASSERT_SIGNATURES: [(BuiltinFunCall, Signature); 1] = signatures! {
+pub const ASSERT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Assert(Bool) -> Unit
 };
-pub const ASSERT_EQ_SIGNATURES: [(BuiltinFunCall, Signature); 6] = signatures! {
+pub const ASSERT_EQ_SIGNATURES: [(BuiltinFunCall, FunSignature); 6] = fun_signatures! {
     AssertEq(Int, Int) -> Unit
     AssertEq(Float, Float) -> Unit
     AssertEq(Bool, Bool) -> Unit

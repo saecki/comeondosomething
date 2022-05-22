@@ -508,7 +508,7 @@ impl Context {
                             .iter()
                             .map(|a| expect_expr(a))
                             .collect::<crate::Result<Vec<DataType>>>()?,
-                        signatures: vec![Signature::empty()],
+                        signatures: vec![FunSignature::empty()],
                         span,
                     });
                 }
@@ -523,7 +523,7 @@ impl Context {
                             .iter()
                             .map(|a| expect_expr(a))
                             .collect::<crate::Result<Vec<DataType>>>()?,
-                        signatures: vec![Signature::empty()],
+                        signatures: vec![FunSignature::empty()],
                         span,
                     });
                 }

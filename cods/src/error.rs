@@ -2,8 +2,8 @@ use std::error;
 use std::fmt::{self, Debug, Display};
 
 use crate::{
-    BuiltinConst, DataType, Infix, Item, Kw, KwT, Op, OpT, Par, PctT, Postfix, Prefix, Signature,
-    Span, Val, ValSpan,
+    BuiltinConst, DataType, FunSignature, Infix, Item, Kw, KwT, Op, OpT, Par, PctT, Postfix,
+    Prefix, Span, Val, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -86,7 +86,7 @@ pub enum Error {
     NoMatchingBuiltinFunSignature {
         name: String,
         args: Vec<DataType>,
-        signatures: Vec<Signature>,
+        signatures: Vec<FunSignature>,
         span: Span,
     },
     PrefixNotApplicable(Prefix, (DataType, Span)),
