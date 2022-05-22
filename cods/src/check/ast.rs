@@ -2,7 +2,7 @@ use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use crate::{DataType, Range, Span, Val, ValSpan, VarRef};
+use crate::{DataType, Span, Val, VarRef};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Asts {
@@ -37,60 +37,13 @@ impl Ast {
         }
     }
 
-    pub fn val(val: ValSpan) -> Self {
-        match val.val {
-            Val::Int(i) => Self::expr(AstT::Int(IntExpr::Val(i)), DataType::Int, false, val.span),
-            Val::Float(f) => Self::expr(
-                AstT::Float(FloatExpr::Val(f)),
-                DataType::Float,
-                false,
-                val.span,
-            ),
-            Val::Bool(b) => Self::expr(
-                AstT::Bool(BoolExpr::Val(b)),
-                DataType::Bool,
-                false,
-                val.span,
-            ),
-            Val::Char(c) => Self::expr(
-                AstT::Char(CharExpr::Val(c)),
-                DataType::Char,
-                false,
-                val.span,
-            ),
-            Val::Str(s) => Self::expr(AstT::Str(StrExpr::Val(s)), DataType::Str, false, val.span),
-            Val::Range(r) => Self::expr(
-                AstT::Range(RangeExpr::Val(r)),
-                DataType::Range,
-                false,
-                val.span,
-            ),
-            Val::Unit => Self::expr(AstT::Unit, DataType::Unit, false, val.span),
-        }
+    pub fn val(val: Val, span: Span) -> Self {
+        let data_type = val.data_type();
+        Self::expr(AstT::Val(val), data_type, false, span)
     }
 
     pub fn var(var: VarRef, data_type: DataType, returns: bool, span: Span) -> Self {
         Self::expr(AstT::Var(var), data_type, returns, span)
-    }
-
-    pub fn int(expr: IntExpr, returns: bool, span: Span) -> Self {
-        Self::expr(AstT::Int(expr), DataType::Int, returns, span)
-    }
-
-    pub fn float(expr: FloatExpr, returns: bool, span: Span) -> Self {
-        Self::expr(AstT::Float(expr), DataType::Float, returns, span)
-    }
-
-    pub fn bool(expr: BoolExpr, returns: bool, span: Span) -> Self {
-        Self::expr(AstT::Bool(expr), DataType::Bool, returns, span)
-    }
-
-    pub fn str(expr: StrExpr, returns: bool, span: Span) -> Self {
-        Self::expr(AstT::Str(expr), DataType::Str, returns, span)
-    }
-
-    pub fn range(expr: RangeExpr, returns: bool, span: Span) -> Self {
-        Self::expr(AstT::Range(expr), DataType::Range, returns, span)
     }
 }
 
@@ -98,12 +51,10 @@ impl Ast {
 pub enum AstT {
     Error,
     Var(VarRef),
-    Int(IntExpr),
-    Float(FloatExpr),
-    Bool(BoolExpr),
-    Char(CharExpr),
-    Str(StrExpr),
-    Range(RangeExpr),
+    Val(Val),
+    Op(Op, Vec<Ast>),
+    Is(Box<Ast>, DataType),
+    Cast(Box<Ast>, DataType),
     Unit,
     Block(Vec<Ast>),
     IfExpr(IfExpr),
@@ -117,73 +68,70 @@ pub enum AstT {
     Spill(Vec<(String, VarRef)>),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Op {
+    Not,
+    NegInt,
+    NegFloat,
+    RangeIn,
+    RangeEx,
+    AddInt,
+    AddFloat,
+    SubInt,
+    SubFloat,
+    MulInt,
+    MulFloat,
+    DivInt,
+    DivFloat,
+    RemInt,
+    RemEuclidInt,
+    FactorialInt,
+    Eq,
+    Ne,
+    LtInt,
+    LtFloat,
+    LeInt,
+    LeFloat,
+    GtInt,
+    GtFloat,
+    GeInt,
+    GeFloat,
+    Or,
+    And,
+    BwOrInt,
+    BwOrBool,
+    BwAndInt,
+    BwAndBool,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum IntExpr {
-    Val(i128),
     Cast(Box<Ast>),
-    Neg(Box<Ast>),
-    Add(Box<Ast>, Box<Ast>),
-    Sub(Box<Ast>, Box<Ast>),
-    Mul(Box<Ast>, Box<Ast>),
-    Div(Box<Ast>, Box<Ast>),
-    Rem(Box<Ast>, Box<Ast>),
-    RemEuclid(Box<Ast>, Box<Ast>),
-    Factorial(Box<Ast>),
-    BwOr(Box<Ast>, Box<Ast>),
-    BwAnd(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FloatExpr {
-    Val(f64),
     Cast(Box<Ast>),
-    Neg(Box<Ast>),
-    Add(Box<Ast>, Box<Ast>),
-    Sub(Box<Ast>, Box<Ast>),
-    Mul(Box<Ast>, Box<Ast>),
-    Div(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BoolExpr {
-    Val(bool),
     Cast(Box<Ast>),
-    Not(Box<Ast>),
-    Eq(Box<Ast>, Box<Ast>),
-    Ne(Box<Ast>, Box<Ast>),
-    LtInt(Box<Ast>, Box<Ast>),
-    LtFloat(Box<Ast>, Box<Ast>),
-    LeInt(Box<Ast>, Box<Ast>),
-    LeFloat(Box<Ast>, Box<Ast>),
-    GtInt(Box<Ast>, Box<Ast>),
-    GtFloat(Box<Ast>, Box<Ast>),
-    GeInt(Box<Ast>, Box<Ast>),
-    GeFloat(Box<Ast>, Box<Ast>),
-    BwOr(Box<Ast>, Box<Ast>),
-    BwAnd(Box<Ast>, Box<Ast>),
-    Or(Box<Ast>, Box<Ast>),
-    And(Box<Ast>, Box<Ast>),
-    Is(Box<Ast>, DataType),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CharExpr {
-    Val(char),
     Cast(Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StrExpr {
-    Val(String),
     Cast(Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RangeExpr {
-    Val(Range),
     Cast(Box<Ast>),
-    Ex(Box<Ast>, Box<Ast>),
-    In(Box<Ast>, Box<Ast>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

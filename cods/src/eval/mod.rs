@@ -1,10 +1,7 @@
 use std::rc::Rc;
 
-use crate::ast::{BuiltinFunCall, CharExpr, ForLoop, Fun, IfExpr, WhileLoop};
-use crate::{
-    Ast, AstT, Asts, BoolExpr, DataType, FloatExpr, IntExpr, Range, RangeExpr, StrExpr, Val,
-    ValSpan,
-};
+use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, Op, WhileLoop};
+use crate::{Ast, AstT, Asts, DataType, Range, Span, Val, ValSpan};
 
 pub use stack::*;
 pub use val::*;
@@ -48,12 +45,10 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
     match &ast.typ {
         AstT::Error => Err(crate::Error::Parsing(ast.span)),
         AstT::Var(v) => Ok(stack.get(v)),
-        AstT::Int(i) => eval_int_expr(stack, i),
-        AstT::Float(f) => eval_float_expr(stack, f),
-        AstT::Bool(b) => eval_bool_expr(stack, b),
-        AstT::Char(c) => eval_char_expr(stack, c),
-        AstT::Str(s) => eval_str_expr(stack, s),
-        AstT::Range(r) => eval_range_expr(stack, r),
+        AstT::Val(v) => Ok(v.clone()),
+        AstT::Op(o, a) => eval_op(stack, o, a),
+        AstT::Is(a, t) => eval_is(stack, a, *t),
+        AstT::Cast(a, t) => eval_cast(stack, a, *t),
         AstT::Unit => Ok(Val::Unit),
         AstT::Block(b) => eval_asts(stack, b),
         AstT::IfExpr(i) => eval_if_expr(stack, i),
@@ -68,289 +63,248 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
     }
 }
 
-fn eval_int_expr(stack: &mut Stack, expr: &IntExpr) -> crate::Result<Val> {
-    let int = match expr {
-        IntExpr::Val(i) => *i,
-        IntExpr::Cast(a) => match eval_ast(stack, a)? {
-            Val::Int(i) => i,
-            Val::Float(f) => f as i128,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Int,
-                ));
-            }
-        },
-        IntExpr::Neg(a) => eval_ast(stack, a)?
-            .unwrap_int()
-            .checked_neg()
-            .ok_or(crate::Error::NegOverflow(a.span))?,
-        IntExpr::Add(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
+    let val = match op {
+        Op::Not => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            Val::Bool(!va)
+        }
+        Op::NegInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            Val::Int(-va)
+        }
+        Op::NegFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            Val::Float(-va)
+        }
+        Op::RangeEx => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Range(Range::Exclusive(va, vb))
+        }
+        Op::RangeIn => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Range(Range::Inclusive(va, vb))
+        }
+        Op::AddInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_add(vb)
-                .ok_or(crate::Error::AddOverflow(a.span, b.span))?
+                .map(Val::Int)
+                .ok_or(crate::Error::AddOverflow(args[0].span, args[1].span))?
         }
-        IntExpr::Sub(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+        Op::AddFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Float(va + vb)
+        }
+        Op::SubInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_sub(vb)
-                .ok_or(crate::Error::SubOverflow(a.span, b.span))?
+                .map(Val::Int)
+                .ok_or(crate::Error::SubOverflow(args[0].span, args[1].span))?
         }
-        IntExpr::Mul(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+        Op::SubFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Float(va - vb)
+        }
+        Op::MulInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_mul(vb)
-                .ok_or(crate::Error::MulOverflow(a.span, b.span))?
+                .map(Val::Int)
+                .ok_or(crate::Error::MulOverflow(args[0].span, args[1].span))?
         }
-        IntExpr::Div(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+        Op::MulFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Float(va * vb)
+        }
+        Op::DivInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_div(vb)
-                .ok_or(crate::Error::DivideByZero(a.span, b.span))?
+                .map(Val::Int)
+                .ok_or(crate::Error::DivideByZero(args[0].span, args[1].span))?
         }
-        IntExpr::Rem(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+        Op::DivFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Float(va / vb)
+        }
+        Op::RemInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_rem(vb)
-                .ok_or(crate::Error::RemainderByZero(a.span, b.span))?
+                .map(Val::Int)
+                .ok_or(crate::Error::RemainderByZero(args[0].span, args[1].span))?
         }
-        IntExpr::RemEuclid(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
+        Op::RemEuclidInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
             if vb == 0 {
-                return Err(crate::Error::RemainderByZero(a.span, b.span));
+                return Err(crate::Error::RemainderByZero(args[0].span, args[1].span));
             }
             let r = va % vb;
             if (r > 0 && vb < 0) || (r < 0 && vb > 0) {
-                r + vb
+                Val::Int(r + vb)
             } else {
-                r
+                Val::Int(r)
             }
         }
-        IntExpr::Factorial(a) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
+        Op::FactorialInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
 
             if va < 0 {
                 return Err(crate::Error::NegativeFactorial(ValSpan::new(
                     Val::Int(va),
-                    a.span,
+                    args[0].span,
                 )));
             }
 
             let mut f: i128 = 1;
             for i in 2..=va {
                 f = f.checked_mul(i).ok_or_else(|| {
-                    crate::Error::FactorialOverflow(ValSpan::new(Val::Int(va), a.span))
+                    crate::Error::FactorialOverflow(ValSpan::new(Val::Int(va), args[0].span))
                 })?;
             }
-            f
+            Val::Int(f)
         }
-        IntExpr::BwOr(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va | vb
+        Op::Eq => {
+            let va = eval_ast(stack, &args[0])?;
+            let vb = eval_ast(stack, &args[1])?;
+            Val::Bool(va == vb)
         }
-        IntExpr::BwAnd(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va & vb
+        Op::Ne => {
+            let va = eval_ast(stack, &args[0])?;
+            let vb = eval_ast(stack, &args[1])?;
+            Val::Bool(va != vb)
+        }
+        Op::LtInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Bool(va < vb)
+        }
+        Op::LtFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Bool(va < vb)
+        }
+        Op::LeInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Bool(va <= vb)
+        }
+        Op::LeFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Bool(va <= vb)
+        }
+        Op::GtInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Bool(va > vb)
+        }
+        Op::GtFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Bool(va > vb)
+        }
+        Op::GeInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Bool(va >= vb)
+        }
+        Op::GeFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Bool(va > vb)
+        }
+        Op::BwOrInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Int(va | vb)
+        }
+        Op::BwOrBool => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            let vb = eval_ast(stack, &args[1])?.unwrap_bool();
+            Val::Bool(va | vb)
+        }
+        Op::BwAndInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Int(va & vb)
+        }
+        Op::BwAndBool => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            let vb = eval_ast(stack, &args[1])?.unwrap_bool();
+            Val::Bool(va & vb)
+        }
+        Op::Or => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            let vb = eval_ast(stack, &args[1])?.unwrap_bool();
+            Val::Bool(va || vb)
+        }
+        Op::And => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            let vb = eval_ast(stack, &args[1])?.unwrap_bool();
+            Val::Bool(va && vb)
         }
     };
 
-    Ok(Val::Int(int))
+    Ok(val)
 }
 
-fn eval_float_expr(stack: &mut Stack, expr: &FloatExpr) -> crate::Result<Val> {
-    let float = match expr {
-        FloatExpr::Val(f) => *f,
-        FloatExpr::Cast(a) => match eval_ast(stack, a)? {
+fn eval_is(stack: &mut Stack, a: &Ast, t: DataType) -> crate::Result<Val> {
+    let va = eval_ast(stack, a)?;
+    Ok(Val::Bool(va.data_type().is(t)))
+}
+
+fn eval_cast(stack: &mut Stack, a: &Ast, t: DataType) -> crate::Result<Val> {
+    fn cast_err(val: Val, data_type: DataType, span: Span) -> crate::Result<Val> {
+        Err(crate::Error::CastFailed((val.data_type(), span), data_type))
+    }
+
+    let va = eval_ast(stack, a)?;
+    let val = match t {
+        DataType::Int => Val::Int(match va {
+            Val::Int(i) => i,
+            Val::Float(f) => f as i128,
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Float => Val::Float(match va {
             Val::Float(f) => f,
             Val::Int(i) => i as f64,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Float,
-                ));
-            }
-        },
-        FloatExpr::Neg(a) => -eval_ast(stack, a)?.unwrap_float(),
-        FloatExpr::Add(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va + vb
-        }
-        FloatExpr::Sub(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va - vb
-        }
-        FloatExpr::Mul(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va * vb
-        }
-        FloatExpr::Div(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va / vb
-        }
-    };
-
-    Ok(Val::Float(float))
-}
-
-fn eval_bool_expr(stack: &mut Stack, expr: &BoolExpr) -> crate::Result<Val> {
-    let bool = match expr {
-        BoolExpr::Val(b) => *b,
-        BoolExpr::Cast(a) => match eval_ast(stack, a)? {
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Bool => Val::Bool(match va {
             Val::Bool(b) => b,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Bool,
-                ));
-            }
-        },
-        BoolExpr::Is(a, d) => {
-            let v = eval_ast(stack, a)?;
-            v.data_type().is(*d)
-        }
-        BoolExpr::Not(a) => !eval_ast(stack, a)?.unwrap_bool(),
-        BoolExpr::Eq(a, b) => {
-            let va = eval_ast(stack, a)?;
-            let vb = eval_ast(stack, b)?;
-            va == vb
-        }
-        BoolExpr::Ne(a, b) => {
-            let va = eval_ast(stack, a)?;
-            let vb = eval_ast(stack, b)?;
-            va != vb
-        }
-        BoolExpr::LtInt(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va < vb
-        }
-        BoolExpr::LtFloat(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va < vb
-        }
-        BoolExpr::LeInt(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va <= vb
-        }
-        BoolExpr::LeFloat(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va <= vb
-        }
-        BoolExpr::GtInt(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va > vb
-        }
-        BoolExpr::GtFloat(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va > vb
-        }
-        BoolExpr::GeInt(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            va >= vb
-        }
-        BoolExpr::GeFloat(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_float();
-            let vb = eval_ast(stack, b)?.unwrap_float();
-            va > vb
-        }
-        BoolExpr::BwOr(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_bool();
-            let vb = eval_ast(stack, b)?.unwrap_bool();
-            va | vb
-        }
-        BoolExpr::BwAnd(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_bool();
-            let vb = eval_ast(stack, b)?.unwrap_bool();
-            va & vb
-        }
-        BoolExpr::Or(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_bool();
-            let vb = eval_ast(stack, b)?.unwrap_bool();
-            va || vb
-        }
-        BoolExpr::And(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_bool();
-            let vb = eval_ast(stack, b)?.unwrap_bool();
-            va && vb
-        }
-    };
-
-    Ok(Val::Bool(bool))
-}
-
-fn eval_char_expr(stack: &mut Stack, expr: &CharExpr) -> crate::Result<Val> {
-    let char = match expr {
-        CharExpr::Val(s) => *s,
-        CharExpr::Cast(a) => match eval_ast(stack, a)? {
+            Val::Int(i) => i != 0,
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Char => Val::Char(match va {
             Val::Char(c) => c,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Char,
-                ));
-            }
-        },
-    };
-
-    Ok(Val::Char(char))
-}
-
-fn eval_str_expr(stack: &mut Stack, expr: &StrExpr) -> crate::Result<Val> {
-    let string = match expr {
-        StrExpr::Val(s) => s.clone(),
-        StrExpr::Cast(a) => match eval_ast(stack, a)? {
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Str => Val::Str(match va {
             Val::Str(s) => s,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Str,
-                ));
-            }
-        },
-    };
-
-    Ok(Val::Str(string))
-}
-
-fn eval_range_expr(stack: &mut Stack, expr: &RangeExpr) -> crate::Result<Val> {
-    let range = match expr {
-        RangeExpr::Val(r) => *r,
-        RangeExpr::Cast(a) => match eval_ast(stack, a)? {
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Range => Val::Range(match va {
             Val::Range(r) => r,
-            v => {
-                return Err(crate::Error::CastFailed(
-                    (v.data_type(), a.span),
-                    DataType::Range,
-                ));
-            }
+            v => return cast_err(v, t, a.span),
+        }),
+        DataType::Unit => match va {
+            Val::Unit => Val::Unit,
+            v => return cast_err(v, t, a.span),
         },
-        RangeExpr::Ex(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            Range::Exclusive(va, vb)
-        }
-        RangeExpr::In(a, b) => {
-            let va = eval_ast(stack, a)?.unwrap_int();
-            let vb = eval_ast(stack, b)?.unwrap_int();
-            Range::Inclusive(va, vb)
-        }
+        DataType::Any => va,
+        DataType::Never => unreachable!("Never has no instances"),
     };
-
-    Ok(Val::Range(range))
+    Ok(val)
 }
 
 fn eval_if_expr(stack: &mut Stack, if_expr: &IfExpr) -> crate::Result<Val> {

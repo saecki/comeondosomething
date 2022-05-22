@@ -3,17 +3,18 @@ use std::rc::Rc;
 
 use crate::cst::{self, Cst};
 use crate::{
-    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, ValSpan,
-    VarRef,
+    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef,
 };
 
 pub use ast::{Ast, AstT, Asts, BoolExpr, BuiltinFunCall, FloatExpr, IntExpr, RangeExpr, StrExpr};
 pub use builtin::*;
+pub use op::*;
 pub use scope::*;
 pub use types::*;
 
 pub mod ast;
 mod builtin;
+mod op;
 mod scope;
 #[cfg(test)]
 mod test;
@@ -86,9 +87,9 @@ impl Context {
         let ast = match cst {
             Cst::Empty(s) => Ast::expr(AstT::Unit, DataType::Unit, false, s),
             Cst::Error(s) => Ast::expr(AstT::Error, DataType::Unit, false, s),
-            Cst::Val(v) => Ast::val(v),
+            Cst::Val(v) => Ast::val(v.val, v.span),
             Cst::Ident(i) => match self.get_var(scopes, &i)? {
-                ResolvedVar::Const(c) => Ast::val(ValSpan::new(c.val(), span)),
+                ResolvedVar::Const(c) => Ast::val(c.val(), span),
                 ResolvedVar::Var(var) => Ast::var(var.inner, var.data_type, false, i.span),
             },
             Cst::Par(_, c, _) => self.check_par(scopes, *c, is_expr)?,
@@ -700,24 +701,71 @@ impl Context {
         a: Cst,
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, a, true)?;
-        let a_data_type = expect_expr(&a)?;
-
-        let returns = a.returns;
-        let ast = match (p.typ, a_data_type) {
-            (PrefixT::UnaryPlus, DataType::Int) => a,
-            (PrefixT::UnaryPlus, DataType::Float) => a,
-            (PrefixT::UnaryMinus, DataType::Int) => {
-                Ast::int(IntExpr::Neg(Box::new(a)), returns, span)
+        let ast = match p.typ {
+            PrefixT::UnaryPlus => {
+                let a = self.check_type(scopes, a, true)?;
+                let a_data_type = expect_expr(&a)?;
+                for (_, s) in &op::NEG_SIGNATURES {
+                    if s.params[0].is(a_data_type) {
+                        return Ok(a);
+                    }
+                }
+                return Err(crate::Error::NoMatchingPrefixSignature {
+                    prefix: p.typ,
+                    a: a_data_type,
+                    signatures: op::NEG_SIGNATURES.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
             }
-            (PrefixT::UnaryMinus, DataType::Float) => {
-                Ast::float(FloatExpr::Neg(Box::new(a)), returns, span)
+            PrefixT::UnaryMinus => {
+                self.check_prefix_signatures(scopes, p, a, &op::NEG_SIGNATURES, span)?
             }
-            (PrefixT::Not, DataType::Bool) => Ast::bool(BoolExpr::Not(Box::new(a)), returns, span),
-            _ => return Err(crate::Error::PrefixNotApplicable(p, (a_data_type, a.span))),
+            PrefixT::Not => {
+                self.check_prefix_signatures(scopes, p, a, &op::NOT_SIGNATURES, span)?
+            }
         };
 
         Ok(ast)
+    }
+
+    fn check_prefix_signatures(
+        &mut self,
+        scopes: &mut Scopes,
+        prefix: Prefix,
+        arg: Cst,
+        signatures: &[(ast::Op, OpSignature<1>)],
+        span: Span,
+    ) -> crate::Result<Ast> {
+        let a = self.check_type(scopes, arg, true)?;
+        let a_data_type = expect_expr(&a)?;
+
+        let mut op = None;
+        for (o, s) in signatures {
+            if s.params[0].is(a_data_type) {
+                op = Some((o, s));
+                break;
+            }
+        }
+
+        let (op, signature) = match op {
+            Some(o) => o,
+            None => {
+                return Err(crate::Error::NoMatchingPrefixSignature {
+                    prefix: prefix.typ,
+                    a: a_data_type,
+                    signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
+            }
+        };
+
+        let returns = a.returns;
+        Ok(Ast::expr(
+            AstT::Op(*op, vec![a]),
+            signature.return_type,
+            returns,
+            span,
+        ))
     }
 
     fn check_postfix(
@@ -727,18 +775,53 @@ impl Context {
         p: Postfix,
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, a, true)?;
-        let a_data_type = expect_expr(&a)?;
-
-        let returns = a.returns;
-        let ast = match (p.typ, a_data_type) {
-            (PostfixT::Factorial, DataType::Int) => {
-                Ast::int(IntExpr::Factorial(Box::new(a)), returns, span)
+        let ast = match p.typ {
+            PostfixT::Factorial => {
+                self.check_postfix_signatures(scopes, p, a, &op::FACTORIAL_SIGNATURES, span)?
             }
-            _ => return Err(crate::Error::PostfixNotApplicable((a_data_type, a.span), p)),
         };
 
         Ok(ast)
+    }
+
+    fn check_postfix_signatures(
+        &mut self,
+        scopes: &mut Scopes,
+        postfix: Postfix,
+        arg: Cst,
+        signatures: &[(ast::Op, OpSignature<1>)],
+        span: Span,
+    ) -> crate::Result<Ast> {
+        let a = self.check_type(scopes, arg, true)?;
+        let a_data_type = expect_expr(&a)?;
+
+        let mut op = None;
+        for (o, s) in signatures {
+            if s.params[0].is(a_data_type) {
+                op = Some((o, s));
+                break;
+            }
+        }
+
+        let (op, signature) = match op {
+            Some(o) => o,
+            None => {
+                return Err(crate::Error::NoMatchingPostfixSignature {
+                    postfix: postfix.typ,
+                    a: a_data_type,
+                    signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
+            }
+        };
+
+        let returns = a.returns;
+        Ok(Ast::expr(
+            AstT::Op(*op, vec![a]),
+            signature.return_type,
+            returns,
+            span,
+        ))
     }
 
     fn check_infix(
@@ -747,22 +830,8 @@ impl Context {
         a: Cst,
         i: Infix,
         b: Cst,
-        s: Span,
+        span: Span,
     ) -> crate::Result<Ast> {
-        fn infix_error(
-            a_t: DataType,
-            a: Ast,
-            i: Infix,
-            b_t: DataType,
-            b: Ast,
-        ) -> crate::Result<Ast> {
-            Err(crate::Error::InfixNotApplicable(
-                (a_t, a.span),
-                i,
-                (b_t, b.span),
-            ))
-        }
-
         let ast = match i.typ {
             InfixT::Assign => {
                 let ident = match a {
@@ -790,119 +859,43 @@ impl Context {
                 let inner = var.inner;
                 self.set_var(scopes, &ident, &expr)?;
 
-                Ast::statement(AstT::Assign(inner, Box::new(expr)), returns, s)
+                Ast::statement(AstT::Assign(inner, Box::new(expr)), returns, span)
             }
             InfixT::AddAssign => {
-                self.check_infix_assign(scopes, (a, i, b), IntExpr::Add, FloatExpr::Add, s)?
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::ADD_SIGNATURES, span)?
             }
             InfixT::SubAssign => {
-                self.check_infix_assign(scopes, (a, i, b), IntExpr::Sub, FloatExpr::Sub, s)?
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SUB_SIGNATURES, span)?
             }
             InfixT::MulAssign => {
-                self.check_infix_assign(scopes, (a, i, b), IntExpr::Mul, FloatExpr::Mul, s)?
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::MUL_SIGNATURES, span)?
             }
             InfixT::DivAssign => {
-                self.check_infix_assign(scopes, (a, i, b), IntExpr::Div, FloatExpr::Div, s)?
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
             InfixT::RangeEx => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::range(RangeExpr::Ex(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_EX_SIGNATURES, span)?
             }
             InfixT::RangeIn => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::range(RangeExpr::In(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_IN_SIGNATURES, span)?
             }
             InfixT::Add => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Add(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Add(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::ADD_SIGNATURES, span)?
             }
             InfixT::Sub => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Sub(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Sub(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::SUB_SIGNATURES, span)?
             }
             InfixT::Mul => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Mul(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Mul(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::MUL_SIGNATURES, span)?
             }
             InfixT::Div => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Div(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::float(FloatExpr::Div(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
             InfixT::Rem => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::Rem(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::REM_SIGNATURES, span)?
             }
             InfixT::RemEuclid => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::RemEuclid(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::REM_EUCLID_SIGNATURES, span)?
             }
             InfixT::Eq => {
                 let a = self.check_type(scopes, a, true)?;
@@ -912,9 +905,14 @@ impl Context {
                 let returns = a.returns || b.returns;
 
                 if a_t.is_not_comparable_to(b_t) {
-                    return infix_error(a_t, a, i, b_t, b);
+                    return Err(crate::Error::NotComparable((a_t, a.span), (b_t, b.span)));
                 }
-                Ast::bool(BoolExpr::Eq(Box::new(a), Box::new(b)), returns, s)
+                Ast::expr(
+                    AstT::Op(ast::Op::Eq, vec![a, b]),
+                    DataType::Bool,
+                    returns,
+                    span,
+                )
             }
             InfixT::Ne => {
                 let a = self.check_type(scopes, a, true)?;
@@ -924,120 +922,43 @@ impl Context {
                 let returns = a.returns || b.returns;
 
                 if a_t.is_not_comparable_to(b_t) {
-                    return infix_error(a_t, a, i, b_t, b);
+                    return Err(crate::Error::NotComparable((a_t, a.span), (b_t, b.span)));
                 }
-                Ast::bool(BoolExpr::Ne(Box::new(a), Box::new(b)), returns, s)
+                Ast::expr(
+                    AstT::Op(ast::Op::Ne, vec![a, b]),
+                    DataType::Bool,
+                    returns,
+                    span,
+                )
             }
             InfixT::Lt => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::LtInt(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::LtFloat(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::LT_SIGNATURES, span)?
             }
             InfixT::Le => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::LeInt(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::LeFloat(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::LE_SIGNATURES, span)?
             }
             InfixT::Gt => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::GtInt(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::GtFloat(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::GT_SIGNATURES, span)?
             }
             InfixT::Ge => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::bool(BoolExpr::GeInt(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Float, DataType::Float) => {
-                        Ast::bool(BoolExpr::GeFloat(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
-            }
-            InfixT::BwOr => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::BwOr(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwOr(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
-            }
-            InfixT::BwAnd => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Int, DataType::Int) => {
-                        Ast::int(IntExpr::BwAnd(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::BwAnd(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::GE_SIGNATURES, span)?
             }
             InfixT::Or => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::Or(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::OR_SIGNATURES, span)?
             }
             InfixT::And => {
-                let a = self.check_type(scopes, a, true)?;
-                let b = self.check_type(scopes, b, true)?;
-                let returns = a.returns || b.returns;
-                match (expect_expr(&a)?, expect_expr(&b)?) {
-                    (DataType::Bool, DataType::Bool) => {
-                        Ast::bool(BoolExpr::And(Box::new(a), Box::new(b)), returns, s)
-                    }
-                    (a_t, b_t) => return infix_error(a_t, a, i, b_t, b),
-                }
+                self.check_infix_signatures(scopes, i, (a, b), &op::AND_SIGNATURES, span)?
+            }
+            InfixT::BwOr => {
+                self.check_infix_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
+            }
+            InfixT::BwAnd => {
+                self.check_infix_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
             }
             InfixT::Dot => {
                 return Err(crate::Error::NotImplemented(
                     "Field access is not yet implemented",
-                    vec![s],
+                    vec![span],
                 ))
             }
             InfixT::As => {
@@ -1046,47 +967,75 @@ impl Context {
                     _ => return Err(crate::Error::ExpectedIdent(b.span())),
                 };
                 let data_type = self.resolve_data_type(&ident)?;
-                let mut a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(scopes, a, true)?;
                 let a_data_type = expect_expr(&a)?;
-                let returns = a.returns;
 
                 if a_data_type == data_type {
                     return Ok(a);
                 }
 
-                match (a_data_type, data_type) {
-                    (DataType::Float, DataType::Int) => {
-                        Ast::int(IntExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Any, DataType::Int) => {
-                        Ast::int(IntExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Int, DataType::Float) => {
-                        Ast::float(FloatExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Any, DataType::Float) => {
-                        Ast::float(FloatExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Any, DataType::Bool) => {
-                        Ast::bool(BoolExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Any, DataType::Str) => {
-                        Ast::str(StrExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (DataType::Any, DataType::Range) => {
-                        Ast::range(RangeExpr::Cast(Box::new(a)), returns, s)
-                    }
-                    (_, DataType::Any) => {
-                        a.data_type = Some(DataType::Any);
-                        a
-                    }
-                    (_, _) => {
-                        return Err(crate::Error::CastAlwaysFails(
-                            (a_data_type, a.span),
-                            (data_type, b.span()),
-                        ));
-                    }
+                fn cast_err(
+                    a_data_type: DataType,
+                    a_span: Span,
+                    data_type: DataType,
+                    b_span: Span,
+                ) -> crate::Result<Ast> {
+                    Err(crate::Error::CastAlwaysFails(
+                        (a_data_type, a_span),
+                        (data_type, b_span),
+                    ))
                 }
+
+                let returns = a.returns;
+                let a = match data_type {
+                    DataType::Int => match a_data_type {
+                        DataType::Int => a,
+                        DataType::Float => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Float => match a_data_type {
+                        DataType::Float => a,
+                        DataType::Int => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Bool => match a_data_type {
+                        DataType::Bool => a,
+                        DataType::Int => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Char => match a_data_type {
+                        DataType::Char => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Str => match a_data_type {
+                        DataType::Str => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Range => match a_data_type {
+                        DataType::Range => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Unit => match a_data_type {
+                        DataType::Unit => a,
+                        DataType::Any => a,
+                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    },
+                    DataType::Any => a,
+                    DataType::Never => return cast_err(a_data_type, a.span, data_type, b.span()),
+                };
+
+                Ast::expr(
+                    AstT::Cast(Box::new(a), data_type),
+                    DataType::Bool,
+                    returns,
+                    span,
+                )
             }
             InfixT::Is => {
                 let ident = match b {
@@ -1097,51 +1046,121 @@ impl Context {
                 let a = self.check_type(scopes, a, true)?;
                 let returns = a.returns;
 
-                Ast::bool(BoolExpr::Is(Box::new(a), data_type), returns, s)
+                Ast::expr(
+                    AstT::Is(Box::new(a), data_type),
+                    DataType::Bool,
+                    returns,
+                    span,
+                )
             }
         };
 
         Ok(ast)
     }
 
-    fn check_infix_assign(
+    fn check_infix_signatures(
         &mut self,
         scopes: &mut Scopes,
-        stmt: (Cst, Infix, Cst),
-        int: fn(Box<Ast>, Box<Ast>) -> IntExpr,
-        float: fn(Box<Ast>, Box<Ast>) -> FloatExpr,
-        s: Span,
+        infix: Infix,
+        args: (Cst, Cst),
+        signatures: &[(ast::Op, OpSignature<2>)],
+        span: Span,
     ) -> crate::Result<Ast> {
-        let (a, i, b) = stmt;
-        let ident = match a {
-            Cst::Ident(i) => i,
-            _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
+        let a = self.check_type(scopes, args.0, true)?;
+        let a_data_type = expect_expr(&a)?;
+        let b = self.check_type(scopes, args.1, true)?;
+        let b_data_type = expect_expr(&b)?;
+
+        let mut op = None;
+        for (o, s) in signatures {
+            if a_data_type.is_not(s.params[0]) {
+                continue;
+            }
+            if b_data_type.is_not(s.params[1]) {
+                continue;
+            }
+
+            op = Some((o, s));
+            break;
+        }
+
+        let (op, signature) = match op {
+            Some(o) => o,
+            None => {
+                return Err(crate::Error::NoMatchingInfixSignature {
+                    infix: infix.typ,
+                    a: a_data_type,
+                    b: b_data_type,
+                    signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
+            }
         };
 
-        let b = self.check_type(scopes, b, true)?;
+        let returns = a.returns | b.returns;
+        Ok(Ast::expr(
+            AstT::Op(*op, vec![a, b]),
+            signature.return_type,
+            returns,
+            span,
+        ))
+    }
+
+    fn check_infix_assign_signatures(
+        &mut self,
+        scopes: &mut Scopes,
+        infix: Infix,
+        args: (Cst, Cst),
+        signatures: &[(ast::Op, OpSignature<2>)],
+        span: Span,
+    ) -> crate::Result<Ast> {
+        let ident = match args.0 {
+            Cst::Ident(i) => i,
+            _ => return Err(crate::Error::InvalidAssignment(args.0.span(), infix.span)),
+        };
+
+        let b = self.check_type(scopes, args.1, true)?;
         let b_data_type = expect_expr(&b)?;
         let returns = b.returns;
         let var = match self.get_var(scopes, &ident)? {
             ResolvedVar::Var(v) => v,
             ResolvedVar::Const(c) => {
-                return Err(crate::Error::ConstAssign((c, ident.span), i.span))
+                return Err(crate::Error::ConstAssign((c, ident.span), infix.span))
             }
         };
-        let var_expr = Ast::var(var.inner, var.data_type, returns, ident.span);
 
-        let expr = match (var.data_type, b_data_type) {
-            (DataType::Int, DataType::Int) => {
-                Ast::int(int(Box::new(var_expr), Box::new(b)), returns, s)
+        let mut op = None;
+        for (o, s) in signatures {
+            if var.data_type.is_not(s.params[0]) {
+                continue;
             }
-            (DataType::Float, DataType::Float) => {
-                Ast::float(float(Box::new(var_expr), Box::new(b)), returns, s)
+            if b_data_type.is_not(s.params[1]) {
+                continue;
             }
-            (_, _) => {
-                return Err(crate::Error::AssignInfixNotApplicable(
-                    (var.data_type, a.span()),
-                    i,
-                    (b_data_type, b.span),
-                ));
+
+            op = Some((o, s));
+        }
+
+        // TODO: add ast::Op::AddAssignInt etc.
+        let expr = match op {
+            Some((o, s)) => {
+                let returns = b.returns;
+                let var_expr = Ast::var(var.inner, var.data_type, returns, ident.span);
+                Ast::expr(
+                    AstT::Op(*o, vec![var_expr, b]),
+                    s.return_type,
+                    returns,
+                    span,
+                )
+            }
+            None => {
+                return Err(crate::Error::NoMatchingInfixAssignSignature {
+                    infix: infix.typ,
+                    a: var.data_type,
+                    b: b_data_type,
+                    signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
+                    span,
+                });
             }
         };
 
@@ -1152,7 +1171,7 @@ impl Context {
         Ok(Ast::statement(
             AstT::Assign(inner, Box::new(expr)),
             returns,
-            s,
+            span,
         ))
     }
 

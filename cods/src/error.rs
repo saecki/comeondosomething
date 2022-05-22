@@ -2,8 +2,8 @@ use std::error;
 use std::fmt::{self, Debug, Display};
 
 use crate::{
-    BuiltinConst, DataType, FunSignature, Infix, Item, Kw, KwT, Op, OpT, Par, PctT, Postfix,
-    Prefix, Span, Val, ValSpan,
+    BuiltinConst, DataType, FunSignature, Infix, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par,
+    PctT, Postfix, PostfixT, Prefix, PrefixT, Span, Val, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -89,11 +89,38 @@ pub enum Error {
         signatures: Vec<FunSignature>,
         span: Span,
     },
+    NoMatchingInfixSignature {
+        infix: InfixT,
+        a: DataType,
+        b: DataType,
+        signatures: Vec<OpSignature<2>>,
+        span: Span,
+    },
+    NoMatchingInfixAssignSignature {
+        infix: InfixT,
+        a: DataType,
+        b: DataType,
+        signatures: Vec<OpSignature<2>>,
+        span: Span,
+    },
+    NoMatchingPrefixSignature {
+        prefix: PrefixT,
+        a: DataType,
+        signatures: Vec<OpSignature<1>>,
+        span: Span,
+    },
+    NoMatchingPostfixSignature {
+        postfix: PostfixT,
+        a: DataType,
+        signatures: Vec<OpSignature<1>>,
+        span: Span,
+    },
     PrefixNotApplicable(Prefix, (DataType, Span)),
     PostfixNotApplicable((DataType, Span), Postfix),
     InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignInfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
     AssignNotApplicable((DataType, Span), (DataType, Span)),
+    NotComparable((DataType, Span), (DataType, Span)),
     InvalidAssignment(Span, Span),
     ImmutableAssign(String, Span, Span),
     ConstAssign((BuiltinConst, Span), Span),
@@ -275,6 +302,104 @@ impl UserFacing for Error {
 
                 Ok(())
             }
+            Self::NoMatchingInfixSignature {
+                infix,
+                a,
+                b,
+                signatures,
+                ..
+            } => {
+                writeln!(
+                    f,
+                    "No matching signature for infix operator `{infix}`:{line_suffix}"
+                )?;
+                for s in signatures.iter() {
+                    writeln!(
+                        f,
+                        "{line_prefix}    {} {infix} {} -> {}{line_suffix}",
+                        s.params[0], s.params[1], s.return_type
+                    )?;
+                }
+                writeln!(f, "{line_prefix}{line_suffix}")?;
+
+                writeln!(f, "{line_prefix}Found operands of type:{line_suffix}")?;
+                writeln!(f, "{line_prefix}    {a} {infix} {b}{line_suffix}")?;
+
+                Ok(())
+            }
+            Self::NoMatchingInfixAssignSignature {
+                infix,
+                a,
+                b,
+                signatures,
+                ..
+            } => {
+                writeln!(
+                    f,
+                    "No matching signature for infix operator `{infix}`:{line_suffix}"
+                )?;
+                for s in signatures.iter() {
+                    writeln!(
+                        f,
+                        "{line_prefix}    {} {infix} {}{line_suffix}",
+                        s.params[0], s.params[1]
+                    )?;
+                }
+                writeln!(f, "{line_prefix}{line_suffix}")?;
+
+                writeln!(f, "{line_prefix}Found operands of type:{line_suffix}")?;
+                writeln!(f, "{line_prefix}    {a} {infix} {b}{line_suffix}")?;
+
+                Ok(())
+            }
+            Self::NoMatchingPrefixSignature {
+                prefix,
+                a,
+                signatures,
+                ..
+            } => {
+                writeln!(
+                    f,
+                    "No matching signature for prefix operator `{prefix}`:{line_suffix}"
+                )?;
+                for s in signatures.iter() {
+                    writeln!(
+                        f,
+                        "{line_prefix}    {prefix}{} -> {}{line_suffix}",
+                        s.params[0], s.return_type
+                    )?;
+                }
+                writeln!(f, "{line_prefix}{line_suffix}")?;
+
+                writeln!(f, "{line_prefix}Found operand of type:{line_suffix}")?;
+                writeln!(f, "{line_prefix}    {prefix}{a}{line_suffix}")?;
+
+                Ok(())
+            }
+            Self::NoMatchingPostfixSignature {
+                postfix,
+                a,
+                signatures,
+                ..
+            } => {
+                writeln!(
+                    f,
+                    "No matching signature for postfix operator `{postfix}`:{line_suffix}"
+                )?;
+                for s in signatures.iter() {
+                    writeln!(
+                        f,
+                        "{line_prefix}    {}{postfix} -> {}{line_suffix}",
+                        s.params[0], s.return_type
+                    )?;
+                }
+                writeln!(f, "{line_prefix}{line_suffix}")?;
+
+                writeln!(f, "{line_prefix}Found operand of type:{line_suffix}")?;
+                writeln!(f, "{line_prefix}    {a}{postfix}{line_suffix}")?;
+
+                Ok(())
+            }
             Self::PrefixNotApplicable(p, (t, _)) => write!(
                 f,
                 "Prefix operator `{p}` not applicable to value of type `{t}`",
@@ -295,6 +420,9 @@ impl UserFacing for Error {
                 f,
                 "Cannot assign value of type `{b}` to variable of type `{a}`"
             ),
+            Self::NotComparable((a, _), (b, _)) => {
+                write!(f, "Cannot compare values of type `{a}` and `{b}`")
+            }
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
@@ -426,11 +554,16 @@ impl UserFacing for Error {
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinFun(_, s) => vec![*s],
             Self::NoMatchingBuiltinFunSignature { span, .. } => vec![*span],
+            Self::NoMatchingInfixSignature { span, .. } => vec![*span],
+            Self::NoMatchingInfixAssignSignature { span, .. } => vec![*span],
+            Self::NoMatchingPrefixSignature { span, .. } => vec![*span],
+            Self::NoMatchingPostfixSignature { span, .. } => vec![*span],
             Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
             Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
             Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignInfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
             Self::AssignNotApplicable((_, a), (_, b)) => vec![*a, *b],
+            Self::NotComparable((_, a), (_, b)) => vec![*a, *b],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::ConstAssign((_, a), b) => vec![*a, *b],
