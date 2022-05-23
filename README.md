@@ -5,7 +5,7 @@ Experimental parser and interpreter
 ```
 comeondosomething 0.2.0
 Saecki <tobiasschmitz2001@gmail.com>
-A cli calculator
+A statically typed scripting language
 
 USAGE:
     cods [OPTIONS] [EXPRESSION]

@@ -2,7 +2,7 @@
 name = "cods-cli"
 version = "0.2.0"
 authors = ["Saecki <tobiasschmitz2001@gmail.com>"]
-description = "A cli calculator"
+description = "A statically typed scripting language"
 edition = "2021"
 
 [[bin]]
