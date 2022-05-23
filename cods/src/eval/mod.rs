@@ -54,8 +54,7 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
         AstT::IfExpr(i) => eval_if_expr(stack, i),
         AstT::WhileLoop(w) => eval_while_loop(stack, w),
         AstT::ForLoop(f) => eval_for_loop(stack, f),
-        AstT::Assign(v, e) => eval_assign(stack, v, e),
-        AstT::VarDef(v, e) => eval_var_def(stack, v, e),
+        AstT::VarAssign(v, e) => eval_var_assign(stack, v, e),
         AstT::FunCall(f, a) => eval_fun_call(stack, f, a),
         AstT::Return(v) => eval_return(stack, v),
         AstT::BuiltinFunCall(f, a) => eval_builtin_fun_call(stack, *f, a),
@@ -339,13 +338,7 @@ fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> crate::Result<Val> {
     Ok(Val::Unit)
 }
 
-fn eval_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
-    let val = eval_ast(stack, expr)?;
-    stack.set(var, val);
-    Ok(Val::Unit)
-}
-
-fn eval_var_def(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
+fn eval_var_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
     let val = eval_ast(stack, expr)?;
     stack.set(var, val);
     Ok(Val::Unit)

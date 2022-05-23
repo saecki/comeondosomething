@@ -684,7 +684,7 @@ impl Context {
 
         let val_returns = val.returns;
         Ok(Ast::statement(
-            AstT::VarDef(inner, Box::new(val)),
+            AstT::VarAssign(inner, Box::new(val)),
             val_returns,
             span,
         ))
@@ -855,7 +855,7 @@ impl Context {
                 let inner = var.inner;
                 self.set_var(scopes, &ident, &expr)?;
 
-                Ast::statement(AstT::Assign(inner, Box::new(expr)), returns, span)
+                Ast::statement(AstT::VarAssign(inner, Box::new(expr)), returns, span)
             }
             InfixT::AddAssign => {
                 self.check_infix_assign_signatures(scopes, i, (a, b), &op::ADD_SIGNATURES, span)?
@@ -1174,7 +1174,7 @@ impl Context {
         self.set_var(scopes, &ident, &expr)?;
 
         Ok(Ast::statement(
-            AstT::Assign(inner, Box::new(expr)),
+            AstT::VarAssign(inner, Box::new(expr)),
             returns,
             span,
         ))
