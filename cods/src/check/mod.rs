@@ -54,7 +54,7 @@ impl Context {
         let mut returns = false;
         if let Some(last) = csts.pop() {
             let mut iter = csts.into_iter();
-            while let Some(c) = iter.next() {
+            for c in iter.by_ref() {
                 let ast = self.check_type(scopes, c, false)?;
                 let ast_returns = ast.returns;
                 asts.push(ast);
@@ -507,7 +507,7 @@ impl Context {
                         name: b.to_string(),
                         args: args
                             .iter()
-                            .map(|a| expect_expr(a))
+                            .map(expect_expr)
                             .collect::<crate::Result<Vec<DataType>>>()?,
                         signatures: vec![FunSignature::empty()],
                         span,
@@ -522,7 +522,7 @@ impl Context {
                         name: b.to_string(),
                         args: args
                             .iter()
-                            .map(|a| expect_expr(a))
+                            .map(expect_expr)
                             .collect::<crate::Result<Vec<DataType>>>()?,
                         signatures: vec![FunSignature::empty()],
                         span,
@@ -604,17 +604,13 @@ impl Context {
                     name: b.to_string(),
                     args: args
                         .iter()
-                        .map(|a| expect_expr(a))
+                        .map(expect_expr)
                         .collect::<crate::Result<Vec<DataType>>>()?,
                     signatures: signatures.iter().map(|(_, s)| s.clone()).collect(),
                     span,
                 });
             }
         };
-
-        match fun {
-            _ => (),
-        }
 
         let return_type = signature.return_type;
         Ok(Ast::expr(
