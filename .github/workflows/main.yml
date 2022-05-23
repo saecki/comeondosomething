@@ -20,4 +20,5 @@ jobs:
       with:
         profile: minimal
         toolchain: ${{ matrix.toolchain }}
+    - run: rustup update
     - run: cargo test
