@@ -2,8 +2,8 @@ use std::error;
 use std::fmt::{self, Debug, Display};
 
 use crate::{
-    BuiltinConst, DataType, FunSignature, Infix, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par,
-    PctT, Postfix, PostfixT, Prefix, PrefixT, Span, Val, ValSpan,
+    BuiltinConst, DataType, FunSignature, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par, PctT,
+    PostfixT, PrefixT, Span, Val, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -115,15 +115,11 @@ pub enum Error {
         signatures: Vec<OpSignature<1>>,
         span: Span,
     },
-    PrefixNotApplicable(Prefix, (DataType, Span)),
-    PostfixNotApplicable((DataType, Span), Postfix),
-    InfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
-    AssignInfixNotApplicable((DataType, Span), Infix, (DataType, Span)),
-    AssignNotApplicable((DataType, Span), (DataType, Span)),
-    NotComparable((DataType, Span), (DataType, Span)),
+    AssignTypeMismatch((DataType, Span), (DataType, Span)),
     InvalidAssignment(Span, Span),
     ImmutableAssign(String, Span, Span),
     ConstAssign((BuiltinConst, Span), Span),
+    NotComparable((DataType, Span), (DataType, Span)),
     CastAlwaysFails((DataType, Span), (DataType, Span)),
     GlobalContextReturn(Span),
 
@@ -400,29 +396,10 @@ impl UserFacing for Error {
 
                 Ok(())
             }
-            Self::PrefixNotApplicable(p, (t, _)) => write!(
-                f,
-                "Prefix operator `{p}` not applicable to value of type `{t}`",
-            ),
-            Self::PostfixNotApplicable((t, _), p) => write!(
-                f,
-                "Postfix operator `{p}` not applicable to value of type `{t}`",
-            ),
-            Self::InfixNotApplicable((a, _), i, (b, _)) => write!(
-                f,
-                "Infix operator `{i}` not applicable to values of type `{a}` and `{b}`",
-            ),
-            Self::AssignInfixNotApplicable((a, _), i, (b, _)) => write!(
-                f,
-                "Operator `{i}` not applicable to variable of type `{a}` and value of type `{b}`"
-            ),
-            Self::AssignNotApplicable((a, _), (b, _)) => write!(
+            Self::AssignTypeMismatch((a, _), (b, _)) => write!(
                 f,
                 "Cannot assign value of type `{b}` to variable of type `{a}`"
             ),
-            Self::NotComparable((a, _), (b, _)) => {
-                write!(f, "Cannot compare values of type `{a}` and `{b}`")
-            }
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
@@ -431,6 +408,9 @@ impl UserFacing for Error {
             }
             Self::ConstAssign((c, _), _) => {
                 write!(f, "Cannot assign to builtin constant `{c}`")
+            }
+            Self::NotComparable((a, _), (b, _)) => {
+                write!(f, "Cannot compare values of type `{a}` and `{b}`")
             }
             Self::CastAlwaysFails((a, _), (b, _)) => {
                 write!(f, "Casting value of type `{a}` to `{b}` will always fail")
@@ -558,15 +538,11 @@ impl UserFacing for Error {
             Self::NoMatchingInfixAssignSignature { span, .. } => vec![*span],
             Self::NoMatchingPrefixSignature { span, .. } => vec![*span],
             Self::NoMatchingPostfixSignature { span, .. } => vec![*span],
-            Self::PrefixNotApplicable(p, (_, a)) => vec![p.span, *a],
-            Self::PostfixNotApplicable((_, a), p) => vec![*a, p.span],
-            Self::InfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
-            Self::AssignInfixNotApplicable((_, a), i, (_, b)) => vec![*a, i.span, *b],
-            Self::AssignNotApplicable((_, a), (_, b)) => vec![*a, *b],
-            Self::NotComparable((_, a), (_, b)) => vec![*a, *b],
+            Self::AssignTypeMismatch((_, a), (_, b)) => vec![*a, *b],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
             Self::ImmutableAssign(_, a, b) => vec![*a, *b],
             Self::ConstAssign((_, a), b) => vec![*a, *b],
+            Self::NotComparable((_, a), (_, b)) => vec![*a, *b],
             Self::CastAlwaysFails((_, a), (_, b)) => vec![*a, *b],
             Self::GlobalContextReturn(s) => vec![*s],
 

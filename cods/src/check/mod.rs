@@ -850,7 +850,7 @@ impl Context {
                 };
 
                 if expr_data_type.is_not(var.data_type) {
-                    return Err(crate::Error::AssignNotApplicable(
+                    return Err(crate::Error::AssignTypeMismatch(
                         (var.data_type, ident.span),
                         (expr_data_type, expr.span),
                     ));
