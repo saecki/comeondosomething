@@ -971,65 +971,66 @@ impl Context {
                 let a_data_type = expect_expr(&a)?;
 
                 if a_data_type == data_type {
+                    let s = Span::across(i.span, ident.span);
+                    self.warnings
+                        .push(crate::Warning::UnnecesaryCast(data_type, s));
                     return Ok(a);
                 }
 
-                fn cast_err(
-                    a_data_type: DataType,
-                    a_span: Span,
-                    data_type: DataType,
-                    b_span: Span,
-                ) -> crate::Result<Ast> {
+                let cast_err = || {
                     Err(crate::Error::CastAlwaysFails(
-                        (a_data_type, a_span),
-                        (data_type, b_span),
+                        (a_data_type, a.span),
+                        (data_type, b.span()),
                     ))
-                }
+                };
 
-                let returns = a.returns;
                 let a = match data_type {
                     DataType::Int => match a_data_type {
                         DataType::Int => a,
                         DataType::Float => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Float => match a_data_type {
                         DataType::Float => a,
                         DataType::Int => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Bool => match a_data_type {
                         DataType::Bool => a,
                         DataType::Int => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Char => match a_data_type {
                         DataType::Char => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Str => match a_data_type {
                         DataType::Str => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Range => match a_data_type {
                         DataType::Range => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
                     DataType::Unit => match a_data_type {
                         DataType::Unit => a,
                         DataType::Any => a,
-                        _ => return cast_err(a_data_type, a.span, data_type, b.span()),
+                        _ => return cast_err(),
                     },
-                    DataType::Any => a,
-                    DataType::Never => return cast_err(a_data_type, a.span, data_type, b.span()),
+                    DataType::Any => match a_data_type {
+                        DataType::Any => a,
+                        _ => a,
+                    },
+                    DataType::Never => return cast_err(),
                 };
 
+                let returns = a.returns;
                 Ast::expr(
                     AstT::Cast(Box::new(a), data_type),
                     DataType::Bool,
@@ -1044,6 +1045,14 @@ impl Context {
                 };
                 let data_type = self.resolve_data_type(&ident)?;
                 let a = self.check_type(scopes, a, true)?;
+                let a_data_type = expect_expr(&a)?;
+
+                if a_data_type == data_type {
+                    let s = Span::across(i.span, ident.span);
+                    self.warnings
+                        .push(crate::Warning::TypeCheckIsAlwaysTrue(data_type, s));
+                }
+
                 let returns = a.returns;
 
                 Ast::expr(

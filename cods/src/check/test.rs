@@ -531,3 +531,33 @@ fn if_cond_returns_block_unreachable() {
         ))],
     );
 }
+
+#[test]
+fn unnecessary_cast() {
+    let input = "3 as int";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(3));
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::UnnecesaryCast(
+            DataType::Int,
+            Span::cols(0, 2, 8),
+        )],
+    );
+}
+
+#[test]
+fn type_check_is_always_true() {
+    let input = "'u' is char";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Bool(true));
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::TypeCheckIsAlwaysTrue(
+            DataType::Char,
+            Span::cols(0, 4, 11),
+        )],
+    );
+}

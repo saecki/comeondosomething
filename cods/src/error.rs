@@ -573,6 +573,8 @@ impl UserFacing for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
     Unreachable(Span),
+    UnnecesaryCast(DataType, Span),
+    TypeCheckIsAlwaysTrue(DataType, Span),
 }
 
 impl Display for Warning {
@@ -591,6 +593,13 @@ impl UserFacing for Warning {
         f.write_str(line_prefix)?;
         match self {
             Warning::Unreachable(_) => write!(f, "Unreachable code"),
+            Warning::UnnecesaryCast(d, _) => {
+                write!(f, "Unnecesary cast, the value is known to be of type `{d}`")
+            }
+            Warning::TypeCheckIsAlwaysTrue(d, _) => write!(
+                f,
+                "Type check is always true, the value is known to be of type `{d}`"
+            ),
         }?;
         f.write_str(line_suffix)
     }
@@ -598,6 +607,8 @@ impl UserFacing for Warning {
     fn spans(&self) -> Vec<Span> {
         match self {
             Warning::Unreachable(s) => vec![*s],
+            Warning::UnnecesaryCast(_, s) => vec![*s],
+            Warning::TypeCheckIsAlwaysTrue(_, s) => vec![*s],
         }
     }
 }
