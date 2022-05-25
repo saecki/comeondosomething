@@ -104,36 +104,6 @@ pub enum Op {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum IntExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum FloatExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum BoolExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum CharExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum StrExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum RangeExpr {
-    Cast(Box<Ast>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct IfExpr {
     pub cases: Vec<CondBlock>,
     pub else_block: Option<Vec<Ast>>,
