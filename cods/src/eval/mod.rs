@@ -43,13 +43,6 @@ fn eval_asts(stack: &mut Stack, asts: &[Ast]) -> EvalResult<Val> {
     }
 }
 
-fn eval_iter<'a>(
-    stack: &'a mut Stack,
-    asts: &'a [Ast],
-) -> impl Iterator<Item = EvalResult<Val>> + 'a {
-    asts.iter().map(|a| eval_ast(stack, a))
-}
-
 fn eval_ast(stack: &mut Stack, ast: &Ast) -> EvalResult<Val> {
     match &ast.typ {
         AstT::Error => err(crate::Error::Parsing(ast.span)),
@@ -567,13 +560,14 @@ fn eval_builtin_fun_call(stack: &mut Stack, fun: BuiltinFunCall, args: &[Ast]) -
 }
 
 fn eval_print(stack: &mut Stack, args: &[Ast]) -> EvalResult<()> {
-    let mut vals = eval_iter(stack, args);
-    if let Some(first) = vals.next() {
-        print!("{}", first?); // TODO: Evaluator struct with stdio
-    }
+    if let Some((first, others)) = args.split_first() {
+        let f = eval_ast(stack, first)?;
+        print!("{}", f); // TODO: Evaluator struct with stdio
 
-    for v in vals {
-        print!(" {}", v?);
+        for a in others {
+            let v = eval_ast(stack, a)?;
+            print!(" {}", v);
+        }
     }
 
     Ok(())
