@@ -22,19 +22,8 @@ impl Stack {
         *self.frames.last().expect("Expected frames to be non empty")
     }
 
-    fn frame_size(&self) -> usize {
-        self.values.len() - self.frame_start()
-    }
-
-    /// Extends the current frame to `size`.
-    ///
-    /// Panics if `size` is less than the current frame size.
-    pub fn extend_to(&mut self, size: usize) {
-        let additional = size - self.frame_size();
-        self.values.reserve(additional);
-        for _ in 0..additional {
-            self.values.push(None);
-        }
+    pub fn resize(&mut self, size: usize) {
+        self.values.resize(size, None);
     }
 
     pub fn push(&mut self, size: usize) {
