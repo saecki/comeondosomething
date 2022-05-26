@@ -3,7 +3,7 @@ use crate::Val;
 #[derive(Clone, Debug)]
 pub struct Stack {
     /// The frame data.
-    values: Vec<Option<Val>>,
+    values: Vec<Val>,
     /// The starting indices of the frames.
     frames: Vec<usize>,
 }
@@ -23,14 +23,14 @@ impl Stack {
     }
 
     pub fn resize(&mut self, size: usize) {
-        self.values.resize(size, None);
+        self.values.resize(size, Val::Unit);
     }
 
     pub fn push(&mut self, size: usize) {
         self.frames.push(self.values.len());
         self.values.reserve(size);
         for _ in 0..size {
-            self.values.push(None);
+            self.values.push(Val::Unit);
         }
     }
 
@@ -45,7 +45,7 @@ impl Stack {
             VarRef::Local(i) => self.frame_start() + i,
             VarRef::Global(i) => *i,
         };
-        self.values[idx] = Some(val);
+        self.values[idx] = val;
     }
 
     pub fn get(&mut self, var: &VarRef) -> Val {
@@ -55,8 +55,6 @@ impl Stack {
         };
         self.values
             .get(idx)
-            .unwrap()
-            .as_ref()
             .expect("Expected value to be initialized")
             .clone()
     }
