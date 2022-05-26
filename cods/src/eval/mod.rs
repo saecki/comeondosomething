@@ -9,19 +9,28 @@ pub use val::*;
 mod stack;
 mod val;
 
+type EvalResult<T> = std::result::Result<T, EvalError>;
+
+enum EvalError {
+    Return(Val),
+    Error(crate::Error),
+}
+
 pub fn eval(asts: &Asts) -> crate::Result<Val> {
     let mut stack = Stack::default();
-    let val = eval_with(&mut stack, asts)?;
-    Ok(val)
+    eval_with(&mut stack, asts)
 }
 
 pub fn eval_with(stack: &mut Stack, asts: &Asts) -> crate::Result<Val> {
     stack.extend_to(asts.global_frame_size);
-    let val = eval_asts(stack, &asts.asts)?;
-    Ok(val)
+    match eval_asts(stack, &asts.asts) {
+        Ok(v) => Ok(v),
+        Err(EvalError::Error(e)) => return Err(e),
+        Err(_) => unreachable!(),
+    }
 }
 
-fn eval_asts(stack: &mut Stack, asts: &[Ast]) -> crate::Result<Val> {
+fn eval_asts(stack: &mut Stack, asts: &[Ast]) -> EvalResult<Val> {
     match asts.split_last() {
         Some((last, others)) => {
             for a in others {
@@ -37,13 +46,13 @@ fn eval_asts(stack: &mut Stack, asts: &[Ast]) -> crate::Result<Val> {
 fn eval_iter<'a>(
     stack: &'a mut Stack,
     asts: &'a [Ast],
-) -> impl Iterator<Item = crate::Result<Val>> + 'a {
+) -> impl Iterator<Item = EvalResult<Val>> + 'a {
     asts.iter().map(|a| eval_ast(stack, a))
 }
 
-fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
+fn eval_ast(stack: &mut Stack, ast: &Ast) -> EvalResult<Val> {
     match &ast.typ {
-        AstT::Error => Err(crate::Error::Parsing(ast.span)),
+        AstT::Error => err(crate::Error::Parsing(ast.span)),
         AstT::Var(v) => Ok(stack.get(v)),
         AstT::Val(v) => Ok(v.clone()),
         AstT::Op(o, a) => eval_op(stack, o, a),
@@ -62,7 +71,7 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> crate::Result<Val> {
     }
 }
 
-fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
+fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> EvalResult<Val> {
     let val = match op {
         Op::Not => {
             let va = eval_ast(stack, &args[0])?.unwrap_bool();
@@ -89,9 +98,10 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
         Op::AddInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
-            va.checked_add(vb)
-                .map(Val::Int)
-                .ok_or(crate::Error::AddOverflow(args[0].span, args[1].span))?
+            match va.checked_add(vb) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::AddOverflow(args[0].span, args[1].span)),
+            }
         }
         Op::AddFloat => {
             let va = eval_ast(stack, &args[0])?.unwrap_float();
@@ -101,9 +111,10 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
         Op::SubInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
-            va.checked_sub(vb)
-                .map(Val::Int)
-                .ok_or(crate::Error::SubOverflow(args[0].span, args[1].span))?
+            match va.checked_sub(vb) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::SubOverflow(args[0].span, args[1].span)),
+            }
         }
         Op::SubFloat => {
             let va = eval_ast(stack, &args[0])?.unwrap_float();
@@ -113,9 +124,10 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
         Op::MulInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
-            va.checked_mul(vb)
-                .map(Val::Int)
-                .ok_or(crate::Error::MulOverflow(args[0].span, args[1].span))?
+            match va.checked_mul(vb) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::MulOverflow(args[0].span, args[1].span)),
+            }
         }
         Op::MulFloat => {
             let va = eval_ast(stack, &args[0])?.unwrap_float();
@@ -125,9 +137,10 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
         Op::DivInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
-            va.checked_div(vb)
-                .map(Val::Int)
-                .ok_or(crate::Error::DivideByZero(args[0].span, args[1].span))?
+            match va.checked_div(vb) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::DivideByZero(args[0].span, args[1].span)),
+            }
         }
         Op::DivFloat => {
             let va = eval_ast(stack, &args[0])?.unwrap_float();
@@ -139,13 +152,14 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
             va.checked_rem(vb)
                 .map(Val::Int)
-                .ok_or(crate::Error::RemainderByZero(args[0].span, args[1].span))?
+                .ok_or(crate::Error::RemainderByZero(args[0].span, args[1].span))
+                .map_err(EvalError::Error)?
         }
         Op::RemEuclidInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
             if vb == 0 {
-                return Err(crate::Error::RemainderByZero(args[0].span, args[1].span));
+                return err(crate::Error::RemainderByZero(args[0].span, args[1].span));
             }
             let r = va % vb;
             if (r > 0 && vb < 0) || (r < 0 && vb > 0) {
@@ -158,7 +172,7 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
 
             if va < 0 {
-                return Err(crate::Error::NegativeFactorial(ValSpan::new(
+                return err(crate::Error::NegativeFactorial(ValSpan::new(
                     Val::Int(va),
                     args[0].span,
                 )));
@@ -166,9 +180,15 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
 
             let mut f: i128 = 1;
             for i in 2..=va {
-                f = f.checked_mul(i).ok_or_else(|| {
-                    crate::Error::FactorialOverflow(ValSpan::new(Val::Int(va), args[0].span))
-                })?;
+                f = match f.checked_mul(i) {
+                    Some(v) => v,
+                    None => {
+                        return err(crate::Error::FactorialOverflow(ValSpan::new(
+                            Val::Int(va),
+                            args[0].span,
+                        )))
+                    }
+                };
             }
             Val::Int(f)
         }
@@ -257,14 +277,14 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> crate::Result<Val> {
     Ok(val)
 }
 
-fn eval_is(stack: &mut Stack, a: &Ast, t: DataType) -> crate::Result<Val> {
+fn eval_is(stack: &mut Stack, a: &Ast, t: DataType) -> EvalResult<Val> {
     let va = eval_ast(stack, a)?;
     Ok(Val::Bool(va.data_type().is(t)))
 }
 
-fn eval_cast(stack: &mut Stack, a: &Ast, t: DataType) -> crate::Result<Val> {
-    fn cast_err(val: Val, data_type: DataType, span: Span) -> crate::Result<Val> {
-        Err(crate::Error::CastFailed((val.data_type(), span), data_type))
+fn eval_cast(stack: &mut Stack, a: &Ast, t: DataType) -> EvalResult<Val> {
+    fn cast_err(val: Val, data_type: DataType, span: Span) -> EvalResult<Val> {
+        err(crate::Error::CastFailed((val.data_type(), span), data_type))
     }
 
     let va = eval_ast(stack, a)?;
@@ -306,7 +326,7 @@ fn eval_cast(stack: &mut Stack, a: &Ast, t: DataType) -> crate::Result<Val> {
     Ok(val)
 }
 
-fn eval_if_expr(stack: &mut Stack, if_expr: &IfExpr) -> crate::Result<Val> {
+fn eval_if_expr(stack: &mut Stack, if_expr: &IfExpr) -> EvalResult<Val> {
     for c in if_expr.cases.iter() {
         if eval_ast(stack, &c.cond)?.unwrap_bool() {
             return eval_asts(stack, &c.block);
@@ -319,7 +339,7 @@ fn eval_if_expr(stack: &mut Stack, if_expr: &IfExpr) -> crate::Result<Val> {
     }
 }
 
-fn eval_while_loop(stack: &mut Stack, whl_loop: &WhileLoop) -> crate::Result<Val> {
+fn eval_while_loop(stack: &mut Stack, whl_loop: &WhileLoop) -> EvalResult<Val> {
     while eval_ast(stack, &whl_loop.cond)?.unwrap_bool() {
         eval_asts(stack, &whl_loop.block)?;
     }
@@ -327,7 +347,7 @@ fn eval_while_loop(stack: &mut Stack, whl_loop: &WhileLoop) -> crate::Result<Val
     Ok(Val::Unit)
 }
 
-fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> crate::Result<Val> {
+fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> EvalResult<Val> {
     let iter = eval_ast(stack, &for_loop.iter)?.unwrap_range();
 
     for i in iter.iter() {
@@ -338,13 +358,13 @@ fn eval_for_loop(stack: &mut Stack, for_loop: &ForLoop) -> crate::Result<Val> {
     Ok(Val::Unit)
 }
 
-fn eval_var_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> crate::Result<Val> {
+fn eval_var_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> EvalResult<Val> {
     let val = eval_ast(stack, expr)?;
     stack.set(var, val);
     Ok(Val::Unit)
 }
 
-fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> crate::Result<Val> {
+fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> EvalResult<Val> {
     let fun_ref = fun.borrow();
     let mut arg_vals = Vec::with_capacity(fun_ref.params().len());
     for (p, a) in fun_ref.params().iter().zip(args.iter()) {
@@ -358,23 +378,19 @@ fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> crate::Resul
     }
     let block = fun_ref.block();
     let val = match eval_asts(stack, block) {
-        Err(crate::Error::Return(v)) => Ok(v),
+        Err(EvalError::Return(v)) => Ok(v),
         r => r,
     };
     stack.pop();
     val
 }
 
-fn eval_return(stack: &mut Stack, val: &Ast) -> crate::Result<Val> {
+fn eval_return(stack: &mut Stack, val: &Ast) -> EvalResult<Val> {
     let val = eval_ast(stack, val)?;
-    Err(crate::Error::Return(val))
+    Err(EvalError::Return(val))
 }
 
-fn eval_builtin_fun_call(
-    stack: &mut Stack,
-    fun: BuiltinFunCall,
-    args: &[Ast],
-) -> crate::Result<Val> {
+fn eval_builtin_fun_call(stack: &mut Stack, fun: BuiltinFunCall, args: &[Ast]) -> EvalResult<Val> {
     let val = match fun {
         BuiltinFunCall::PowInt => {
             let a = &args[0];
@@ -382,15 +398,15 @@ fn eval_builtin_fun_call(
             let base = eval_ast(stack, a)?.unwrap_int();
             let exp = eval_ast(stack, b)?.unwrap_int();
             if exp < 0 {
-                return Err(crate::Error::NegativeIntPow(a.span, b.span));
+                return err(crate::Error::NegativeIntPow(a.span, b.span));
             }
             if exp > u32::MAX as i128 {
-                return Err(crate::Error::PowOverflow(a.span, b.span));
+                return err(crate::Error::PowOverflow(a.span, b.span));
             }
-            let val = base
-                .checked_pow(exp as u32)
-                .ok_or(crate::Error::PowOverflow(a.span, b.span))?;
-            Val::Int(val)
+            match base.checked_pow(exp as u32) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::PowOverflow(a.span, b.span)),
+            }
         }
         BuiltinFunCall::PowFloat => {
             let base = eval_ast(stack, &args[0])?.unwrap_float();
@@ -414,13 +430,13 @@ fn eval_builtin_fun_call(
             let n = eval_ast(stack, &args[0])?.unwrap_int();
             let mut r = eval_ast(stack, &args[1])?.unwrap_int();
             if r < 0 {
-                return Err(crate::Error::NegativeNcr(ValSpan::new(
+                return err(crate::Error::NegativeNcr(ValSpan::new(
                     Val::Int(r),
                     args[1].span,
                 )));
             }
             if n < r {
-                return Err(crate::Error::InvalidNcr(
+                return err(crate::Error::InvalidNcr(
                     ValSpan::new(Val::Int(n), args[0].span),
                     ValSpan::new(Val::Int(r), args[1].span),
                 ));
@@ -490,7 +506,7 @@ fn eval_builtin_fun_call(
             let min = eval_ast(stack, &args[1])?.unwrap_int();
             let max = eval_ast(stack, &args[2])?.unwrap_int();
             if min > max {
-                return Err(crate::Error::InvalidClampBounds(
+                return err(crate::Error::InvalidClampBounds(
                     ValSpan::new(Val::Int(min), args[1].span),
                     ValSpan::new(Val::Int(max), args[2].span),
                 ));
@@ -504,7 +520,7 @@ fn eval_builtin_fun_call(
             // floating point weirdness, negated assertion of stdlib
             #[allow(clippy::neg_cmp_op_on_partial_ord)]
             if !(min <= max) {
-                return Err(crate::Error::InvalidClampBounds(
+                return err(crate::Error::InvalidClampBounds(
                     ValSpan::new(Val::Float(min), args[1].span),
                     ValSpan::new(Val::Float(max), args[2].span),
                 ));
@@ -531,7 +547,7 @@ fn eval_builtin_fun_call(
         BuiltinFunCall::Assert => {
             let va = eval_ast(stack, &args[0])?.unwrap_bool();
             if !va {
-                return Err(crate::Error::AssertFailed(args[0].span));
+                return err(crate::Error::AssertFailed(args[0].span));
             }
             Val::Unit
         }
@@ -539,7 +555,7 @@ fn eval_builtin_fun_call(
             let a = eval_ast(stack, &args[0])?;
             let b = eval_ast(stack, &args[1])?;
             if a != b {
-                return Err(crate::Error::AssertEqFailed(
+                return err(crate::Error::AssertEqFailed(
                     ValSpan::new(a, args[0].span),
                     ValSpan::new(b, args[1].span),
                 ));
@@ -550,7 +566,7 @@ fn eval_builtin_fun_call(
     Ok(val)
 }
 
-fn eval_print(stack: &mut Stack, args: &[Ast]) -> crate::Result<()> {
+fn eval_print(stack: &mut Stack, args: &[Ast]) -> EvalResult<()> {
     let mut vals = eval_iter(stack, args);
     if let Some(first) = vals.next() {
         print!("{}", first?); // TODO: Evaluator struct with stdio
@@ -563,7 +579,7 @@ fn eval_print(stack: &mut Stack, args: &[Ast]) -> crate::Result<()> {
     Ok(())
 }
 
-fn eval_spill(stack: &mut Stack, vars: &[(String, VarRef)]) -> crate::Result<Val> {
+fn eval_spill(stack: &mut Stack, vars: &[(String, VarRef)]) -> EvalResult<Val> {
     for (n, v) in vars {
         println!("{n} = {}", stack.get(v));
     }
@@ -574,7 +590,7 @@ fn fold_eval_int(
     stack: &mut Stack,
     args: &[Ast],
     fold: fn(i128, i128) -> i128,
-) -> crate::Result<i128> {
+) -> EvalResult<i128> {
     let mut current = eval_ast(stack, &args[0])?.unwrap_int();
     for a in &args[1..] {
         let val = eval_ast(stack, a)?.unwrap_int();
@@ -583,15 +599,16 @@ fn fold_eval_int(
     Ok(current)
 }
 
-fn fold_eval_float(
-    stack: &mut Stack,
-    args: &[Ast],
-    fold: fn(f64, f64) -> f64,
-) -> crate::Result<f64> {
+fn fold_eval_float(stack: &mut Stack, args: &[Ast], fold: fn(f64, f64) -> f64) -> EvalResult<f64> {
     let mut current = eval_ast(stack, &args[0])?.unwrap_float();
     for a in &args[1..] {
         let val = eval_ast(stack, a)?.unwrap_float();
         current = fold(current, val);
     }
     Ok(current)
+}
+
+#[inline(always)]
+fn err<T>(error: crate::Error) -> EvalResult<T> {
+    Err(EvalError::Error(error))
 }

@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display};
 
 use crate::{
     BuiltinConst, DataType, FunSignature, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par, PctT,
-    PostfixT, PrefixT, Span, Val, ValSpan,
+    PostfixT, PrefixT, Span, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -141,9 +141,6 @@ pub enum Error {
     InvalidClampBounds(ValSpan, ValSpan),
     AssertFailed(Span),
     AssertEqFailed(ValSpan, ValSpan),
-
-    // TODO: cleanup
-    Return(Val),
 }
 
 impl error::Error for Error {}
@@ -478,8 +475,6 @@ impl UserFacing for Error {
                     ls = line_suffix,
                 )
             }
-
-            Self::Return(_) => write!(f, ""),
         }?;
         f.write_str(line_suffix)
     }
@@ -564,8 +559,6 @@ impl UserFacing for Error {
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
             Self::AssertFailed(s) => vec![*s],
             Self::AssertEqFailed(a, b) => vec![a.span, b.span],
-
-            Self::Return(_) => vec![],
         }
     }
 }
