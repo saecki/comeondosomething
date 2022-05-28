@@ -133,6 +133,20 @@ pub enum Val {
     Unit,
 }
 
+impl Display for Val {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Int(v) => write!(f, "{v}"),
+            Self::Float(v) => write!(f, "{v}"),
+            Self::Bool(v) => write!(f, "{v}"),
+            Self::Char(v) => write!(f, "{v}"),
+            Self::Str(v) => write!(f, "{v}"),
+            Self::Range(v) => write!(f, "{v}"),
+            Self::Unit => write!(f, "()"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Range {
     Exclusive(i128, i128),
@@ -187,20 +201,6 @@ impl Iterator for RangeIter {
 impl RangeIter {
     pub const fn new(i: i128, range: Range) -> Self {
         RangeIter { i, range }
-    }
-}
-
-impl Display for Val {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Int(v) => write!(f, "{v}"),
-            Self::Float(v) => write!(f, "{v}"),
-            Self::Bool(v) => write!(f, "{v}"),
-            Self::Char(v) => write!(f, "{v}"),
-            Self::Str(v) => write!(f, "{v}"),
-            Self::Range(v) => write!(f, "{v}"),
-            Self::Unit => write!(f, "()"),
-        }
     }
 }
 
