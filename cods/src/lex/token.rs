@@ -64,6 +64,27 @@ impl Token {
         matches!(self, Self::Kw(_))
     }
 
+    pub fn is_comma(&self) -> bool {
+        match self {
+            Self::Pct(p) => p.is_comma(),
+            _ => false,
+        }
+    }
+
+    pub fn is_semi(&self) -> bool {
+        match self {
+            Self::Pct(p) => p.is_semi(),
+            _ => false,
+        }
+    }
+
+    pub fn is_newln(&self) -> bool {
+        match self {
+            Self::Pct(p) => p.is_newln(),
+            _ => false,
+        }
+    }
+
     pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),
@@ -74,6 +95,20 @@ impl Token {
     pub fn as_par(&self) -> Option<Par> {
         match self {
             Self::Par(p) => Some(*p),
+            _ => None,
+        }
+    }
+    
+    pub fn into_val(self) -> Option<ValSpan> {
+        match self {
+            Self::Val(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_ident(self) -> Option<IdentSpan> {
+        match self {
+            Self::Ident(i) => Some(i),
             _ => None,
         }
     }
@@ -316,19 +351,19 @@ impl Par {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParT {
-    RoundOpen,
-    RoundClose,
-    SquareOpen,
-    SquareClose,
-    CurlyOpen,
-    CurlyClose,
+    LRound,
+    RRound,
+    LSquare,
+    RSquare,
+    LCurly,
+    RCurly,
 }
 
 impl ParT {
     pub const fn is_opening(&self) -> bool {
         match self {
-            Self::RoundOpen | Self::SquareOpen | Self::CurlyOpen => true,
-            Self::RoundClose | Self::SquareClose | Self::CurlyClose => false,
+            Self::LRound | Self::LSquare | Self::LCurly => true,
+            Self::RRound | Self::RSquare | Self::RCurly => false,
         }
     }
 
@@ -338,20 +373,20 @@ impl ParT {
 
     pub const fn matches(&self, other: Self) -> bool {
         match self {
-            Self::RoundOpen => matches!(other, Self::RoundClose),
-            Self::RoundClose => matches!(other, Self::RoundOpen),
-            Self::SquareOpen => matches!(other, Self::SquareClose),
-            Self::SquareClose => matches!(other, Self::SquareOpen),
-            Self::CurlyOpen => matches!(other, Self::CurlyClose),
-            Self::CurlyClose => matches!(other, Self::CurlyOpen),
+            Self::LRound => matches!(other, Self::RRound),
+            Self::RRound => matches!(other, Self::LRound),
+            Self::LSquare => matches!(other, Self::RSquare),
+            Self::RSquare => matches!(other, Self::LSquare),
+            Self::LCurly => matches!(other, Self::RCurly),
+            Self::RCurly => matches!(other, Self::LCurly),
         }
     }
 
     pub const fn kind(&self) -> ParKind {
         match self {
-            Self::RoundOpen | Self::RoundClose => ParKind::Round,
-            Self::SquareOpen | Self::SquareClose => ParKind::Square,
-            Self::CurlyOpen | Self::CurlyClose => ParKind::Curly,
+            Self::LRound | Self::RRound => ParKind::Round,
+            Self::LSquare | Self::RSquare => ParKind::Square,
+            Self::LCurly | Self::RCurly => ParKind::Curly,
         }
     }
 }

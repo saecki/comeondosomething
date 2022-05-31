@@ -365,7 +365,7 @@ fn not() {
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
-        Error::UnexpectedPar(Par::new(ParT::RoundClose, Span::pos(0, 2))),
+        Error::UnexpectedPar(Par::new(ParT::RRound, Span::pos(0, 2))),
     );
 }
 

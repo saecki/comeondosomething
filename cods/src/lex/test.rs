@@ -60,11 +60,11 @@ fn add_mul() {
     assert(
         "(32+ 604.453)* 3562.543",
         vec![
-            Token::par(ParT::RoundOpen, Span::pos(0, 0)),
+            Token::par(ParT::LRound, Span::pos(0, 0)),
             Token::val(Val::Int(32), Span::cols(0, 1, 3)),
             Token::op(OpT::Add, Span::pos(0, 3)),
             Token::val(Val::Float(604.453), Span::cols(0, 5, 12)),
-            Token::par(ParT::RoundClose, Span::pos(0, 12)),
+            Token::par(ParT::RRound, Span::pos(0, 12)),
             Token::op(OpT::Mul, Span::pos(0, 13)),
             Token::val(Val::Float(3562.543), Span::cols(0, 15, 23)),
         ],

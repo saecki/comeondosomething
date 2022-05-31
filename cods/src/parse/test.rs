@@ -4,8 +4,7 @@ use crate::{Context, Cst, Ident, IdentSpan, Infix, InfixT, Span, Val, ValSpan};
 fn semicolon() {
     let mut ctx = Context::default();
     let tokens = ctx.lex("y = 34; y").unwrap();
-    let items = ctx.group(tokens).unwrap();
-    let csts = ctx.parse(items).unwrap();
+    let csts = ctx.parse(tokens).unwrap();
     let expected = vec![
         Cst::Infix(
             Box::new(Cst::Ident(IdentSpan::new(Ident(0), Span::pos(0, 0)))),

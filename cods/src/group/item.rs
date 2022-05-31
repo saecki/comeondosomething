@@ -39,20 +39,6 @@ impl Item {
         }
     }
 
-    pub fn into_val(self) -> Option<ValSpan> {
-        match self {
-            Self::Val(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn into_ident(self) -> Option<IdentSpan> {
-        match self {
-            Self::Ident(i) => Some(i),
-            _ => None,
-        }
-    }
-
     pub fn as_op(&self) -> Option<Op> {
         match self {
             Self::Op(o) => Some(*o),

@@ -2,8 +2,8 @@ use std::error;
 use std::fmt::{self, Debug, Display};
 
 use crate::{
-    BuiltinConst, DataType, FunSignature, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par, PctT,
-    PostfixT, PrefixT, Span, ValSpan,
+    BuiltinConst, DataType, FunSignature, InfixT, Kw, KwT, Op, OpSignature, OpT, Par, PctT,
+    PostfixT, PrefixT, Span, Token, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -56,7 +56,7 @@ pub enum Error {
         found: usize,
         spans: Vec<Span>,
     },
-    UnexpectedItem(Item),
+    UnexpectedToken(Token),
     UnexpectedOperator(Op),
     ExpectedExpr(Span),
     ExpectedBlock(Span),
@@ -216,7 +216,7 @@ impl UserFacing for Error {
                 let were_was = if *found == 1 { "was" } else { "were" };
                 write!(f, "Missing {missing} function argument{arg_s}, {expected} {are_is} required, but only {found} {were_was} found")
             }
-            Self::UnexpectedItem(_) => write!(f, "Unexpected item"),
+            Self::UnexpectedToken(_) => write!(f, "Unexpected item"),
             Self::UnexpectedFunArgs {
                 expected, found, ..
             } => {
@@ -504,7 +504,7 @@ impl UserFacing for Error {
             Self::MissingOperand(s) => vec![*s],
             Self::MissingOperator(s) => vec![*s],
             Self::MissingFunArgs { span: pos, .. } => vec![*pos],
-            Self::UnexpectedItem(i) => vec![i.span()],
+            Self::UnexpectedToken(i) => vec![i.span()],
             Self::UnexpectedFunArgs { spans, .. } => spans.clone(),
             Self::UnexpectedOperator(o) => vec![o.span],
             Self::ExpectedExpr(s) => vec![*s],
