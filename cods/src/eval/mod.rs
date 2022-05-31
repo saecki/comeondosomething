@@ -25,7 +25,7 @@ pub fn eval_with(stack: &mut Stack, asts: &Asts) -> crate::Result<Val> {
     stack.resize(asts.global_frame_size);
     match eval_asts(stack, &asts.asts) {
         Ok(v) => Ok(v),
-        Err(EvalError::Error(e)) => return Err(e),
+        Err(EvalError::Error(e)) => Err(e),
         Err(_) => unreachable!(),
     }
 }
