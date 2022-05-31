@@ -86,7 +86,7 @@ impl Context {
         let span = cst.span();
         let ast = match cst {
             Cst::Empty(s) => Ast::expr(AstT::Unit, DataType::Unit, false, s),
-            Cst::Error(s) => Ast::expr(AstT::Error, DataType::Unit, false, s),
+            Cst::Error(s) => Ast::expr(AstT::Error, DataType::Never, false, s),
             Cst::Val(v) => Ast::val(v.val, v.span),
             Cst::Ident(i) => match self.get_var(scopes, &i)? {
                 ResolvedVar::Const(c) => Ast::val(c.val(), span),
