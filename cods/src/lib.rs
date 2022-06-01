@@ -48,7 +48,7 @@ impl Context {
     }
 
     pub fn parse_str(&mut self, input: &str) -> crate::Result<Asts> {
-        let tokens = self.lex(input.as_ref())?;
+        let tokens = TokenStream::new(input.as_ref());
         let items = self.group(tokens)?;
         let csts = self.parse(items)?;
         let asts = self.check(csts)?;

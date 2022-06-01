@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -10,8 +11,57 @@ mod str;
 mod test;
 mod token;
 
+pub struct TokenStream<'a> {
+    lexer: Lexer<'a>,
+    state: StreamState,
+}
+
+impl<'a> TokenStream<'a> {
+    pub fn new(input: &'a str) -> Self {
+        Self {
+            lexer: Lexer::new(input),
+            state: StreamState::Next,
+        }
+    }
+}
+
+impl Context {
+    pub fn peek_token<'a>(
+        &mut self,
+        stream: &'a mut TokenStream,
+    ) -> crate::Result<Option<&'a Token>> {
+        if !stream.lexer.tokens.is_empty() {
+            return Ok(stream.lexer.tokens.get(0));
+        }
+        if stream.state == StreamState::Next {
+            stream.state = self.lex_next(&mut stream.lexer)?;
+            return Ok(stream.lexer.tokens.get(0));
+        }
+
+        Ok(None)
+    }
+
+    pub fn next_token(&mut self, stream: &mut TokenStream<'_>) -> crate::Result<Option<Token>> {
+        if !stream.lexer.tokens.is_empty() {
+            return Ok(stream.lexer.tokens.pop_front());
+        }
+        if stream.state == StreamState::Next {
+            stream.state = self.lex_next(&mut stream.lexer)?;
+            return Ok(stream.lexer.tokens.pop_front());
+        }
+
+        Ok(None)
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum StreamState {
+    Next,
+    Eof,
+}
+
 struct Lexer<'a> {
-    tokens: Vec<Token>,
+    tokens: VecDeque<Token>,
     literal: String,
     chars: Peekable<Chars<'a>>,
     cursor: Pos,
@@ -20,7 +70,7 @@ struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         Self {
-            tokens: Vec::new(),
+            tokens: VecDeque::new(),
             literal: String::new(),
             chars: input.chars().peekable(),
             cursor: Pos::new(0, 0),
@@ -61,101 +111,102 @@ impl<'a> Lexer<'a> {
 }
 
 impl Context {
-    pub fn lex(&mut self, string: &str) -> crate::Result<Vec<Token>> {
-        let mut lexer = Lexer::new(string);
-
-        while let Some(c) = lexer.next() {
-            let span = Span::from(lexer.pos());
-            match c {
-                '"' => self.string_literal(&mut lexer)?,
-                '\'' => self.char_literal(&mut lexer)?,
-                ' ' | '\r' => self.end_literal(&mut lexer)?,
-                '\n' => {
-                    self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?;
-                    lexer.new_line();
+    fn lex_next(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<StreamState> {
+        while lexer.tokens.is_empty() {
+            if let Some(c) = lexer.next() {
+                let span = Span::from(lexer.pos());
+                match c {
+                    '"' => self.string_literal(lexer)?,
+                    '\'' => self.char_literal(lexer)?,
+                    ' ' | '\r' => self.end_literal(lexer)?,
+                    '\n' => {
+                        self.new_atom(lexer, Token::pct(PctT::Newln, span))?;
+                        lexer.new_line();
+                    }
+                    '+' => self.two_char_op(lexer, OpT::Add, OpT::AddAssign, '=')?,
+                    '-' => match lexer.peek() {
+                        Some('=') => {
+                            lexer.next();
+                            let s = Span::new(span.start, lexer.end_pos());
+                            self.new_atom(lexer, Token::op(OpT::SubAssign, s))?;
+                        }
+                        Some('>') => {
+                            lexer.next();
+                            let s = Span::new(span.start, lexer.end_pos());
+                            self.new_atom(lexer, Token::pct(PctT::Arrow, s))?;
+                        }
+                        _ => {
+                            self.new_atom(lexer, Token::op(OpT::Sub, span))?;
+                        }
+                    },
+                    '*' => self.two_char_op(lexer, OpT::Mul, OpT::MulAssign, '=')?,
+                    '/' => match lexer.peek() {
+                        Some('=') => {
+                            lexer.next();
+                            let s = Span::new(span.start, lexer.end_pos());
+                            self.new_atom(lexer, Token::op(OpT::DivAssign, s))?;
+                        }
+                        Some('/') => {
+                            lexer.next();
+                            self.line_comment(lexer)?;
+                        }
+                        Some('*') => {
+                            lexer.next();
+                            self.block_comment(lexer)?;
+                        }
+                        _ => {
+                            self.new_atom(lexer, Token::op(OpT::Div, span))?;
+                        }
+                    },
+                    '%' => self.new_atom(lexer, Token::op(OpT::Rem, span))?,
+                    '=' => self.two_char_op(lexer, OpT::Assign, OpT::Eq, '=')?,
+                    '.' => match lexer.peek() {
+                        Some('.') => {
+                            lexer.next();
+                            let op = match lexer.next_if('=') {
+                                Some(_) => OpT::RangeIn,
+                                None => OpT::RangeEx,
+                            };
+                            let s = Span::new(span.start, lexer.end_pos());
+                            self.new_atom(lexer, Token::op(op, s))?;
+                        }
+                        Some(c)
+                            if !lexer.literal.is_empty()
+                                && lexer.literal.chars().all(|c| c.is_digit(10))
+                                && c.is_digit(10) =>
+                        {
+                            lexer.literal.push('.')
+                        }
+                        _ => self.new_atom(lexer, Token::op(OpT::Dot, span))?,
+                    },
+                    '<' => self.two_char_op(lexer, OpT::Lt, OpT::Le, '=')?,
+                    '>' => self.two_char_op(lexer, OpT::Gt, OpT::Ge, '=')?,
+                    '|' => self.two_char_op(lexer, OpT::BwOr, OpT::Or, '|')?,
+                    '&' => self.two_char_op(lexer, OpT::BwAnd, OpT::And, '&')?,
+                    '!' => self.two_char_op(lexer, OpT::Bang, OpT::Ne, '=')?,
+                    '(' => self.new_atom(lexer, Token::par(ParT::RoundOpen, span))?,
+                    '[' => self.new_atom(lexer, Token::par(ParT::SquareOpen, span))?,
+                    '{' => self.new_atom(lexer, Token::par(ParT::CurlyOpen, span))?,
+                    ')' => self.new_atom(lexer, Token::par(ParT::RoundClose, span))?,
+                    ']' => self.new_atom(lexer, Token::par(ParT::SquareClose, span))?,
+                    '}' => self.new_atom(lexer, Token::par(ParT::CurlyClose, span))?,
+                    ',' => self.new_atom(lexer, Token::pct(PctT::Comma, span))?,
+                    ';' => self.new_atom(lexer, Token::pct(PctT::Semi, span))?,
+                    ':' => self.new_atom(lexer, Token::pct(PctT::Colon, span))?,
+                    c => lexer.literal.push(c),
                 }
-                '+' => self.two_char_op(&mut lexer, OpT::Add, OpT::AddAssign, '=')?,
-                '-' => match lexer.peek() {
-                    Some('=') => {
-                        lexer.next();
-                        let s = Span::new(span.start, lexer.end_pos());
-                        self.new_atom(&mut lexer, Token::op(OpT::SubAssign, s))?;
-                    }
-                    Some('>') => {
-                        lexer.next();
-                        let s = Span::new(span.start, lexer.end_pos());
-                        self.new_atom(&mut lexer, Token::pct(PctT::Arrow, s))?;
-                    }
-                    _ => {
-                        self.new_atom(&mut lexer, Token::op(OpT::Sub, span))?;
-                    }
-                },
-                '*' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
-                '/' => match lexer.peek() {
-                    Some('=') => {
-                        lexer.next();
-                        let s = Span::new(span.start, lexer.end_pos());
-                        self.new_atom(&mut lexer, Token::op(OpT::DivAssign, s))?;
-                    }
-                    Some('/') => {
-                        lexer.next();
-                        self.line_comment(&mut lexer)?;
-                    }
-                    Some('*') => {
-                        lexer.next();
-                        self.block_comment(&mut lexer)?;
-                    }
-                    _ => {
-                        self.new_atom(&mut lexer, Token::op(OpT::Div, span))?;
-                    }
-                },
-                '%' => self.new_atom(&mut lexer, Token::op(OpT::Rem, span))?,
-                '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
-                '.' => match lexer.peek() {
-                    Some('.') => {
-                        lexer.next();
-                        let op = match lexer.next_if('=') {
-                            Some(_) => OpT::RangeIn,
-                            None => OpT::RangeEx,
-                        };
-                        let s = Span::new(span.start, lexer.end_pos());
-                        self.new_atom(&mut lexer, Token::op(op, s))?;
-                    }
-                    Some(c)
-                        if !lexer.literal.is_empty()
-                            && lexer.literal.chars().all(|c| c.is_digit(10))
-                            && c.is_digit(10) =>
-                    {
-                        lexer.literal.push('.')
-                    }
-                    _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?,
-                },
-                '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,
-                '>' => self.two_char_op(&mut lexer, OpT::Gt, OpT::Ge, '=')?,
-                '|' => self.two_char_op(&mut lexer, OpT::BwOr, OpT::Or, '|')?,
-                '&' => self.two_char_op(&mut lexer, OpT::BwAnd, OpT::And, '&')?,
-                '!' => self.two_char_op(&mut lexer, OpT::Bang, OpT::Ne, '=')?,
-                '(' => self.new_atom(&mut lexer, Token::par(ParT::RoundOpen, span))?,
-                '[' => self.new_atom(&mut lexer, Token::par(ParT::SquareOpen, span))?,
-                '{' => self.new_atom(&mut lexer, Token::par(ParT::CurlyOpen, span))?,
-                ')' => self.new_atom(&mut lexer, Token::par(ParT::RoundClose, span))?,
-                ']' => self.new_atom(&mut lexer, Token::par(ParT::SquareClose, span))?,
-                '}' => self.new_atom(&mut lexer, Token::par(ParT::CurlyClose, span))?,
-                ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, span))?,
-                ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, span))?,
-                ':' => self.new_atom(&mut lexer, Token::pct(PctT::Colon, span))?,
-                c => lexer.literal.push(c),
+            } else {
+                self.end_literal(lexer)?;
+                return Ok(StreamState::Eof);
             }
         }
 
-        self.end_literal(&mut lexer)?;
-
-        Ok(lexer.tokens)
+        Ok(StreamState::Next)
     }
 
     fn new_atom(&mut self, lexer: &mut Lexer<'_>, token: Token) -> crate::Result<()> {
         self.end_literal(lexer)?;
-        lexer.tokens.push(token);
+        lexer.tokens.push_back(token);
         Ok(())
     }
 
@@ -252,7 +303,7 @@ impl Context {
         };
 
         lexer.literal.clear();
-        lexer.tokens.push(token);
+        lexer.tokens.push_back(token);
 
         Ok(())
     }
@@ -265,7 +316,7 @@ impl Context {
             Some('\'') => {
                 let span = Span::new(start, lexer.end_pos());
                 self.errors.push(crate::Error::EmptyCharLiteral(span));
-                lexer.tokens.push(Token::val(Val::Char('\0'), span));
+                lexer.tokens.push_back(Token::val(Val::Char('\0'), span));
                 return Ok(());
             }
             Some('\\') => match self.escape_char(lexer) {
@@ -273,7 +324,7 @@ impl Context {
                 Err(e) => {
                     self.errors.push(e.error);
                     let span = Span::new(start, lexer.end_pos());
-                    lexer.tokens.push(Token::val(Val::Char('\0'), span));
+                    lexer.tokens.push_back(Token::val(Val::Char('\0'), span));
                     return Ok(());
                 }
             },
@@ -290,7 +341,7 @@ impl Context {
         }
 
         let span = Span::new(start, lexer.end_pos());
-        lexer.tokens.push(Token::val(Val::Char(char), span));
+        lexer.tokens.push_back(Token::val(Val::Char(char), span));
 
         Ok(())
     }
@@ -344,7 +395,7 @@ impl Context {
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: Pos) -> crate::Result<()> {
         let str = Val::Str(lexer.literal.clone());
         let span = Span::new(start, lexer.end_pos());
-        lexer.tokens.push(Token::val(str, span));
+        lexer.tokens.push_back(Token::val(str, span));
         lexer.literal.clear();
         Ok(())
     }

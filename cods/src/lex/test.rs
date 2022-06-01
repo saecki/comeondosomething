@@ -2,14 +2,24 @@ use crate::{Ident, IdentSpan};
 
 use super::*;
 
+fn lex(ctx: &mut Context, input: &str) -> crate::Result<Vec<Token>> {
+    let mut stream = TokenStream::new(input);
+    let mut tokens = Vec::new();
+    while let Some(t) = ctx.next_token(&mut stream)? {
+        tokens.push(t);
+    }
+    Ok(tokens)
+}
+
 fn assert(input: &str, expected: Vec<Token>) {
-    let tokens = Context::default().lex(input).unwrap();
+    let mut ctx = Context::default();
+    let tokens = lex(&mut ctx, input).unwrap();
     assert_eq!(tokens, expected);
 }
 
 fn assert_err(input: &str, expected: crate::Error) {
     let mut ctx = Context::default();
-    match ctx.lex(input) {
+    match lex(&mut ctx, input) {
         Ok(_) if !ctx.errors.is_empty() => {
             assert_eq!(ctx.errors[0], expected)
         }
@@ -20,7 +30,7 @@ fn assert_err(input: &str, expected: crate::Error) {
 
 fn assert_errs(input: &str, expected: Vec<crate::Error>) {
     let mut ctx = Context::default();
-    match ctx.lex(input) {
+    match lex(&mut ctx, input) {
         Ok(_) => {
             assert_eq!(ctx.errors, expected)
         }
@@ -97,7 +107,7 @@ fn eq_span() {
 #[test]
 fn vars() {
     let mut ctx = Context::default();
-    let tokens = ctx.lex("x64 = 2; arm = 3").unwrap();
+    let tokens = lex(&mut ctx, "x64 = 2; arm = 3").unwrap();
 
     assert_eq!(ctx.idents.name(Ident(0)), "x64");
     assert_eq!(ctx.idents.name(Ident(1)), "arm");

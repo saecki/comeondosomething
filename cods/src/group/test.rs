@@ -2,30 +2,31 @@ use crate::{OpT, ParT, Span, Val};
 
 use super::*;
 
+fn assert(input: &str, expected: Vec<Item>, expected_errs: Vec<crate::Error>) {
+    let mut ctx = Context::default();
+    let tokens = TokenStream::new(input);
+    let items = ctx.group(tokens).unwrap();
+    assert_eq!(items, expected);
+    assert_eq!(ctx.errors, expected_errs);
+}
+
 #[test]
 fn no_parenthesis() {
-    let mut ctx = Context::default();
-    let tokens = ctx.lex("423.42 * 64.52").unwrap();
-    let items = ctx.group(tokens).unwrap();
-
-    assert_eq!(
-        items,
+    assert(
+        "423.42 * 64.52",
         vec![
             Item::val(Val::Float(423.42), Span::cols(0, 0, 6)),
             Item::op(OpT::Mul, Span::pos(0, 7)),
             Item::val(Val::Float(64.52), Span::cols(0, 9, 14)),
-        ]
+        ],
+        vec![],
     );
 }
 
 #[test]
 fn add_parenthesis() {
-    let mut ctx = Context::default();
-    let tokens = ctx.lex("(23.13 + 543.23) * 34").unwrap();
-    let items = ctx.group(tokens).unwrap();
-
-    assert_eq!(
-        items,
+    assert(
+        "(23.13 + 543.23) * 34",
         vec![
             Item::Group(Group::new(
                 Par::new(ParT::RoundOpen, Span::pos(0, 0)),
@@ -33,23 +34,20 @@ fn add_parenthesis() {
                 vec![
                     Item::val(Val::Float(23.13), Span::cols(0, 1, 6)),
                     Item::op(OpT::Add, Span::pos(0, 7)),
-                    Item::val(Val::Float(543.23), Span::cols(0, 9, 15))
+                    Item::val(Val::Float(543.23), Span::cols(0, 9, 15)),
                 ],
             )),
             Item::op(OpT::Mul, Span::pos(0, 17)),
             Item::val(Val::Int(34), Span::cols(0, 19, 21)),
-        ]
+        ],
+        vec![],
     );
 }
 
 #[test]
 fn ignore_inner_par() {
-    let mut ctx = Context::default();
-    let tokens = ctx.lex("{ (3 + 5 }").unwrap();
-    let items = ctx.group(tokens).unwrap();
-
-    assert_eq!(
-        items,
+    assert(
+        "{ (3 + 5 }",
         vec![Item::Group(Group::new(
             Par::new(ParT::CurlyOpen, Span::pos(0, 0)),
             Par::new(ParT::CurlyClose, Span::pos(0, 9)),
@@ -58,26 +56,18 @@ fn ignore_inner_par() {
                 Item::op(OpT::Add, Span::pos(0, 5)),
                 Item::val(Val::Int(5), Span::pos(0, 7)),
             ],
-        ))]
-    );
-
-    assert_eq!(
-        ctx.errors,
+        ))],
         vec![crate::Error::MissingClosingPar(Par::new(
             ParT::RoundOpen,
             Span::pos(0, 2),
-        ))]
-    )
+        ))],
+    );
 }
 
 #[test]
 fn inner_par_limit() {
-    let mut ctx = Context::default();
-    let tokens = ctx.lex("{ (((3 + 5 })))").unwrap();
-    let items = ctx.group(tokens).unwrap();
-
-    assert_eq!(
-        items,
+    assert(
+        "{ (((3 + 5 })))",
         vec![Item::Group(Group::new(
             Par::new(ParT::RoundOpen, Span::pos(0, 2)),
             Par::new(ParT::RoundClose, Span::pos(0, 14)),
@@ -95,21 +85,17 @@ fn inner_par_limit() {
                 ))],
             ))],
         ))],
-    );
-
-    assert_eq!(
-        ctx.errors,
         vec![
             crate::Error::UnexpectedPar(Par::new(ParT::CurlyClose, Span::pos(0, 11))),
             crate::Error::MissingClosingPar(Par::new(ParT::CurlyOpen, Span::pos(0, 0))),
-        ]
-    )
+        ],
+    );
 }
 
 #[test]
 fn par_stack_gets_popped() {
     let mut ctx = Context::default();
-    let tokens = ctx.lex("{ ()()()() }").unwrap();
+    let tokens = TokenStream::new("{ ()()()() }");
     let items = ctx.group(tokens).unwrap();
 
     assert_eq!(

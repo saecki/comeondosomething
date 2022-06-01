@@ -1,9 +1,9 @@
-use crate::{Context, Cst, Ident, IdentSpan, Infix, InfixT, Span, Val, ValSpan};
+use crate::{Context, Cst, Ident, IdentSpan, Infix, InfixT, Span, TokenStream, Val, ValSpan};
 
 #[test]
 fn semicolon() {
     let mut ctx = Context::default();
-    let tokens = ctx.lex("y = 34; y").unwrap();
+    let tokens = TokenStream::new("y = 34; y");
     let items = ctx.group(tokens).unwrap();
     let csts = ctx.parse(items).unwrap();
     let expected = vec![
