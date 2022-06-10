@@ -6,7 +6,6 @@ pub use ident::*;
 pub use lex::*;
 pub use parse::*;
 pub use span::*;
-pub use util::*;
 
 mod check;
 mod error;
@@ -16,7 +15,6 @@ mod ident;
 mod lex;
 mod parse;
 mod span;
-mod util;
 
 #[derive(Clone, Debug, Default)]
 pub struct Context {
