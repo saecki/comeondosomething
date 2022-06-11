@@ -58,7 +58,7 @@ fn repl() -> ExitCode {
             continue;
         }
 
-        match buf.lines().next().map(|s| s.trim()) {
+        match buf.lines().next().map(str::trim) {
             Some("exit") => break,
             Some("clear") => {
                 print!("\x1b[1;1H\x1B[2J");
@@ -107,7 +107,7 @@ fn print_calc(state: &mut State, input: &str) -> ExitCode {
                 println!("{}\n", w.display(input));
             }
             if v != Val::Unit {
-                println!("{v}")
+                println!("{v}");
             }
             ExitCode::SUCCESS
         }
