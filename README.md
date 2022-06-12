@@ -1,5 +1,5 @@
 # comeondosomething
-Experimental parser and interpreter
+A statically typed scripting language
 
 ## CLI
 ```
