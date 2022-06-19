@@ -1,4 +1,7 @@
 # comeondosomething
+[![CI](https://github.com/Saecki/comeondosomething/actions/workflows/main.yml/badge.svg)](https://github.com/Saecki/comeondosomething/actions/workflows/main.yml)
+![LOC](https://tokei.rs/b1/github/saecki/comeondosomething?category=code)
+
 A statically typed scripting language
 
 ## CLI
