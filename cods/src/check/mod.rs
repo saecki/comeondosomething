@@ -1029,7 +1029,7 @@ impl Context {
                 let returns = a.returns;
                 Ast::expr(
                     AstT::Cast(Box::new(a), data_type),
-                    DataType::Bool,
+                    data_type,
                     returns,
                     span,
                 )
