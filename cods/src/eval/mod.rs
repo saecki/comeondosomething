@@ -8,6 +8,8 @@ pub use val::*;
 
 mod stack;
 mod val;
+#[cfg(test)]
+mod test;
 
 type EvalResult<T> = std::result::Result<T, EvalError>;
 
