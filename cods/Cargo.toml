@@ -9,4 +9,4 @@ edition = "2021"
 name = "cods"
 
 [dependencies]
-strum = { version = "0.24.0", features = ["derive"] }
+cods-derive = { path = "../derive" }

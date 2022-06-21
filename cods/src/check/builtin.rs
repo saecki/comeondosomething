@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use strum::{Display, EnumString};
+use cods_derive::{EnumDisplay, EnumFromStr};
 
 use crate::ast::BuiltinFunCall::{self, *};
 use crate::DataType::*;
@@ -10,8 +10,8 @@ const PI: Val = Val::Float(consts::PI);
 const TAU: Val = Val::Float(consts::TAU);
 const E: Val = Val::Float(consts::E);
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumString, Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, EnumDisplay, EnumFromStr)]
+#[cods(rename_all = "snake_case")]
 pub enum BuiltinFun {
     Pow,
     Ln,
@@ -39,8 +39,8 @@ pub enum BuiltinFun {
     AssertEq,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumString, Display)]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Clone, Copy, Debug, PartialEq, EnumDisplay, EnumFromStr)]
+#[cods(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BuiltinConst {
     Pi,
     Tau,

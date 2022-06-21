@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
 
-use strum::{Display, EnumString};
+use cods_derive::{EnumDisplay, EnumFromStr};
 
 use crate::{Ident, IdentSpan, Span};
 
@@ -230,61 +230,61 @@ impl DerefMut for Op {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 pub enum OpT {
-    #[strum(serialize = "=")]
+    #[cods(rename = "=")]
     Assign,
-    #[strum(serialize = "..")]
+    #[cods(rename = "..")]
     RangeEx,
-    #[strum(serialize = "..=")]
+    #[cods(rename = "..=")]
     RangeIn,
-    #[strum(serialize = "+")]
+    #[cods(rename = "+")]
     Add,
-    #[strum(serialize = "+=")]
+    #[cods(rename = "+=")]
     AddAssign,
-    #[strum(serialize = "-")]
+    #[cods(rename = "-")]
     Sub,
-    #[strum(serialize = "-=")]
+    #[cods(rename = "-=")]
     SubAssign,
-    #[strum(serialize = "*")]
+    #[cods(rename = "*")]
     Mul,
-    #[strum(serialize = "*=")]
+    #[cods(rename = "*=")]
     MulAssign,
-    #[strum(serialize = "/")]
+    #[cods(rename = "/")]
     Div,
-    #[strum(serialize = "/=")]
+    #[cods(rename = "/=")]
     DivAssign,
-    #[strum(serialize = "%")]
+    #[cods(rename = "%")]
     Rem,
-    #[strum(serialize = "mod")]
+    #[cods(rename = "mod")]
     RemEuclid,
-    #[strum(serialize = "==")]
+    #[cods(rename = "==")]
     Eq,
-    #[strum(serialize = "!=")]
+    #[cods(rename = "!=")]
     Ne,
-    #[strum(serialize = "<")]
+    #[cods(rename = "<")]
     Lt,
-    #[strum(serialize = "<=")]
+    #[cods(rename = "<=")]
     Le,
-    #[strum(serialize = ">")]
+    #[cods(rename = ">")]
     Gt,
-    #[strum(serialize = ">=")]
+    #[cods(rename = ">=")]
     Ge,
-    #[strum(serialize = "||")]
+    #[cods(rename = "||")]
     Or,
-    #[strum(serialize = "&&")]
+    #[cods(rename = "&&")]
     And,
-    #[strum(serialize = "|")]
+    #[cods(rename = "|")]
     BwOr,
-    #[strum(serialize = "&")]
+    #[cods(rename = "&")]
     BwAnd,
-    #[strum(serialize = "!")]
+    #[cods(rename = "!")]
     Bang,
-    #[strum(serialize = ".")]
+    #[cods(rename = ".")]
     Dot,
-    #[strum(serialize = "as")]
+    #[cods(rename = "as")]
     As,
-    #[strum(serialize = "is")]
+    #[cods(rename = "is")]
     Is,
 }
 
@@ -464,8 +464,8 @@ impl Kw {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
+#[cods(rename_all = "snake_case")]
 pub enum KwT {
     If,
     Else,

@@ -1,4 +1,4 @@
-use strum::{Display, EnumString};
+use cods_derive::{EnumFromStr, EnumDisplay};
 
 use crate::Val;
 
@@ -16,8 +16,8 @@ impl Val {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
+#[cods(rename_all = "snake_case")]
 pub enum DataType {
     Int,
     Float,

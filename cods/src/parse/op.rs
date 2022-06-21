@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::ops::Deref;
 
-use strum::{Display, EnumString};
+use cods_derive::{EnumDisplay, EnumFromStr};
 
 use crate::{OpT, Span};
 
@@ -31,59 +31,59 @@ impl Infix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 pub enum InfixT {
-    #[strum(serialize = "=")]
+    #[cods(rename = "=")]
     Assign,
-    #[strum(serialize = "..")]
+    #[cods(rename = "..")]
     RangeEx,
-    #[strum(serialize = "..=")]
+    #[cods(rename = "..=")]
     RangeIn,
-    #[strum(serialize = "+")]
+    #[cods(rename = "+")]
     Add,
-    #[strum(serialize = "+=")]
+    #[cods(rename = "+=")]
     AddAssign,
-    #[strum(serialize = "-")]
+    #[cods(rename = "-")]
     Sub,
-    #[strum(serialize = "-=")]
+    #[cods(rename = "-=")]
     SubAssign,
-    #[strum(serialize = "*")]
+    #[cods(rename = "*")]
     Mul,
-    #[strum(serialize = "*=")]
+    #[cods(rename = "*=")]
     MulAssign,
-    #[strum(serialize = "/")]
+    #[cods(rename = "/")]
     Div,
-    #[strum(serialize = "/=")]
+    #[cods(rename = "/=")]
     DivAssign,
-    #[strum(serialize = "%")]
+    #[cods(rename = "%")]
     Rem,
-    #[strum(serialize = "mod")]
+    #[cods(rename = "mod")]
     RemEuclid,
-    #[strum(serialize = "==")]
+    #[cods(rename = "==")]
     Eq,
-    #[strum(serialize = "!=")]
+    #[cods(rename = "!=")]
     Ne,
-    #[strum(serialize = "<")]
+    #[cods(rename = "<")]
     Lt,
-    #[strum(serialize = "<=")]
+    #[cods(rename = "<=")]
     Le,
-    #[strum(serialize = ">")]
+    #[cods(rename = ">")]
     Gt,
-    #[strum(serialize = ">=")]
+    #[cods(rename = ">=")]
     Ge,
-    #[strum(serialize = "||")]
+    #[cods(rename = "||")]
     Or,
-    #[strum(serialize = "&&")]
+    #[cods(rename = "&&")]
     And,
-    #[strum(serialize = "|")]
+    #[cods(rename = "|")]
     BwOr,
-    #[strum(serialize = "&")]
+    #[cods(rename = "&")]
     BwAnd,
-    #[strum(serialize = ".")]
+    #[cods(rename = ".")]
     Dot,
-    #[strum(serialize = "as")]
+    #[cods(rename = "as")]
     As,
-    #[strum(serialize = "is")]
+    #[cods(rename = "is")]
     Is,
 }
 
@@ -113,13 +113,13 @@ impl Prefix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 pub enum PrefixT {
-    #[strum(serialize = "+")]
+    #[cods(rename = "+")]
     UnaryPlus,
-    #[strum(serialize = "-")]
+    #[cods(rename = "-")]
     UnaryMinus,
-    #[strum(serialize = "!")]
+    #[cods(rename = "!")]
     Not,
 }
 
@@ -149,9 +149,9 @@ impl Postfix {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 pub enum PostfixT {
-    #[strum(serialize = "!")]
+    #[cods(rename = "!")]
     Factorial,
 }
 
