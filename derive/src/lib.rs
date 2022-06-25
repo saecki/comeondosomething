@@ -1,4 +1,5 @@
 use proc_macro::{Ident, Literal, TokenStream, TokenTree};
+use std::borrow::Cow;
 use std::fmt::Write as _;
 
 struct Enum {
@@ -160,16 +161,16 @@ fn parse_enum(input: TokenStream) -> Enum {
     }
 }
 
-fn transform_case(input: &str, case: Case) -> String {
+fn transform_case(input: &str, case: Case) -> Cow<str> {
     match case {
         Case::Camel => {
             let mut output = input.to_string();
             output[0..1].make_ascii_lowercase();
-            output
+            Cow::Owned(output)
         }
-        Case::Pascal => input.to_owned(),
+        Case::Pascal => Cow::Borrowed(input),
         Case::Snake => {
-            let mut output = String::with_capacity(input.len());
+            let mut output = String::with_capacity(input.len() + 3);
             let mut iter = input.chars();
             output.push(iter.next().unwrap().to_ascii_lowercase());
             for c in iter {
@@ -178,10 +179,10 @@ fn transform_case(input: &str, case: Case) -> String {
                 }
                 output.push(c.to_ascii_lowercase());
             }
-            output
+            Cow::Owned(output)
         }
         Case::ScreamingSnake => {
-            let mut output = String::with_capacity(input.len());
+            let mut output = String::with_capacity(input.len() + 3);
             let mut iter = input.chars();
             output.push(iter.next().unwrap().to_ascii_uppercase());
             for c in iter {
@@ -190,10 +191,10 @@ fn transform_case(input: &str, case: Case) -> String {
                 }
                 output.push(c.to_ascii_uppercase());
             }
-            output
+            Cow::Owned(output)
         }
         Case::Kebab => {
-            let mut output = String::with_capacity(input.len());
+            let mut output = String::with_capacity(input.len() + 3);
             let mut iter = input.chars();
             output.push(iter.next().unwrap().to_ascii_lowercase());
             for c in iter {
@@ -202,10 +203,10 @@ fn transform_case(input: &str, case: Case) -> String {
                 }
                 output.push(c.to_ascii_lowercase());
             }
-            output
+            Cow::Owned(output)
         }
         Case::ScreamingKebab => {
-            let mut output = String::with_capacity(input.len());
+            let mut output = String::with_capacity(input.len() + 3);
             let mut iter = input.chars();
             output.push(iter.next().unwrap().to_ascii_uppercase());
             for c in iter {
@@ -214,7 +215,7 @@ fn transform_case(input: &str, case: Case) -> String {
                 }
                 output.push(c.to_ascii_uppercase());
             }
-            output
+            Cow::Owned(output)
         }
     }
 }
