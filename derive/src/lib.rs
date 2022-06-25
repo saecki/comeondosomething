@@ -46,44 +46,56 @@ fn expect_punct_like(tokens: &mut impl Iterator<Item = TokenTree>, punct: &str) 
 fn parse_enum(input: TokenStream) -> Enum {
     let mut tokens = input.into_iter().peekable();
 
-    let rename_all = match tokens.peek() {
-        Some(TokenTree::Punct(p)) if p.to_string() == "#" => {
-            tokens.next();
+    let mut rename_all = None;
+    loop {
+        match tokens.peek() {
+            Some(TokenTree::Punct(p)) if p.to_string() == "#" => {
+                tokens.next();
 
-            let mut attributes = match tokens.next() {
-                Some(TokenTree::Group(g)) => g.stream().into_iter(),
-                _ => panic!("expected attribute list"),
-            };
+                let mut attributes = match tokens.next() {
+                    Some(TokenTree::Group(g)) => g.stream().into_iter(),
+                    _ => panic!("expected attribute list"),
+                };
 
-            expect_ident_like(&mut attributes, "cods");
+                let ident = match attributes.next() {
+                    Some(TokenTree::Ident(i)) => i,
+                    _ => panic!("expected attribute identifier"),
+                };
 
-            let mut attribute_args = match attributes.next() {
-                Some(TokenTree::Group(g)) => g.stream().into_iter(),
-                _ => panic!("expected attribute args"),
-            };
-
-            match attribute_args.next() {
-                Some(TokenTree::Ident(i)) if i.to_string() == "rename_all" => {
-                    expect_punct_like(&mut attribute_args, "=");
-
-                    match attribute_args.next() {
-                        Some(TokenTree::Literal(l)) => match l.to_string().trim_matches('"') {
-                            "camelCase" => Some(Case::Camel),
-                            "PascalCase" => Some(Case::Pascal),
-                            "snake_case" => Some(Case::Snake),
-                            "SCREAMING_SNAKE_CASE" => Some(Case::ScreamingSnake),
-                            "kebab-case" => Some(Case::Kebab),
-                            "SCREAMIGN-KEBAB-CASE" => Some(Case::ScreamingKebab),
-                            _ => panic!("unknown case"),
-                        },
-                        _ => panic!("expected rename literal"),
-                    }
+                if ident.to_string() != "cods" {
+                    continue;
                 }
-                Some(t) => panic!("unexpected token: {}", t),
-                None => None,
+
+                let mut attribute_args = match attributes.next() {
+                    Some(TokenTree::Group(g)) => g.stream().into_iter(),
+                    _ => panic!("expected attribute args"),
+                };
+
+                match attribute_args.next() {
+                    Some(TokenTree::Ident(i)) if i.to_string() == "rename_all" => {
+                        expect_punct_like(&mut attribute_args, "=");
+
+                        match attribute_args.next() {
+                            Some(TokenTree::Literal(l)) => {
+                                rename_all = match l.to_string().trim_matches('"') {
+                                    "camelCase" => Some(Case::Camel),
+                                    "PascalCase" => Some(Case::Pascal),
+                                    "snake_case" => Some(Case::Snake),
+                                    "SCREAMING_SNAKE_CASE" => Some(Case::ScreamingSnake),
+                                    "kebab-case" => Some(Case::Kebab),
+                                    "SCREAMIGN-KEBAB-CASE" => Some(Case::ScreamingKebab),
+                                    _ => panic!("unknown case"),
+                                };
+                            },
+                            _ => panic!("expected rename literal"),
+                        }
+                    }
+                    Some(t) => panic!("unexpected token: {}", t),
+                    None => (),
+                }
             }
+            _ => break,
         }
-        _ => None,
     };
 
     if let Some(TokenTree::Ident(i)) = tokens.peek() {
@@ -94,7 +106,8 @@ fn parse_enum(input: TokenStream) -> Enum {
 
     match tokens.next() {
         Some(TokenTree::Ident(i)) if i.to_string() == "enum" => (),
-        _ => panic!("expected enum keyword"),
+        Some(t) => panic!("expected enum keyword found {t}"),
+        None => panic!("expected enum keyword"),
     }
 
     let name = match tokens.next() {
