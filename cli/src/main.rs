@@ -112,9 +112,6 @@ fn print_calc(state: &mut State, input: &str) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(e) => {
-            for w in state.ctx.warnings.iter().rev() {
-                println!("{}\n", w.display(input));
-            }
             for e in state.ctx.errors.iter().rev() {
                 println!("{}\n", e.display(input));
             }

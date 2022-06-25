@@ -565,6 +565,7 @@ impl UserFacing for Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Warning {
+    UnusedVar(String, Span),
     Unreachable(Span),
     UnnecesaryCast(DataType, Span),
     TypeCheckIsAlwaysTrue(DataType, Span),
@@ -585,6 +586,7 @@ impl UserFacing for Warning {
     ) -> fmt::Result {
         f.write_str(line_prefix)?;
         match self {
+            Warning::UnusedVar(name, _) => write!(f, "Unused variable `{name}`"),
             Warning::Unreachable(_) => write!(f, "Unreachable code"),
             Warning::UnnecesaryCast(d, _) => {
                 write!(f, "Unnecesary cast, the value is known to be of type `{d}`")
@@ -599,6 +601,7 @@ impl UserFacing for Warning {
 
     fn spans(&self) -> Vec<Span> {
         match self {
+            Warning::UnusedVar(_, s) => vec![*s],
             Warning::Unreachable(s) => vec![*s],
             Warning::UnnecesaryCast(_, s) => vec![*s],
             Warning::TypeCheckIsAlwaysTrue(_, s) => vec![*s],

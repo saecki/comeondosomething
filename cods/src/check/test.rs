@@ -466,6 +466,21 @@ fn if_expr_early_return_data_type_2() {
 }
 
 #[test]
+fn unused_var() {
+    let input = "val a = 0";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::UnusedVar(
+            "a".into(),
+            Span::cols(0, 4, 5),
+        )],
+    );
+}
+
+#[test]
 fn code_after_return_is_unreachable() {
     let input = r#"
         fun test() {

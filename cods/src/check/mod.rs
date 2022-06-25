@@ -29,6 +29,9 @@ impl Context {
     pub fn check_with(&mut self, scopes: &mut Scopes, csts: Vec<Cst>) -> crate::Result<Asts> {
         let (asts, _) = self.check_types(scopes, csts, true)?;
         let global_frame_size = scopes.frame_size();
+
+        self.check_unused(scopes.current());
+
         Ok(Asts {
             asts,
             global_frame_size,
@@ -128,8 +131,8 @@ impl Context {
     ) -> crate::Result<Ast> {
         let span = block.span();
 
-        let (asts, returns) = scopes.with_new(|scopes| {
-            self.check_types(scopes, block.csts, is_expr) //
+        let (asts, returns) = self.with_new(scopes, |ctx, scopes| {
+            ctx.check_types(scopes, block.csts, is_expr) //
         })?;
 
         let data_type = asts
@@ -164,8 +167,8 @@ impl Context {
 
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
-                let (block, block_returns) = scopes.with_new(|scopes| {
-                    let b = self.check_types(scopes, i.if_block.block.csts, is_expr)?;
+                let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
+                    let b = ctx.check_types(scopes, i.if_block.block.csts, is_expr)?;
                     max_branch_frame_size = scopes.frame_size();
                     Ok(b)
                 })?;
@@ -195,8 +198,8 @@ impl Context {
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
                 let block_span = e.block.span();
-                let (block, block_returns) = scopes.with_new(|scopes| {
-                    let b = self.check_types(scopes, e.block.csts, is_expr)?;
+                let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
+                    let b = ctx.check_types(scopes, e.block.csts, is_expr)?;
                     max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
                     Ok(b)
                 })?;
@@ -230,8 +233,8 @@ impl Context {
 
         let else_block = if let Some(e) = i.else_block {
             let block_span = e.block.span();
-            let (block, block_returns) = scopes.with_new(|scopes| {
-                let b = self.check_types(scopes, e.block.csts, is_expr)?;
+            let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
+                let b = ctx.check_types(scopes, e.block.csts, is_expr)?;
                 max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
                 Ok(b)
             })?;
@@ -290,8 +293,8 @@ impl Context {
 
             Vec::new()
         } else {
-            let (block, _) = scopes.with_new(|scopes| {
-                self.check_types(scopes, w.block.csts, false) //
+            let (block, _) = self.with_new(scopes, |ctx, scopes| {
+                ctx.check_types(scopes, w.block.csts, false) //
             })?;
             block
         };
@@ -327,9 +330,9 @@ impl Context {
         }
         let iter_type = DataType::Int;
 
-        let (inner, block) = scopes.with_new(|scopes| {
-            let inner = self.def_var(scopes, f.ident, iter_type, true, false);
-            let (block, _) = self.check_types(scopes, f.block.csts, false)?;
+        let (inner, block) = self.with_new(scopes, |ctx, scopes| {
+            let inner = ctx.def_var(scopes, f.ident, iter_type, true, false);
+            let (block, _) = ctx.check_types(scopes, f.block.csts, false)?;
             Ok((inner, block))
         })?;
 
@@ -372,16 +375,16 @@ impl Context {
             ResolvedFun::Builtin(_) => return Ok(Ast::statement(AstT::Unit, false, span)),
         };
 
-        scopes.with_new_frame(Rc::clone(&fun), |scopes| {
+        self.with_new_frame(scopes, Rc::clone(&fun), |ctx, scopes| {
             let mut inner_params = Vec::new();
             for p in fun.params.iter() {
-                let param = self.def_var(scopes, p.ident, p.data_type, true, false);
+                let param = ctx.def_var(scopes, p.ident, p.data_type, true, false);
                 inner_params.push(param);
             }
 
             // Check function block
             let is_expr = f.return_type.is_some();
-            let (block, _) = self.check_types(scopes, f.block.csts, is_expr)?;
+            let (block, _) = ctx.check_types(scopes, f.block.csts, is_expr)?;
 
             let block_type = block
                 .last()

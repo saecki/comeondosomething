@@ -53,7 +53,7 @@ impl Context {
     /// Resolve the var belonging to the identifier.
     pub fn resolve_var<'a>(
         &self,
-        scopes: &'a Scopes,
+        scopes: &'a mut Scopes,
         id: &IdentSpan,
     ) -> crate::Result<ResolvedVar<'a>> {
         let name = self.idents.name(id.ident);
@@ -61,8 +61,11 @@ impl Context {
             return Ok(ResolvedVar::Const(b));
         }
 
-        match scopes.var(id.ident) {
-            Ok(v) => Ok(ResolvedVar::Var(v)),
+        match scopes.var_mut(id.ident) {
+            Ok(v) => {
+                v.uses += 1;
+                Ok(ResolvedVar::Var(v))
+            }
             Err(ResolveError::DynCapture(s)) => Err(crate::Error::NotImplemented(
                 "Capturing variables from a dynamic scope is not yet implemented",
                 vec![s, id.span],
@@ -76,7 +79,7 @@ impl Context {
     /// Resolve the var and make sure it is initialized
     pub fn get_var<'a>(
         &self,
-        scopes: &'a Scopes,
+        scopes: &'a mut Scopes,
         id: &IdentSpan,
     ) -> crate::Result<ResolvedVar<'a>> {
         let var = match self.resolve_var(scopes, id)? {
@@ -124,6 +127,7 @@ impl Context {
                 }
 
                 v.assigned = true;
+                v.uses += 1;
 
                 Ok(())
             }
@@ -134,6 +138,44 @@ impl Context {
             Err(ResolveError::NotFound) => {
                 let name = self.idents.name(id.ident);
                 Err(crate::Error::UndefinedVar(name.to_owned(), id.span))
+            }
+        }
+    }
+
+    pub fn with_new_frame<T>(
+        &mut self,
+        scopes: &mut Scopes,
+        fun: Rc<Fun>,
+        f: impl FnOnce(&mut Self, &mut Scopes) -> T,
+    ) -> T {
+        scopes.push_frame(fun);
+        let r = self.with_new(scopes, f);
+        scopes.pop_frame();
+        r
+    }
+
+    pub fn with_new<T>(
+        &mut self,
+        scopes: &mut Scopes,
+        f: impl FnOnce(&mut Self, &mut Scopes) -> T,
+    ) -> T {
+        scopes.push();
+        let r = f(self, scopes);
+        self.check_unused(scopes.current());
+        scopes.pop();
+        r
+    }
+
+    pub fn check_unused(&mut self, scope: &Scope) {
+        for v in scope.vars() {
+            if v.uses == 0 {
+                let name = self.idents.name(v.ident.ident);
+                if name == "_" {
+                    continue;
+                }
+
+                self.warnings
+                    .push(crate::Warning::UnusedVar(name.to_owned(), v.ident.span));
             }
         }
     }
@@ -223,20 +265,6 @@ impl Scopes {
         self.len -= 1;
     }
 
-    pub fn with_new_frame<T>(&mut self, fun: Rc<Fun>, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.push_frame(fun);
-        let r = self.with_new(f);
-        self.pop_frame();
-        r
-    }
-
-    pub fn with_new<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.push();
-        let r = f(self);
-        self.pop();
-        r
-    }
-
     pub fn clear(&mut self) {
         for s in self.iter_mut() {
             s.clear();
@@ -251,28 +279,6 @@ impl Scopes {
             }
         }
         None
-    }
-
-    fn var(&self, id: Ident) -> Result<&Var, ResolveError> {
-        let current_scope_index = self.current_frame().scope_index;
-        for s in self.scopes[current_scope_index..].iter().rev() {
-            if let Some(v) = s.var(id) {
-                return Ok(v);
-            }
-        }
-        if let Some(f) = self.frames.get(1) {
-            for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
-                if let Some(v) = s.var(id) {
-                    return Err(ResolveError::DynCapture(v.ident.span));
-                }
-            }
-            for s in self.scopes[..f.scope_index].iter().rev() {
-                if let Some(v) = s.var(id) {
-                    return Ok(v);
-                }
-            }
-        }
-        Err(ResolveError::NotFound)
     }
 
     fn var_mut(&mut self, id: Ident) -> Result<&mut Var, ResolveError> {
@@ -437,6 +443,7 @@ pub struct Var {
     pub data_type: DataType,
     pub assigned: bool,
     pub mutable: bool,
+    pub uses: u32,
     pub inner: VarRef,
 }
 
@@ -453,6 +460,7 @@ impl Var {
             data_type,
             assigned,
             mutable,
+            uses: 0,
             inner,
         }
     }
