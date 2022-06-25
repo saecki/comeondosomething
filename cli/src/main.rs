@@ -1,5 +1,5 @@
 use std::env::args;
-use std::io::{self, Write};
+use std::io::{self, Write as _};
 use std::process::{exit, ExitCode};
 
 use cods::{Context, Scopes, Stack, Val};

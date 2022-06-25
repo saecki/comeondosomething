@@ -1,5 +1,5 @@
 use proc_macro::{Ident, Literal, TokenStream, TokenTree};
-use std::fmt::Write;
+use std::fmt::Write as _;
 
 struct Enum {
     name: String,
