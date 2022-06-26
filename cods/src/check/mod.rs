@@ -419,6 +419,8 @@ impl Context {
             ResolvedFun::Builtin(b) => return self.check_builtin_fun_call(scopes, b, f.args, span),
         };
 
+        fun.uses.set(fun.uses.get() + 1);
+
         {
             let found = f.args.items.len();
             let expected = fun.params.len();

@@ -481,6 +481,21 @@ fn unused_var() {
 }
 
 #[test]
+fn unused_fun() {
+    let input = "fun a() {}";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::UnusedFun(
+            "a".into(),
+            Span::cols(0, 4, 5),
+        )],
+    );
+}
+
+#[test]
 fn code_after_return_is_unreachable() {
     let input = r#"
         fun test() {
@@ -488,6 +503,7 @@ fn code_after_return_is_unreachable() {
 
             println("unreachable")
         }
+        test()
     "#;
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
@@ -512,6 +528,7 @@ fn code_after_if_expr_is_unreachable() {
 
             val u = 3
         }
+        test(false, true)
     ";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
@@ -534,10 +551,11 @@ fn if_cond_returns_block_unreachable() {
                 9
             }
         }
+        test()
     ";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
-    assert_eq!(val, Val::Unit);
+    assert_eq!(val, Val::Int(42));
     assert_eq!(
         ctx.warnings,
         vec![crate::Warning::Unreachable(Span::new(

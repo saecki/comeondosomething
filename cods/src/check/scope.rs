@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -176,6 +177,14 @@ impl Context {
 
                 self.warnings
                     .push(crate::Warning::UnusedVar(name.to_owned(), v.ident.span));
+            }
+        }
+
+        for f in scope.funs() {
+            if f.uses.get() == 0 {
+                let name = self.idents.name(f.ident.ident);
+                self.warnings
+                    .push(crate::Warning::UnusedFun(name.to_owned(), f.ident.span));
             }
         }
     }
@@ -367,6 +376,10 @@ impl Scope {
         self.funs.get(&id).map(Rc::clone)
     }
 
+    pub fn funs(&self) -> impl Iterator<Item = &Rc<Fun>> {
+        self.funs.values()
+    }
+
     pub fn var(&self, id: Ident) -> Option<&Var> {
         self.vars.get(&id)
     }
@@ -389,6 +402,7 @@ pub struct Fun {
     pub ident: IdentSpan,
     pub params: Vec<FunParam>,
     pub return_type: ReturnType,
+    pub uses: Cell<u32>,
     pub inner: Rc<ast::Fun>,
 }
 
@@ -403,6 +417,7 @@ impl Fun {
             ident,
             params,
             return_type,
+            uses: Cell::new(0),
             inner,
         }
     }
