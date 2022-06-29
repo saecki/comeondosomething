@@ -7,9 +7,9 @@ pub use stack::*;
 pub use val::*;
 
 mod stack;
-mod val;
 #[cfg(test)]
 mod test;
+mod val;
 
 type EvalResult<T> = std::result::Result<T, EvalError>;
 

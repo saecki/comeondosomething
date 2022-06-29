@@ -1,4 +1,4 @@
-use cods_derive::{EnumFromStr, EnumDisplay};
+use cods_derive::{EnumDisplay, EnumFromStr};
 
 use crate::Val;
 

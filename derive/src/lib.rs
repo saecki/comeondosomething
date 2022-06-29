@@ -86,7 +86,7 @@ fn parse_enum(input: TokenStream) -> Enum {
                                     "SCREAMIGN-KEBAB-CASE" => Some(Case::ScreamingKebab),
                                     _ => panic!("unknown case"),
                                 };
-                            },
+                            }
                             _ => panic!("expected rename literal"),
                         }
                     }
@@ -96,7 +96,7 @@ fn parse_enum(input: TokenStream) -> Enum {
             }
             _ => break,
         }
-    };
+    }
 
     if let Some(TokenTree::Ident(i)) = tokens.peek() {
         if i.to_string() == "pub" {

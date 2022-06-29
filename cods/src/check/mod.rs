@@ -1035,12 +1035,7 @@ impl Context {
                 };
 
                 let returns = a.returns;
-                Ast::expr(
-                    AstT::Cast(Box::new(a), data_type),
-                    data_type,
-                    returns,
-                    span,
-                )
+                Ast::expr(AstT::Cast(Box::new(a), data_type), data_type, returns, span)
             }
             InfixT::Is => {
                 let ident = match b {

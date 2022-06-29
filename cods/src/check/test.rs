@@ -473,10 +473,7 @@ fn unused_var() {
     assert_eq!(val, Val::Unit);
     assert_eq!(
         ctx.warnings,
-        vec![crate::Warning::UnusedVar(
-            "a".into(),
-            Span::cols(0, 4, 5),
-        )],
+        vec![crate::Warning::UnusedVar("a".into(), Span::cols(0, 4, 5),)],
     );
 }
 
@@ -488,10 +485,7 @@ fn unused_fun() {
     assert_eq!(val, Val::Unit);
     assert_eq!(
         ctx.warnings,
-        vec![crate::Warning::UnusedFun(
-            "a".into(),
-            Span::cols(0, 4, 5),
-        )],
+        vec![crate::Warning::UnusedFun("a".into(), Span::cols(0, 4, 5),)],
     );
 }
 
