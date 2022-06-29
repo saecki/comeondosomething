@@ -29,4 +29,3 @@ OPTIONS:
 - Generics for functions `fun a<T>(i: T) -> T { i }`
 - Warnings
     - Unnecessary semicolons (if a newline is following)
-    - Unused variables
