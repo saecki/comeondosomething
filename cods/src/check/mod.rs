@@ -12,6 +12,8 @@ pub use op::*;
 pub use scope::*;
 pub use types::*;
 
+use self::ast::InnerFun;
+
 pub mod ast;
 mod builtin;
 mod op;
@@ -403,7 +405,8 @@ impl Context {
             }
 
             // Initialize function
-            fun.inner.init(inner_params, block, scopes.frame_size());
+            fun.inner
+                .init(InnerFun::new(inner_params, block, scopes.frame_size()));
 
             Ok(())
         })?;

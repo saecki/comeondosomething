@@ -1,6 +1,7 @@
-use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::rc::Rc;
+
+use once_cell::unsync::OnceCell;
 
 use crate::{DataType, Span, Val, VarRef};
 
@@ -152,65 +153,35 @@ impl ForLoop {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Fun(RefCell<Option<InnerFun>>);
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Fun(OnceCell<InnerFun>);
 
 #[derive(Clone, Debug, PartialEq)]
-struct InnerFun {
-    params: Vec<VarRef>,
-    block: Vec<Ast>,
-    frame_size: usize,
+pub struct InnerFun {
+    pub params: Vec<VarRef>,
+    pub block: Vec<Ast>,
+    pub frame_size: usize,
 }
 
-impl Default for Fun {
-    fn default() -> Self {
-        Self(RefCell::new(None))
+impl InnerFun {
+    pub fn new(params: Vec<VarRef>, block: Vec<Ast>, frame_size: usize) -> Self {
+        Self {
+            params,
+            block,
+            frame_size,
+        }
     }
 }
 
 impl Fun {
-    pub fn init(&self, params: Vec<VarRef>, block: Vec<Ast>, frame_size: usize) {
-        self.0.replace(Some(InnerFun {
-            params,
-            block,
-            frame_size,
-        }));
-    }
-
-    pub fn borrow(&self) -> FunRef<'_> {
-        FunRef {
-            inner: self.0.borrow(),
-        }
-    }
-
-    pub fn frame_size(&self) -> usize {
+    pub fn init(&self, inner: InnerFun) {
         self.0
-            .borrow()
-            .as_ref()
-            .expect("Expected function to be initialized")
-            .frame_size
-    }
-}
-
-pub struct FunRef<'a> {
-    inner: Ref<'a, Option<InnerFun>>,
-}
-
-impl FunRef<'_> {
-    pub fn params(&self) -> &[VarRef] {
-        &self
-            .inner
-            .as_ref()
-            .expect("Expected function to be initialized")
-            .params
+            .set(inner)
+            .expect("Expected function to be unitialized");
     }
 
-    pub fn block(&self) -> &[Ast] {
-        &self
-            .inner
-            .as_ref()
-            .expect("Expected function to be initialized")
-            .block
+    pub fn get(&self) -> &InnerFun {
+        self.0.get().expect("expected function to be initialized")
     }
 }
 

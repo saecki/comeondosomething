@@ -360,19 +360,18 @@ fn eval_var_assign(stack: &mut Stack, var: &VarRef, expr: &Ast) -> EvalResult<Va
 }
 
 fn eval_fun_call(stack: &mut Stack, fun: &Rc<Fun>, args: &[Ast]) -> EvalResult<Val> {
-    let fun_ref = fun.borrow();
-    let mut arg_vals = Vec::with_capacity(fun_ref.params().len());
-    for (p, a) in fun_ref.params().iter().zip(args.iter()) {
+    let fun = fun.get();
+    let mut arg_vals = Vec::with_capacity(fun.params.len());
+    for (p, a) in fun.params.iter().zip(args.iter()) {
         let val = eval_ast(stack, a)?;
         arg_vals.push((p, val));
     }
 
-    stack.push(fun.frame_size());
+    stack.push(fun.frame_size);
     for (p, a) in arg_vals {
         stack.set(p, a);
     }
-    let block = fun_ref.block();
-    let val = match eval_asts(stack, block) {
+    let val = match eval_asts(stack, &fun.block) {
         Err(EvalError::Return(v)) => Ok(v),
         r => r,
     };
