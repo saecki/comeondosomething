@@ -81,6 +81,12 @@ fn int_literals() {
 }
 
 #[test]
+fn float_literals() {
+    assert("2334f", Val::Float(2334_f64));
+    assert("2334.0", Val::Float(2334.0));
+}
+
+#[test]
 fn string_escape() {
     assert(r#""\b""#, Val::Str("\x08".into()));
     assert(r#""\e""#, Val::Str("\x1b".into()));

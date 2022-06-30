@@ -221,6 +221,11 @@ impl Context {
                             Ok(i) => Val::Int(i),
                             Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
                         }
+                    } else if let Some(s) = literal.strip_suffix("f") {
+                        match s.parse::<f64>() {
+                            Ok(f) => Val::Float(f),
+                            Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
+                        }
                     } else if let Ok(i) = literal.parse::<i128>() {
                         Val::Int(i)
                     } else if let Ok(f) = literal.parse::<f64>() {
