@@ -84,6 +84,7 @@ pub enum Op {
     DivInt,
     DivFloat,
     RemInt,
+    RemFloat,
     RemEuclidInt,
     FactorialInt,
     Eq,

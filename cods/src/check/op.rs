@@ -70,8 +70,9 @@ pub const DIV_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     DivInt(Int, Int) -> Int
     DivFloat(Float, Float) -> Float
 };
-pub const REM_SIGNATURES: [(Op, OpSignature<2>); 1] = op_signatures! {
+pub const REM_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     RemInt(Int, Int) -> Int
+    RemFloat(Float, Float) -> Float
 };
 pub const REM_EUCLID_SIGNATURES: [(Op, OpSignature<2>); 1] = op_signatures! {
     RemEuclidInt(Int, Int) -> Int

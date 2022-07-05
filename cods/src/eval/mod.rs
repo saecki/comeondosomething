@@ -150,6 +150,11 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> EvalResult<Val> {
                 .ok_or(crate::Error::RemainderByZero(args[0].span, args[1].span))
                 .map_err(EvalError::Error)?
         }
+        Op::RemFloat => {
+            let va = eval_ast(stack, &args[0])?.unwrap_float();
+            let vb = eval_ast(stack, &args[1])?.unwrap_float();
+            Val::Float(va % vb)
+        }
         Op::RemEuclidInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();

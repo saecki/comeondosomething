@@ -155,6 +155,11 @@ fn remainder() {
     assert("-8 % 3", Val::Int(-2));
     assert("8 % -3", Val::Int(2));
     assert("-8 % -3", Val::Int(-2));
+    
+    assert("8.0 % 3.0", Val::Float(2.0));
+    assert("-8.0 % 3.0", Val::Float(-2.0));
+    assert("8.0 % -3.0", Val::Float(2.0));
+    assert("-8.0 % -3.0", Val::Float(-2.0));
 }
 
 #[test]
