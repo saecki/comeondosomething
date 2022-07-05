@@ -69,7 +69,7 @@ impl Context {
             match c {
                 '"' => self.string_literal(&mut lexer)?,
                 '\'' => self.char_literal(&mut lexer)?,
-                ' ' | '\r' => self.end_literal(&mut lexer)?,
+                ' ' | '\t' | '\r' => self.end_literal(&mut lexer)?,
                 '\n' => {
                     self.new_atom(&mut lexer, Token::pct(PctT::Newln, span))?;
                     lexer.new_line();
