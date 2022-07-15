@@ -877,6 +877,21 @@ impl Context {
             InfixT::DivAssign => {
                 self.check_infix_assign_signatures(scopes, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
+            InfixT::RemAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::REM_SIGNATURES, span)?
+            }
+            InfixT::OrAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::OR_SIGNATURES, span)?
+            }
+            InfixT::AndAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::AND_SIGNATURES, span)?
+            }
+            InfixT::BwOrAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
+            }
+            InfixT::BwAndAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
+            }
             InfixT::RangeEx => {
                 self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_EX_SIGNATURES, span)?
             }

@@ -256,6 +256,8 @@ pub enum OpT {
     DivAssign,
     #[cods(rename = "%")]
     Rem,
+    #[cods(rename = "%=")]
+    RemAssign,
     #[cods(rename = "mod")]
     RemEuclid,
     #[cods(rename = "==")]
@@ -272,12 +274,20 @@ pub enum OpT {
     Ge,
     #[cods(rename = "||")]
     Or,
+    #[cods(rename = "||=")]
+    OrAssign,
     #[cods(rename = "&&")]
     And,
+    #[cods(rename = "&&=")]
+    AndAssign,
     #[cods(rename = "|")]
     BwOr,
+    #[cods(rename = "|=")]
+    BwOrAssign,
     #[cods(rename = "&")]
     BwAnd,
+    #[cods(rename = "&=")]
+    BwAndAssign,
     #[cods(rename = "!")]
     Bang,
     #[cods(rename = ".")]

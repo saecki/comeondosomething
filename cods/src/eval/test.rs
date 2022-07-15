@@ -41,23 +41,16 @@ fn int() {
 }
 
 #[test]
-fn add_assign() {
+fn infix_assign() {
     assert("var a = 4; a += 8; a", Val::Int(12));
-}
-
-#[test]
-fn sub_assign() {
     assert("var a = 4; a -= 8; a", Val::Int(-4));
-}
-
-#[test]
-fn mul_assign() {
     assert("var a = 4; a *= 8; a", Val::Int(32));
-}
-
-#[test]
-fn div_assign() {
     assert("var a = 8; a /= 4; a", Val::Int(2));
+    assert("var a = 8; a %= 3; a", Val::Int(2));
+    assert("var a = false; a ||= true; a", Val::Bool(true));
+    assert("var a = true; a &&= false; a", Val::Bool(false));
+    assert("var a = false; a |= true; a", Val::Bool(true));
+    assert("var a = true; a &= false; a", Val::Bool(false));
 }
 
 #[test]

@@ -57,6 +57,8 @@ pub enum InfixT {
     DivAssign,
     #[cods(rename = "%")]
     Rem,
+    #[cods(rename = "%=")]
+    RemAssign,
     #[cods(rename = "mod")]
     RemEuclid,
     #[cods(rename = "==")]
@@ -73,12 +75,20 @@ pub enum InfixT {
     Ge,
     #[cods(rename = "||")]
     Or,
+    #[cods(rename = "||=")]
+    OrAssign,
     #[cods(rename = "&&")]
     And,
+    #[cods(rename = "&&=")]
+    AndAssign,
     #[cods(rename = "|")]
     BwOr,
+    #[cods(rename = "|=")]
+    BwOrAssign,
     #[cods(rename = "&")]
     BwAnd,
+    #[cods(rename = "&=")]
+    BwAndAssign,
     #[cods(rename = ".")]
     Dot,
     #[cods(rename = "as")]
@@ -184,6 +194,11 @@ impl OpT {
             Self::SubAssign => Some((1, InfixT::SubAssign, 2)),
             Self::MulAssign => Some((1, InfixT::MulAssign, 2)),
             Self::DivAssign => Some((1, InfixT::DivAssign, 2)),
+            Self::RemAssign => Some((1, InfixT::RemAssign, 2)),
+            Self::OrAssign => Some((1, InfixT::OrAssign, 2)),
+            Self::AndAssign => Some((1, InfixT::AndAssign, 2)),
+            Self::BwOrAssign => Some((1, InfixT::BwOrAssign, 2)),
+            Self::BwAndAssign => Some((1, InfixT::BwAndAssign, 2)),
             Self::Bang => None,
         }
     }
@@ -196,6 +211,11 @@ impl OpT {
             | Self::SubAssign
             | Self::MulAssign
             | Self::DivAssign
+            | Self::RemAssign
+            | Self::OrAssign
+            | Self::AndAssign
+            | Self::BwOrAssign
+            | Self::BwAndAssign
             | Self::RangeEx
             | Self::RangeIn
             | Self::Add
@@ -230,6 +250,11 @@ impl OpT {
             | Self::SubAssign
             | Self::MulAssign
             | Self::DivAssign
+            | Self::RemAssign
+            | Self::OrAssign
+            | Self::AndAssign
+            | Self::BwOrAssign
+            | Self::BwAndAssign
             | Self::RangeEx
             | Self::RangeIn
             | Self::Mul
