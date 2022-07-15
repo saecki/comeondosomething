@@ -123,8 +123,8 @@ impl Context {
                     }
                     Some(c)
                         if !lexer.literal.is_empty()
-                            && lexer.literal.chars().all(|c| c.is_digit(10))
-                            && c.is_digit(10) =>
+                            && lexer.literal.chars().all(|c| c.is_ascii_digit())
+                            && c.is_ascii_digit() =>
                     {
                         lexer.literal.push('.')
                     }
@@ -241,7 +241,7 @@ impl Context {
             "val" => Token::kw(KwT::Val, span),
             "var" => Token::kw(KwT::Var, span),
             _ => {
-                if literal.chars().next().unwrap().is_digit(10) {
+                if literal.chars().next().unwrap().is_ascii_digit() {
                     let num = if let Some(s) = literal.strip_prefix("0b") {
                         match i128::from_str_radix(s, 2) {
                             Ok(i) => Val::Int(i),
@@ -257,7 +257,7 @@ impl Context {
                             Ok(i) => Val::Int(i),
                             Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
                         }
-                    } else if let Some(s) = literal.strip_suffix("f") {
+                    } else if let Some(s) = literal.strip_suffix('f') {
                         match s.parse::<f64>() {
                             Ok(f) => Val::Float(f),
                             Err(_) => return Err(crate::Error::InvalidNumberFormat(span)),
