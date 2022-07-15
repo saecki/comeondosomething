@@ -47,10 +47,21 @@ fn infix_assign() {
     assert("var a = 4; a *= 8; a", Val::Int(32));
     assert("var a = 8; a /= 4; a", Val::Int(2));
     assert("var a = 8; a %= 3; a", Val::Int(2));
+
     assert("var a = false; a ||= true; a", Val::Bool(true));
     assert("var a = true; a &&= false; a", Val::Bool(false));
+
     assert("var a = false; a |= true; a", Val::Bool(true));
+    assert("var a = 8; a |= 4; a", Val::Int(12));
+
+    assert("var a = false; a ^= true; a", Val::Bool(true));
+    assert("var a = 8; a ^= 12; a", Val::Int(4));
+
     assert("var a = true; a &= false; a", Val::Bool(false));
+    assert("var a = 6; a &= 4; a", Val::Int(4));
+    
+    assert("var a = 4; a <<= 2; a", Val::Int(16));
+    assert("var a = 4; a >>= 2; a", Val::Int(1));
 }
 
 #[test]

@@ -130,8 +130,44 @@ impl Context {
                     }
                     _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?,
                 },
-                '<' => self.two_char_op(&mut lexer, OpT::Lt, OpT::Le, '=')?,
-                '>' => self.two_char_op(&mut lexer, OpT::Gt, OpT::Ge, '=')?,
+                '<' => match lexer.peek() {
+                    Some('<') => {
+                        lexer.next();
+                        let op = match lexer.next_if('=') {
+                            Some(_) => OpT::ShlAssign,
+                            None => OpT::Shl,
+                        };
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(op, s))?;
+                    }
+                    Some('=') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(OpT::Le, s))?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Lt, span))?;
+                    }
+                },
+                '>' => match lexer.peek() {
+                    Some('>') => {
+                        lexer.next();
+                        let op = match lexer.next_if('=') {
+                            Some(_) => OpT::ShrAssign,
+                            None => OpT::Shr,
+                        };
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(op, s))?;
+                    }
+                    Some('=') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(OpT::Ge, s))?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Gt, span))?;
+                    }
+                },
                 '|' => match lexer.peek() {
                     Some('|') => {
                         lexer.next();
@@ -151,6 +187,7 @@ impl Context {
                         self.new_atom(&mut lexer, Token::op(OpT::BwOr, span))?;
                     }
                 },
+                '^' => self.two_char_op(&mut lexer, OpT::Xor, OpT::XorAssign, '=')?,
                 '&' => match lexer.peek() {
                     Some('&') => {
                         lexer.next();

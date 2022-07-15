@@ -101,8 +101,12 @@ pub enum Op {
     And,
     BwOrInt,
     BwOrBool,
+    XorInt,
+    XorBool,
     BwAndInt,
     BwAndBool,
+    ShlInt,
+    ShrInt,
 }
 
 #[derive(Clone, Debug, PartialEq)]

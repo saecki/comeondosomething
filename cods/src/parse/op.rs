@@ -85,10 +85,22 @@ pub enum InfixT {
     BwOr,
     #[cods(rename = "|=")]
     BwOrAssign,
+    #[cods(rename = "^")]
+    Xor,
+    #[cods(rename = "^=")]
+    XorAssign,
     #[cods(rename = "&")]
     BwAnd,
     #[cods(rename = "&=")]
     BwAndAssign,
+    #[cods(rename = "<<")]
+    Shl,
+    #[cods(rename = "<<=")]
+    ShlAssign,
+    #[cods(rename = ">>")]
+    Shr,
+    #[cods(rename = ">>=")]
+    ShrAssign,
     #[cods(rename = ".")]
     Dot,
     #[cods(rename = "as")]
@@ -168,16 +180,19 @@ pub enum PostfixT {
 impl OpT {
     pub fn infix_bp(&self) -> Option<(u8, InfixT, u8)> {
         match self {
-            Self::Dot => Some((23, InfixT::Dot, 24)),
-            Self::As => Some((19, InfixT::As, 20)),
-            Self::Is => Some((19, InfixT::Is, 20)),
-            Self::Mul => Some((17, InfixT::Mul, 18)),
-            Self::Div => Some((17, InfixT::Div, 18)),
-            Self::Rem => Some((17, InfixT::Rem, 18)),
-            Self::RemEuclid => Some((17, InfixT::RemEuclid, 18)),
-            Self::Add => Some((15, InfixT::Add, 16)),
-            Self::Sub => Some((15, InfixT::Sub, 16)),
-            Self::BwAnd => Some((13, InfixT::BwAnd, 14)),
+            Self::Dot => Some((27, InfixT::Dot, 28)),
+            Self::As => Some((23, InfixT::As, 24)),
+            Self::Is => Some((23, InfixT::Is, 24)),
+            Self::Mul => Some((21, InfixT::Mul, 22)),
+            Self::Div => Some((21, InfixT::Div, 22)),
+            Self::Rem => Some((21, InfixT::Rem, 22)),
+            Self::RemEuclid => Some((21, InfixT::RemEuclid, 22)),
+            Self::Add => Some((19, InfixT::Add, 20)),
+            Self::Sub => Some((19, InfixT::Sub, 20)),
+            Self::Shl => Some((17, InfixT::Shl, 18)),
+            Self::Shr => Some((17, InfixT::Shr, 18)),
+            Self::BwAnd => Some((15, InfixT::BwAnd, 16)),
+            Self::Xor => Some((13, InfixT::BwAnd, 14)),
             Self::BwOr => Some((11, InfixT::BwOr, 12)),
             Self::Eq => Some((9, InfixT::Eq, 10)),
             Self::Ne => Some((9, InfixT::Ne, 10)),
@@ -198,14 +213,17 @@ impl OpT {
             Self::OrAssign => Some((1, InfixT::OrAssign, 2)),
             Self::AndAssign => Some((1, InfixT::AndAssign, 2)),
             Self::BwOrAssign => Some((1, InfixT::BwOrAssign, 2)),
+            Self::XorAssign => Some((1, InfixT::XorAssign, 2)),
             Self::BwAndAssign => Some((1, InfixT::BwAndAssign, 2)),
+            Self::ShlAssign => Some((1, InfixT::ShlAssign, 2)),
+            Self::ShrAssign => Some((1, InfixT::ShrAssign, 2)),
             Self::Bang => None,
         }
     }
 
     pub fn postfix_bp(&self) -> Option<(u8, PostfixT)> {
         match self {
-            Self::Bang => Some((21, PostfixT::Factorial)),
+            Self::Bang => Some((25, PostfixT::Factorial)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -215,7 +233,10 @@ impl OpT {
             | Self::OrAssign
             | Self::AndAssign
             | Self::BwOrAssign
+            | Self::XorAssign
             | Self::BwAndAssign
+            | Self::ShlAssign
+            | Self::ShrAssign
             | Self::RangeEx
             | Self::RangeIn
             | Self::Add
@@ -230,10 +251,13 @@ impl OpT {
             | Self::Le
             | Self::Gt
             | Self::Ge
-            | Self::BwOr
-            | Self::BwAnd
             | Self::Or
             | Self::And
+            | Self::BwOr
+            | Self::Xor
+            | Self::Shl
+            | Self::Shr
+            | Self::BwAnd
             | Self::Dot
             | Self::As
             | Self::Is => None,
@@ -242,9 +266,9 @@ impl OpT {
 
     pub fn prefix_bp(&self) -> Option<(PrefixT, u8)> {
         match self {
-            Self::Bang => Some((PrefixT::Not, 22)),
-            Self::Add => Some((PrefixT::UnaryPlus, 22)),
-            Self::Sub => Some((PrefixT::UnaryMinus, 22)),
+            Self::Bang => Some((PrefixT::Not, 26)),
+            Self::Add => Some((PrefixT::UnaryPlus, 26)),
+            Self::Sub => Some((PrefixT::UnaryMinus, 26)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -254,7 +278,10 @@ impl OpT {
             | Self::OrAssign
             | Self::AndAssign
             | Self::BwOrAssign
+            | Self::XorAssign
             | Self::BwAndAssign
+            | Self::ShlAssign
+            | Self::ShrAssign
             | Self::RangeEx
             | Self::RangeIn
             | Self::Mul
@@ -267,10 +294,13 @@ impl OpT {
             | Self::Le
             | Self::Gt
             | Self::Ge
-            | Self::BwOr
-            | Self::BwAnd
             | Self::Or
             | Self::And
+            | Self::BwOr
+            | Self::Xor
+            | Self::Shl
+            | Self::Shr
+            | Self::BwAnd
             | Self::Dot
             | Self::As
             | Self::Is => None,

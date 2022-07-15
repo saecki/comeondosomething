@@ -252,6 +252,16 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> EvalResult<Val> {
             let vb = eval_ast(stack, &args[1])?.unwrap_bool();
             Val::Bool(va | vb)
         }
+        Op::XorInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Int(va ^ vb)
+        }
+        Op::XorBool => {
+            let va = eval_ast(stack, &args[0])?.unwrap_bool();
+            let vb = eval_ast(stack, &args[1])?.unwrap_bool();
+            Val::Bool(va ^ vb)
+        }
         Op::BwAndInt => {
             let va = eval_ast(stack, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, &args[1])?.unwrap_int();
@@ -261,6 +271,16 @@ fn eval_op(stack: &mut Stack, op: &Op, args: &[Ast]) -> EvalResult<Val> {
             let va = eval_ast(stack, &args[0])?.unwrap_bool();
             let vb = eval_ast(stack, &args[1])?.unwrap_bool();
             Val::Bool(va & vb)
+        }
+        Op::ShlInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Int(va << vb)
+        }
+        Op::ShrInt => {
+            let va = eval_ast(stack, &args[0])?.unwrap_int();
+            let vb = eval_ast(stack, &args[1])?.unwrap_int();
+            Val::Int(va >> vb)
         }
         Op::Or => {
             let va = eval_ast(stack, &args[0])?.unwrap_bool();

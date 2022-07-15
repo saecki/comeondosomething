@@ -284,10 +284,22 @@ pub enum OpT {
     BwOr,
     #[cods(rename = "|=")]
     BwOrAssign,
+    #[cods(rename = "^")]
+    Xor,
+    #[cods(rename = "^=")]
+    XorAssign,
     #[cods(rename = "&")]
     BwAnd,
     #[cods(rename = "&=")]
     BwAndAssign,
+    #[cods(rename = "<<")]
+    Shl,
+    #[cods(rename = "<<=")]
+    ShlAssign,
+    #[cods(rename = ">>")]
+    Shr,
+    #[cods(rename = ">>=")]
+    ShrAssign,
     #[cods(rename = "!")]
     Bang,
     #[cods(rename = ".")]

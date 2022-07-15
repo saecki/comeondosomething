@@ -889,8 +889,17 @@ impl Context {
             InfixT::BwOrAssign => {
                 self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
             }
+            InfixT::XorAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::XOR_SIGNATURES, span)?
+            }
             InfixT::BwAndAssign => {
                 self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
+            }
+            InfixT::ShlAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SHL_SIGNATURES, span)?
+            }
+            InfixT::ShrAssign => {
+                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SHR_SIGNATURES, span)?
             }
             InfixT::RangeEx => {
                 self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_EX_SIGNATURES, span)?
@@ -971,8 +980,17 @@ impl Context {
             InfixT::BwOr => {
                 self.check_infix_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
             }
+            InfixT::Xor => {
+                self.check_infix_signatures(scopes, i, (a, b), &op::XOR_SIGNATURES, span)?
+            }
             InfixT::BwAnd => {
                 self.check_infix_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
+            }
+            InfixT::Shl => {
+                self.check_infix_signatures(scopes, i, (a, b), &op::SHL_SIGNATURES, span)?
+            }
+            InfixT::Shr => {
+                self.check_infix_signatures(scopes, i, (a, b), &op::SHR_SIGNATURES, span)?
             }
             InfixT::Dot => {
                 return Err(crate::Error::NotImplemented(

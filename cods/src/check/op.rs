@@ -103,7 +103,17 @@ pub const BW_OR_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     BwOrInt(Int, Int) -> Int
     BwOrBool(Bool, Bool) -> Bool
 };
+pub const XOR_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
+    XorInt(Int, Int) -> Int
+    XorBool(Bool, Bool) -> Bool
+};
 pub const BW_AND_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     BwAndInt(Int, Int) -> Int
     BwAndBool(Bool, Bool) -> Bool
+};
+pub const SHL_SIGNATURES: [(Op, OpSignature<2>); 1] = op_signatures! {
+    ShlInt(Int, Int) -> Int
+};
+pub const SHR_SIGNATURES: [(Op, OpSignature<2>); 1] = op_signatures! {
+    ShrInt(Int, Int) -> Int
 };
