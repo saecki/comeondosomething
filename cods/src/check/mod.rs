@@ -32,7 +32,7 @@ impl Context {
         let (asts, _) = self.check_types(scopes, csts, true)?;
         let global_frame_size = scopes.frame_size();
 
-        self.check_unused(scopes.current());
+        self.check_unused(scopes);
 
         Ok(Asts {
             asts,
@@ -508,7 +508,6 @@ impl Context {
             BuiltinFun::Assert => &builtin::ASSERT_SIGNATURES,
             BuiltinFun::AssertEq => &builtin::ASSERT_EQ_SIGNATURES,
             BuiltinFun::Spill => {
-                // XXX
                 // TODO: support non local references
                 if !args.is_empty() {
                     return Err(crate::Error::NoMatchingBuiltinFunSignature {
@@ -521,7 +520,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(scopes.current().vars());
+                let vars = self.collect_spill_vars(scopes.current_vars());
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
             BuiltinFun::SpillLocal => {
@@ -536,7 +535,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(scopes.current().vars());
+                let vars = self.collect_spill_vars(scopes.current_vars());
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
         };
@@ -1222,11 +1221,9 @@ impl Context {
             .map_err(|_| crate::Error::UnknownType(name.into(), typ.span))
     }
 
-    fn collect_spill_vars<'a>(
-        &self,
-        var_iter: impl Iterator<Item = &'a Var>,
-    ) -> Vec<(String, VarRef)> {
-        let mut vars: Vec<_> = var_iter
+    fn collect_spill_vars(&self, vars: &[Var]) -> Vec<(String, VarRef)> {
+        let mut vars: Vec<_> = vars
+            .iter()
             .filter(|v| v.assigned)
             .map(|v| {
                 let name = self.idents.name(v.ident.ident).to_owned();

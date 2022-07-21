@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
@@ -38,15 +37,17 @@ impl Context {
     }
 
     pub fn def_fun(&mut self, scopes: &mut Scopes, fun: Fun) -> crate::Result<()> {
-        let s = scopes.current_mut();
+        let current = scopes.current_funs();
         let id = fun.ident;
-        if let Some(f) = s.fun(id.ident) {
-            let i_s = f.ident.span;
-            let name = self.idents.name(id.ident);
-            return Err(crate::Error::RedefinedFun(name.to_owned(), i_s, id.span));
+        for (i, f) in current {
+            if *i == id.ident {
+                let i_s = f.ident.span;
+                let name = self.idents.name(id.ident);
+                return Err(crate::Error::RedefinedFun(name.to_owned(), i_s, id.span));
+            }
         }
 
-        s.funs.insert(id.ident, Rc::new(fun));
+        scopes.funs.push((id.ident, Rc::new(fun)));
 
         Ok(())
     }
@@ -111,7 +112,7 @@ impl Context {
         let inner = scopes.var_ref();
         let var = Var::new(ident, data_type, assigned, mutable, inner);
         scopes.extend_frame(1);
-        scopes.current_mut().def_var(var);
+        scopes.vars.push(var);
         inner
     }
 
@@ -162,13 +163,13 @@ impl Context {
     ) -> T {
         scopes.push();
         let r = f(self, scopes);
-        self.check_unused(scopes.current());
+        self.check_unused(scopes);
         scopes.pop();
         r
     }
 
-    pub fn check_unused(&mut self, scope: &Scope) {
-        for v in scope.vars() {
+    pub fn check_unused(&mut self, scopes: &Scopes) {
+        for v in scopes.current_vars() {
             if v.uses == 0 {
                 let name = self.idents.name(v.ident.ident);
                 if name == "_" {
@@ -180,9 +181,9 @@ impl Context {
             }
         }
 
-        for f in scope.funs() {
+        for (i, f) in scopes.current_funs() {
             if f.uses.get() == 0 {
-                let name = self.idents.name(f.ident.ident);
+                let name = self.idents.name(*i);
                 self.warnings
                     .push(crate::Warning::UnusedFun(name.to_owned(), f.ident.span));
             }
@@ -192,9 +193,28 @@ impl Context {
 
 #[derive(Clone, Debug)]
 pub struct Scopes {
+    vars: Vec<Var>,
+    funs: Vec<(Ident, Rc<Fun>)>,
     scopes: Vec<Scope>,
+    /// Frames can span multiple scopes.
     frames: Vec<Frame>,
-    len: usize,
+}
+
+/// Starting indices of var and fun scopes.
+#[derive(Clone, Debug)]
+struct Scope {
+    var: usize,
+    fun: usize,
+}
+
+impl Scope {
+    fn new(var: usize, fun: usize) -> Self {
+        Self { var, fun }
+    }
+
+    fn global() -> Self {
+        Self { var: 0, fun: 0 }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -217,95 +237,70 @@ impl Frame {
 impl Default for Scopes {
     fn default() -> Self {
         Self {
-            scopes: vec![Scope::default()],
+            vars: vec![],
+            funs: vec![],
+            scopes: vec![Scope::global()],
             frames: vec![Frame::new(None, 0, 0)],
-            len: 1,
         }
     }
 }
 
 impl Scopes {
-    pub fn current(&self) -> &Scope {
-        self.scopes
-            .get(self.len - 1)
+    pub fn current_vars(&self) -> &[Var] {
+        let start = self
+            .scopes
+            .last()
             .expect("Expected at least the global scope")
+            .var;
+        &self.vars[start..]
     }
 
-    pub fn current_mut(&mut self) -> &mut Scope {
-        self.scopes
-            .get_mut(self.len - 1)
+    pub fn current_funs(&self) -> &[(Ident, Rc<Fun>)] {
+        let start = self
+            .scopes
+            .last()
             .expect("Expected at least the global scope")
-    }
-
-    pub fn next_mut(&mut self) -> &mut Scope {
-        if self.len >= self.scopes.len() {
-            self.scopes.push(Scope::default())
-        }
-        self.scopes
-            .get_mut(self.len)
-            .expect("Expected to find next scope")
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &Scope> {
-        self.scopes[0..(self.len)].iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
-        self.scopes[0..(self.len)].iter_mut()
-    }
-
-    pub fn rev(&self) -> impl Iterator<Item = &Scope> {
-        self.scopes[0..(self.len)].iter().rev()
-    }
-
-    pub fn rev_mut(&mut self) -> impl Iterator<Item = &mut Scope> {
-        self.scopes[0..(self.len)].iter_mut().rev()
+            .fun;
+        &self.funs[start..]
     }
 
     fn push(&mut self) {
-        if self.len >= self.scopes.len() {
-            self.scopes.push(Scope::default())
-        }
-        self.len += 1;
+        self.scopes
+            .push(Scope::new(self.vars.len(), self.funs.len()));
     }
 
     fn pop(&mut self) {
-        self.current_mut().clear();
-        self.len -= 1;
-    }
-
-    pub fn clear(&mut self) {
-        for s in self.iter_mut() {
-            s.clear();
-        }
-        self.len = 0;
+        let indices = self.scopes.pop().expect("Expected at least a second scope");
+        self.vars.truncate(indices.var);
+        self.funs.truncate(indices.fun);
     }
 
     fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
-        for s in self.rev() {
-            if let Some(f) = s.fun(id) {
-                return Some(f);
+        for (i, f) in self.funs.iter().rev() {
+            if *i == id {
+                return Some(Rc::clone(f));
             }
         }
         None
     }
 
     fn var_mut(&mut self, id: Ident) -> Result<&mut Var, ResolveError> {
-        let current_scope_index = self.current_frame().scope_index;
-        for s in self.scopes[current_scope_index..].iter_mut().rev() {
-            if let Some(v) = s.var_mut(id) {
+        let current_scope = self.scopes[self.current_frame().scope_index].var;
+        for v in self.vars[current_scope..].iter_mut().rev() {
+            if v.ident.ident == id {
                 // workaround for lifetime issue: https://github.com/rust-lang/rust/issues/54663
                 return Ok(unsafe { std::mem::transmute::<_, _>(v) });
             }
         }
         if let Some(f) = self.frames.get(1) {
-            for s in self.scopes[f.scope_index..current_scope_index].iter().rev() {
-                if let Some(v) = s.var(id) {
+            let second_scope = self.scopes[f.scope_index].var;
+            for v in self.vars[second_scope..current_scope].iter_mut().rev() {
+                if v.ident.ident == id {
                     return Err(ResolveError::DynCapture(v.ident.span));
                 }
             }
-            for s in self.scopes[..f.scope_index].iter_mut().rev() {
-                if let Some(v) = s.var_mut(id) {
+            for v in self.vars[..second_scope].iter_mut().rev() {
+                if v.ident.ident == id {
                     return Ok(v);
                 }
             }
@@ -314,14 +309,14 @@ impl Scopes {
     }
 
     fn push_frame(&mut self, fun: Rc<Fun>) {
-        self.frames.push(Frame::new(Some(fun), self.len, 0));
+        self.frames
+            .push(Frame::new(Some(fun), self.scopes.len(), 0));
     }
 
-    fn pop_frame(&mut self) -> usize {
+    fn pop_frame(&mut self) -> Frame {
         self.frames
             .pop()
             .expect("Expected stack frames to be non empty")
-            .size
     }
 
     pub fn frame_size(&self) -> usize {
@@ -357,43 +352,6 @@ impl Scopes {
         self.frames
             .last_mut()
             .expect("Expected stack frames to be non empty")
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Scope {
-    funs: HashMap<Ident, Rc<Fun>>,
-    vars: HashMap<Ident, Var>,
-}
-
-impl Scope {
-    pub fn clear(&mut self) {
-        self.vars.clear();
-        self.funs.clear();
-    }
-
-    pub fn fun(&self, id: Ident) -> Option<Rc<Fun>> {
-        self.funs.get(&id).map(Rc::clone)
-    }
-
-    pub fn funs(&self) -> impl Iterator<Item = &Rc<Fun>> {
-        self.funs.values()
-    }
-
-    pub fn var(&self, id: Ident) -> Option<&Var> {
-        self.vars.get(&id)
-    }
-
-    pub fn var_mut(&mut self, id: Ident) -> Option<&mut Var> {
-        self.vars.get_mut(&id)
-    }
-
-    fn def_var(&mut self, var: Var) {
-        self.vars.insert(var.ident.ident, var);
-    }
-
-    pub fn vars(&self) -> impl Iterator<Item = &Var> {
-        self.vars.values()
     }
 }
 
