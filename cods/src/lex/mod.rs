@@ -428,9 +428,11 @@ impl Context {
     }
 
     fn line_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
-        while let Some(c) = lexer.next() {
+        while let Some(c) = lexer.peek() {
             if c == '\n' {
                 break;
+            } else {
+                lexer.next();
             }
         }
         Ok(())

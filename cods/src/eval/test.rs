@@ -528,6 +528,7 @@ fn spill() {
 #[test]
 fn line_comment() {
     assert("val a = // yeeet\n 5; a", Val::Int(5));
+    assert("val a = 5 * 2// yeeet\n val b = 6; a + b", Val::Int(16));
 }
 
 #[test]
