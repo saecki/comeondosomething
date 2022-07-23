@@ -1222,17 +1222,13 @@ impl Context {
     }
 
     fn collect_spill_vars(&self, vars: &[Var]) -> Vec<(String, VarRef)> {
-        let mut vars: Vec<_> = vars
-            .iter()
+        vars.iter()
             .filter(|v| v.assigned)
             .map(|v| {
                 let name = self.idents.name(v.ident.ident).to_owned();
                 (name, v.inner)
             })
-            .collect();
-
-        vars.sort();
-        vars
+            .collect()
     }
 }
 
