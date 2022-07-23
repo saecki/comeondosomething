@@ -78,6 +78,16 @@ impl Context {
         }
     }
 
+    pub fn resolve_current_vars<'a>(&self, scopes: &'a mut Scopes) -> &'a [Var] {
+        let vars = scopes.current_vars_mut();
+
+        for v in vars.iter_mut() {
+            v.uses += 1;
+        }
+
+        vars
+    }
+
     /// Resolve the var and make sure it is initialized
     pub fn get_var<'a>(
         &self,
@@ -246,7 +256,7 @@ impl Default for Scopes {
 }
 
 impl Scopes {
-    pub fn current_vars(&self) -> &[Var] {
+    fn current_vars(&self) -> &[Var] {
         let start = self
             .scopes
             .last()
@@ -255,7 +265,16 @@ impl Scopes {
         &self.vars[start..]
     }
 
-    pub fn current_funs(&self) -> &[(Ident, Rc<Fun>)] {
+    fn current_vars_mut(&mut self) -> &mut [Var] {
+        let start = self
+            .scopes
+            .last()
+            .expect("Expected at least the global scope")
+            .var;
+        &mut self.vars[start..]
+    }
+
+    fn current_funs(&self) -> &[(Ident, Rc<Fun>)] {
         let start = self
             .scopes
             .last()

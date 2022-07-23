@@ -478,6 +478,15 @@ fn unused_var() {
 }
 
 #[test]
+fn spill_uses_var() {
+    let input = "val a = 0; spill()";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(ctx.warnings, []);
+}
+
+#[test]
 fn unused_fun() {
     let input = "fun a() {}";
     let mut ctx = Context::default();

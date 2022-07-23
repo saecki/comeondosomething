@@ -520,7 +520,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(scopes.current_vars());
+                let vars = self.collect_spill_vars(self.resolve_current_vars(scopes));
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
             BuiltinFun::SpillLocal => {
@@ -535,7 +535,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(scopes.current_vars());
+                let vars = self.collect_spill_vars(self.resolve_current_vars(scopes));
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
         };
