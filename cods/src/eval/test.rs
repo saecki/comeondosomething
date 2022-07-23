@@ -59,7 +59,7 @@ fn infix_assign() {
 
     assert("var a = true; a &= false; a", Val::Bool(false));
     assert("var a = 6; a &= 4; a", Val::Int(4));
-    
+
     assert("var a = 4; a <<= 2; a", Val::Int(16));
     assert("var a = 4; a >>= 2; a", Val::Int(1));
 }
@@ -159,7 +159,7 @@ fn remainder() {
     assert("-8 % 3", Val::Int(-2));
     assert("8 % -3", Val::Int(2));
     assert("-8 % -3", Val::Int(-2));
-    
+
     assert("8.0 % 3.0", Val::Float(2.0));
     assert("-8.0 % 3.0", Val::Float(-2.0));
     assert("8.0 % -3.0", Val::Float(2.0));
