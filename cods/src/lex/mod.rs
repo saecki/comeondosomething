@@ -11,25 +11,45 @@ mod test;
 mod token;
 
 struct Lexer<'a> {
-    tokens: Vec<Token>,
-    literal: String,
+    input: &'a str,
     chars: Peekable<Chars<'a>>,
-    cursor: Pos,
+    char_cursor: Pos,
+    prev_byte_cursor: usize,
+    byte_cursor: usize,
+    literal: Option<LiteralState>,
+    str_literal: String,
+    tokens: Vec<Token>,
+}
+
+struct LiteralState {
+    start: usize,
+    end: usize,
 }
 
 impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         Self {
-            tokens: Vec::new(),
-            literal: String::new(),
+            input,
             chars: input.chars().peekable(),
-            cursor: Pos::new(0, 0),
+            char_cursor: Pos::new(0, 0),
+            prev_byte_cursor: 0,
+            byte_cursor: 0,
+            literal: None,
+            str_literal: String::new(),
+            tokens: Vec::new(),
         }
     }
 
     fn next(&mut self) -> Option<char> {
-        self.cursor.col += 1;
-        self.chars.next()
+        self.char_cursor.col += 1;
+        self.prev_byte_cursor = self.byte_cursor;
+        match self.chars.next() {
+            Some(c) => {
+                self.byte_cursor += c.len_utf8();
+                Some(c)
+            }
+            None => None,
+        }
     }
 
     fn peek(&mut self) -> Option<char> {
@@ -57,16 +77,41 @@ impl<'a> Lexer<'a> {
     }
 
     fn new_line(&mut self) {
-        self.cursor.line += 1;
-        self.cursor.col = 0;
+        self.char_cursor.line += 1;
+        self.char_cursor.col = 0;
     }
 
     const fn pos(&self) -> Pos {
-        Pos::new(self.cursor.line, self.cursor.col.saturating_sub(1))
+        Pos::new(
+            self.char_cursor.line,
+            self.char_cursor.col.saturating_sub(1),
+        )
     }
 
     const fn end_pos(&self) -> Pos {
-        self.cursor
+        self.char_cursor
+    }
+
+    fn literal(&self) -> Option<&str> {
+        self.literal.as_ref().map(|l| &self.input[l.start..l.end])
+    }
+
+    fn continue_literal(&mut self) {
+        match &mut self.literal {
+            None => {
+                self.literal = Some(LiteralState {
+                    start: self.prev_byte_cursor,
+                    end: self.byte_cursor,
+                });
+            }
+            Some(l) => {
+                l.end = self.byte_cursor;
+            }
+        }
+    }
+
+    fn end_literal(&mut self) {
+        self.literal = None;
     }
 }
 
@@ -132,11 +177,12 @@ impl Context {
                         self.new_atom(&mut lexer, Token::op(op, s))?;
                     }
                     Some(c)
-                        if !lexer.literal.is_empty()
-                            && lexer.literal.chars().all(|c| c.is_ascii_digit())
-                            && c.is_ascii_digit() =>
+                        if lexer
+                            .literal()
+                            .map(|l| l.chars().all(|c| c.is_ascii_digit()) && c.is_ascii_digit())
+                            .unwrap_or(false) =>
                     {
-                        lexer.literal.push('.')
+                        lexer.continue_literal();
                     }
                     _ => self.new_atom(&mut lexer, Token::op(OpT::Dot, span))?,
                 },
@@ -227,7 +273,7 @@ impl Context {
                 ',' => self.new_atom(&mut lexer, Token::pct(PctT::Comma, span))?,
                 ';' => self.new_atom(&mut lexer, Token::pct(PctT::Semi, span))?,
                 ':' => self.new_atom(&mut lexer, Token::pct(PctT::Colon, span))?,
-                c => lexer.literal.push(c),
+                _ => lexer.continue_literal(),
             }
         }
 
@@ -263,15 +309,15 @@ impl Context {
     }
 
     fn end_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
-        if lexer.literal.is_empty() {
-            return Ok(());
-        }
+        let literal = match lexer.literal() {
+            Some(l) => l,
+            None => return Ok(()),
+        };
 
         let end = lexer.pos();
-        let start_col = end.col - lexer.literal.chars().count() as u32;
+        let start_col = end.col - literal.chars().count() as u32;
         let span = Span::new(Pos::new(end.line, start_col), end);
 
-        let literal = lexer.literal.as_str();
         let token = match literal {
             "true" => Token::val(Val::Bool(true), span),
             "false" => Token::val(Val::Bool(false), span),
@@ -339,7 +385,7 @@ impl Context {
             }
         };
 
-        lexer.literal.clear();
+        lexer.end_literal();
         lexer.tokens.push(token);
 
         Ok(())
@@ -405,7 +451,7 @@ impl Context {
                     }
                 }
                 '\\' => match self.escape_char(lexer) {
-                    Ok(c) => lexer.literal.push(c),
+                    Ok(c) => lexer.str_literal.push(c),
                     Err(e) => {
                         if e.fail {
                             if e.end_str {
@@ -421,7 +467,7 @@ impl Context {
                         }
                     }
                 },
-                _ => lexer.literal.push(c),
+                _ => lexer.str_literal.push(c),
             }
         }
 
@@ -430,10 +476,10 @@ impl Context {
     }
 
     fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: Pos) -> crate::Result<()> {
-        let str = Val::Str(lexer.literal.clone());
+        let str = Val::Str(lexer.str_literal.clone());
         let span = Span::new(start, lexer.end_pos());
         lexer.tokens.push(Token::val(str, span));
-        lexer.literal.clear();
+        lexer.str_literal.clear();
         Ok(())
     }
 
