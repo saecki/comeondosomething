@@ -46,6 +46,16 @@ impl<'a> Lexer<'a> {
         None
     }
 
+    fn next_if_not(&mut self, expected: char) -> Option<char> {
+        if let Some(c) = self.peek() {
+            if c != expected {
+                return self.next();
+            }
+        }
+
+        None
+    }
+
     fn new_line(&mut self) {
         self.cursor.line += 1;
         self.cursor.col = 0;
@@ -428,13 +438,7 @@ impl Context {
     }
 
     fn line_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
-        while let Some(c) = lexer.peek() {
-            if c == '\n' {
-                break;
-            } else {
-                lexer.next();
-            }
-        }
+        while lexer.next_if_not('\n').is_some() {}
         Ok(())
     }
 
