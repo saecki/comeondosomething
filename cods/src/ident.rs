@@ -1,27 +1,37 @@
 use crate::Span;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Idents(Vec<String>);
+pub struct Files {
+    inputs: Vec<String>,
+    idents: Vec<&'static str>,
+}
 
-impl Idents {
+impl Files {
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.inputs.clear();
+        self.idents.clear();
     }
 
-    pub fn push(&mut self, name: &str) -> Ident {
-        for (id, n) in self.0.iter().enumerate() {
-            if n == name {
+    pub(crate) fn push_file(&mut self, input: String) -> &'static str {
+        let text = unsafe { std::mem::transmute(input.as_str()) };
+        self.inputs.push(input);
+        text
+    }
+
+    pub(crate) fn push_ident(&mut self, name: &'static str) -> Ident {
+        for (id, n) in self.idents.iter().enumerate() {
+            if *n == name {
                 return Ident(id);
             }
         }
 
-        let id = self.0.len();
-        self.0.push(name.to_owned());
+        let id = self.idents.len();
+        self.idents.push(name);
         Ident(id)
     }
 
-    pub fn name(&self, id: Ident) -> &str {
-        &self.0[id.0]
+    pub fn ident_name<'a>(&'a self, id: Ident) -> &'a str {
+        &self.idents[id.0]
     }
 }
 

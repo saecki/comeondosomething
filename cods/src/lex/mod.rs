@@ -10,9 +10,9 @@ mod str;
 mod test;
 mod token;
 
-struct Lexer<'a> {
-    input: &'a str,
-    chars: Peekable<Chars<'a>>,
+struct Lexer {
+    input: &'static str,
+    chars: Peekable<Chars<'static>>,
     char_cursor: Pos,
     prev_byte_cursor: usize,
     byte_cursor: usize,
@@ -26,8 +26,8 @@ struct LiteralState {
     end: usize,
 }
 
-impl<'a> Lexer<'a> {
-    fn new(input: &'a str) -> Self {
+impl Lexer {
+    fn new(input: &'static str) -> Self {
         Self {
             input,
             chars: input.chars().peekable(),
@@ -92,7 +92,7 @@ impl<'a> Lexer<'a> {
         self.char_cursor
     }
 
-    fn literal(&self) -> Option<&str> {
+    fn literal(&self) -> Option<&'static str> {
         self.literal.as_ref().map(|l| &self.input[l.start..l.end])
     }
 
@@ -116,8 +116,9 @@ impl<'a> Lexer<'a> {
 }
 
 impl Context {
-    pub fn lex(&mut self, string: &str) -> crate::Result<Vec<Token>> {
-        let mut lexer = Lexer::new(string);
+    pub fn lex(&mut self, input: impl Into<String>) -> crate::Result<Vec<Token>> {
+        let input = self.files.push_file(input.into());
+        let mut lexer = Lexer::new(input);
 
         while let Some(c) = lexer.next() {
             let span = Span::from(lexer.pos());
@@ -282,7 +283,7 @@ impl Context {
         Ok(lexer.tokens)
     }
 
-    fn new_atom(&mut self, lexer: &mut Lexer<'_>, token: Token) -> crate::Result<()> {
+    fn new_atom(&mut self, lexer: &mut Lexer, token: Token) -> crate::Result<()> {
         self.end_literal(lexer)?;
         lexer.tokens.push(token);
         Ok(())
@@ -290,7 +291,7 @@ impl Context {
 
     fn two_char_op(
         &mut self,
-        lexer: &mut Lexer<'_>,
+        lexer: &mut Lexer,
         one: OpT,
         two: OpT,
         expected: char,
@@ -308,7 +309,7 @@ impl Context {
         }
     }
 
-    fn end_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+    fn end_literal(&mut self, lexer: &mut Lexer) -> crate::Result<()> {
         let literal = match lexer.literal() {
             Some(l) => l,
             None => return Ok(()),
@@ -379,7 +380,7 @@ impl Context {
                         }
                     }
 
-                    let id = self.idents.push(literal);
+                    let id = self.files.push_ident(literal);
                     Token::ident(id, span)
                 }
             }
@@ -391,7 +392,7 @@ impl Context {
         Ok(())
     }
 
-    fn char_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+    fn char_literal(&mut self, lexer: &mut Lexer) -> crate::Result<()> {
         self.end_literal(lexer)?;
 
         let start = lexer.pos();
@@ -429,7 +430,7 @@ impl Context {
         Ok(())
     }
 
-    fn string_literal(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+    fn string_literal(&mut self, lexer: &mut Lexer) -> crate::Result<()> {
         self.end_literal(lexer)?;
 
         let start = lexer.pos();
@@ -475,7 +476,7 @@ impl Context {
         Err(crate::Error::MissingClosingQuote(s))
     }
 
-    fn end_string_literal(&mut self, lexer: &mut Lexer<'_>, start: Pos) -> crate::Result<()> {
+    fn end_string_literal(&mut self, lexer: &mut Lexer, start: Pos) -> crate::Result<()> {
         let str = Val::Str(lexer.str_literal.clone());
         let span = Span::new(start, lexer.end_pos());
         lexer.tokens.push(Token::val(str, span));
@@ -483,12 +484,12 @@ impl Context {
         Ok(())
     }
 
-    fn line_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+    fn line_comment(&mut self, lexer: &mut Lexer) -> crate::Result<()> {
         while lexer.next_if_not('\n').is_some() {}
         Ok(())
     }
 
-    fn block_comment(&mut self, lexer: &mut Lexer<'_>) -> crate::Result<()> {
+    fn block_comment(&mut self, lexer: &mut Lexer) -> crate::Result<()> {
         while let Some(c) = lexer.next() {
             if c == '\n' {
                 lexer.new_line();

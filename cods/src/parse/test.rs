@@ -20,7 +20,7 @@ fn semicolon() {
 #[test]
 fn postfix_op_on_newline() {
     let mut ctx = Context::default();
-    let error = ctx.parse_str("y = 3\n! true").unwrap_err();
+    let error = ctx.parse_and_check("y = 3\n! true").unwrap_err();
 
     assert_eq!(error, crate::Error::MissingOperator(Span::pos(1, 1)));
 }

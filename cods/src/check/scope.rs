@@ -22,7 +22,7 @@ pub enum ResolveError {
 
 impl Context {
     pub fn resolve_fun(&self, scopes: &Scopes, id: &IdentSpan) -> crate::Result<ResolvedFun> {
-        let name = self.idents.name(id.ident);
+        let name = self.files.ident_name(id.ident);
         if let Ok(b) = name.parse::<BuiltinFun>() {
             return Ok(ResolvedFun::Builtin(b));
         }
@@ -30,7 +30,7 @@ impl Context {
         match scopes.fun(id.ident) {
             Some(f) => Ok(ResolvedFun::Fun(f)),
             None => {
-                let name = self.idents.name(id.ident);
+                let name = self.files.ident_name(id.ident);
                 Err(crate::Error::UndefinedFun(name.to_owned(), id.span))
             }
         }
@@ -42,7 +42,7 @@ impl Context {
         for (i, f) in current {
             if *i == id.ident {
                 let i_s = f.ident.span;
-                let name = self.idents.name(id.ident);
+                let name = self.files.ident_name(id.ident);
                 return Err(crate::Error::RedefinedFun(name.to_owned(), i_s, id.span));
             }
         }
@@ -58,7 +58,7 @@ impl Context {
         scopes: &'a mut Scopes,
         id: &IdentSpan,
     ) -> crate::Result<ResolvedVar<'a>> {
-        let name = self.idents.name(id.ident);
+        let name = self.files.ident_name(id.ident);
         if let Ok(b) = name.parse::<BuiltinConst>() {
             return Ok(ResolvedVar::Const(b));
         }
@@ -100,7 +100,7 @@ impl Context {
         };
 
         if !var.assigned {
-            let name = self.idents.name(id.ident);
+            let name = self.files.ident_name(id.ident);
             return Err(crate::Error::UninitializedVar(
                 name.into(),
                 var.ident.span,
@@ -130,7 +130,7 @@ impl Context {
         match scopes.var_mut(id.ident) {
             Ok(v) => {
                 if !v.mutable && v.assigned {
-                    let name = self.idents.name(id.ident);
+                    let name = self.files.ident_name(id.ident);
                     return Err(crate::Error::ImmutableAssign(
                         name.into(),
                         id.span,
@@ -148,7 +148,7 @@ impl Context {
                 vec![s, id.span],
             )),
             Err(ResolveError::NotFound) => {
-                let name = self.idents.name(id.ident);
+                let name = self.files.ident_name(id.ident);
                 Err(crate::Error::UndefinedVar(name.to_owned(), id.span))
             }
         }
@@ -181,7 +181,7 @@ impl Context {
     pub fn check_unused(&mut self, scopes: &Scopes) {
         for v in scopes.current_vars() {
             if v.uses == 0 {
-                let name = self.idents.name(v.ident.ident);
+                let name = self.files.ident_name(v.ident.ident);
                 if name == "_" {
                     continue;
                 }
@@ -193,7 +193,7 @@ impl Context {
 
         for (i, f) in scopes.current_funs() {
             if f.uses.get() == 0 {
-                let name = self.idents.name(*i);
+                let name = self.files.ident_name(*i);
                 self.warnings
                     .push(crate::Warning::UnusedFun(name.to_owned(), f.ident.span));
             }

@@ -3,7 +3,7 @@ use crate::{Context, Pos, Span};
 use super::Lexer;
 
 impl Context {
-    pub(super) fn escape_char(&mut self, lexer: &mut Lexer<'_>) -> Result<char, EscError> {
+    pub(super) fn escape_char(&mut self, lexer: &mut Lexer) -> Result<char, EscError> {
         let esc_start = lexer.pos();
         let c = match lexer.next() {
             Some(c) => c,
@@ -48,7 +48,7 @@ pub struct EscError {
 }
 
 fn unicode_escape_char(
-    lexer: &mut Lexer<'_>,
+    lexer: &mut Lexer,
     expected: usize,
     esc_start: Pos,
 ) -> Result<char, EscError> {
@@ -89,7 +89,7 @@ fn unicode_escape_char(
     parse_unicode_cp(lexer, cp, esc_start)
 }
 
-fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: Pos) -> Result<char, EscError> {
+fn braced_unicode_escape_char(lexer: &mut Lexer, esc_start: Pos) -> Result<char, EscError> {
     let mut cp = 0;
     let mut i = 0;
     while let Some(c) = lexer.next() {
@@ -129,7 +129,7 @@ fn braced_unicode_escape_char(lexer: &mut Lexer<'_>, esc_start: Pos) -> Result<c
     parse_unicode_cp(lexer, cp, esc_start)
 }
 
-fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
+fn unicode_escape_hex(lexer: &Lexer, c: char) -> Result<u32, EscError> {
     match c {
         '0'..='9' => Ok(c as u32 - '0' as u32),
         'a'..='f' => Ok(c as u32 - 'a' as u32 + 10),
@@ -145,7 +145,7 @@ fn unicode_escape_hex(lexer: &Lexer<'_>, c: char) -> Result<u32, EscError> {
     }
 }
 
-fn parse_unicode_cp(lexer: &mut Lexer<'_>, cp: u32, esc_start: Pos) -> Result<char, EscError> {
+fn parse_unicode_cp(lexer: &mut Lexer, cp: u32, esc_start: Pos) -> Result<char, EscError> {
     match char::from_u32(cp) {
         Some(char) => Ok(char),
         None => {

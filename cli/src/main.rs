@@ -122,7 +122,7 @@ fn print_calc(state: &mut State, input: &str) -> ExitCode {
 }
 
 fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
-    let tokens = state.ctx.lex(input.as_ref())?;
+    let tokens = state.ctx.lex(input)?;
     let items = state.ctx.group(tokens)?;
     let csts = state.ctx.parse(items)?;
     let asts = state.ctx.check_with(&mut state.scopes, csts)?;

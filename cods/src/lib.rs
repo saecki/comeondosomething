@@ -18,14 +18,14 @@ mod span;
 
 #[derive(Clone, Debug, Default)]
 pub struct Context {
-    pub idents: Idents,
+    pub files: Files,
     pub errors: Vec<crate::Error>,
     pub warnings: Vec<crate::Warning>,
 }
 
 impl Context {
     pub fn clear(&mut self) {
-        self.idents.clear();
+        self.files.clear();
         self.errors.clear();
         self.warnings.clear();
     }
@@ -35,8 +35,8 @@ impl Context {
         self.warnings.clear();
     }
 
-    pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Val> {
-        let asts = self.parse_str(input)?;
+    pub fn parse_and_eval(&mut self, input: impl Into<String>) -> crate::Result<Val> {
+        let asts = self.parse_and_check(input.into())?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
         }
@@ -45,8 +45,8 @@ impl Context {
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, input: &str) -> crate::Result<Asts> {
-        let tokens = self.lex(input.as_ref())?;
+    pub fn parse_and_check(&mut self, input: impl Into<String>) -> crate::Result<Asts> {
+        let tokens = self.lex(input.into())?;
         let items = self.group(tokens)?;
         let csts = self.parse(items)?;
         let asts = self.check(csts)?;
@@ -54,7 +54,7 @@ impl Context {
     }
 }
 
-pub fn eval_str(input: &str) -> crate::Result<Val> {
+pub fn eval(input: impl Into<String>) -> crate::Result<Val> {
     let mut ctx = Context::default();
     ctx.parse_and_eval(input)
 }

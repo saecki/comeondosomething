@@ -331,7 +331,7 @@ impl Context {
             KwT::Fun => {
                 let ident = parser.expect_ident()?;
 
-                let name = self.idents.name(ident.ident);
+                let name = self.files.ident_name(ident.ident);
                 if name.parse::<BuiltinFun>().is_ok() {
                     self.errors.push(crate::Error::RedefinedBuiltinFun(
                         name.to_owned(),
@@ -398,7 +398,7 @@ impl Context {
             KwT::Val | KwT::Var => {
                 let ident = parser.expect_ident()?;
 
-                let name = self.idents.name(ident.ident);
+                let name = self.files.ident_name(ident.ident);
                 if name.parse::<BuiltinConst>().is_ok() {
                     self.errors.push(crate::Error::RedefinedBuiltinConst(
                         name.to_owned(),

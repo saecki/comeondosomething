@@ -3,7 +3,7 @@ use std::f64::consts;
 use crate::{Error, Par, ParT, Span, Val, ValSpan};
 
 fn assert(input: &str, expected: Val) {
-    match crate::eval_str(input) {
+    match crate::eval(input) {
         Ok(val) => assert_eq!(val, expected),
         Err(e) => {
             panic!("{e:?}");
@@ -12,7 +12,7 @@ fn assert(input: &str, expected: Val) {
 }
 
 fn assert_err(input: &str, expected: Error) {
-    match crate::eval_str(input) {
+    match crate::eval(input) {
         Ok(_) => panic!("Expected error: {expected:?}"),
         Err(e) => assert_eq!(e, expected),
     }

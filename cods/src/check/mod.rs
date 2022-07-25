@@ -1216,7 +1216,7 @@ impl Context {
     }
 
     fn resolve_data_type(&self, typ: &IdentSpan) -> crate::Result<DataType> {
-        let name = self.idents.name(typ.ident);
+        let name = self.files.ident_name(typ.ident);
         name.parse::<DataType>()
             .map_err(|_| crate::Error::UnknownType(name.into(), typ.span))
     }
@@ -1225,7 +1225,7 @@ impl Context {
         vars.iter()
             .filter(|v| v.assigned)
             .map(|v| {
-                let name = self.idents.name(v.ident.ident).to_owned();
+                let name = self.files.ident_name(v.ident.ident).to_owned();
                 (name, v.inner)
             })
             .collect()
