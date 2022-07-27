@@ -283,10 +283,10 @@ impl Context {
             "while" => Token::kw(KwT::While, span),
             "for" => Token::kw(KwT::For, span),
             "in" => Token::kw(KwT::In, span),
-            "fun" => Token::kw(KwT::Fun, span),
+            "fn" => Token::kw(KwT::Fn, span),
             "return" => Token::kw(KwT::Return, span),
-            "val" => Token::kw(KwT::Val, span),
-            "var" => Token::kw(KwT::Var, span),
+            "let" => Token::kw(KwT::Let, span),
+            "mut" => Token::kw(KwT::Mut, span),
             _ => {
                 if literal.chars().next().unwrap().is_ascii_digit() {
                     let num = if let Some(s) = literal.strip_prefix("0b") {

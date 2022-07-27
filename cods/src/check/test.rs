@@ -15,7 +15,7 @@ fn undefined_var() {
 
 #[test]
 fn undefined_outside_scope() {
-    let input = "{ val x = 7 }; println(x);";
+    let input = "{ let x = 7 }; println(x);";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -26,7 +26,7 @@ fn undefined_outside_scope() {
 
 #[test]
 fn defined_inside_scope() {
-    let input = "{ val x = 7; println(x); x }";
+    let input = "{ let x = 7; println(x); x }";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(7));
@@ -34,7 +34,7 @@ fn defined_inside_scope() {
 
 #[test]
 fn can_assign_to_var_in_outer_scope() {
-    let input = "var x = 2; { x = 7 }; x";
+    let input = "let mut x = 2; { x = 7 }; x";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(7));
@@ -42,7 +42,7 @@ fn can_assign_to_var_in_outer_scope() {
 
 #[test]
 fn cannot_assign_twice_to_immutable_var() {
-    let input = "val x = 2; x = 4";
+    let input = "let x = 2; x = 4";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -67,7 +67,7 @@ fn cannot_assign_twice_to_builtin_const() {
 
 #[test]
 fn can_resolve_builtin_const() {
-    let input = "val x = PI; x";
+    let input = "let x = PI; x";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Float(consts::PI));
@@ -75,7 +75,7 @@ fn can_resolve_builtin_const() {
 
 #[test]
 fn cannot_redefine_builtin_const() {
-    let input = "val PI = 3.14";
+    let input = "let PI = 3.14";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -86,29 +86,29 @@ fn cannot_redefine_builtin_const() {
 
 #[test]
 fn cannot_redefine_builtin_function() {
-    let input = "fun sqrt() { }";
+    let input = "fn sqrt() { }";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::RedefinedBuiltinFun("sqrt".into(), Span::cols(0, 4, 8)),
+        crate::Error::RedefinedBuiltinFun("sqrt".into(), Span::cols(0, 3, 7)),
     );
 }
 
 #[test]
 fn cannot_redefine_function() {
-    let input = "fun a(i: int) { }; fun a() { }";
+    let input = "fn a(i: int) { }; fn a() { }";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::RedefinedFun("a".into(), Span::pos(0, 4), Span::pos(0, 23)),
+        crate::Error::RedefinedFun("a".into(), Span::pos(0, 3), Span::pos(0, 21)),
     );
 }
 
 #[test]
 fn coerce_types() {
-    let input = "val a: any = 12; a";
+    let input = "let a: any = 12; a";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(12),);
@@ -116,7 +116,7 @@ fn coerce_types() {
 
 #[test]
 fn cast_to_any() {
-    let input = "val a = 12; a as any";
+    let input = "let a = 12; a as any";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Int(12),);
@@ -124,7 +124,7 @@ fn cast_to_any() {
 
 #[test]
 fn cast_from_any_fails_at_runtime() {
-    let input = "val a: any = 12; a as str";
+    let input = "let a: any = 12; a as str";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -135,7 +135,7 @@ fn cast_from_any_fails_at_runtime() {
 
 #[test]
 fn cast_int_to_str_fails_while_type_checking() {
-    let input = "val a: int = 12; a as str";
+    let input = "let a: int = 12; a as str";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -149,7 +149,7 @@ fn cast_int_to_str_fails_while_type_checking() {
 
 #[test]
 fn cast_int_coerced_as_any_to_str_fails_at_runtime() {
-    let input = "val a: any = 12; a as str";
+    let input = "let a: any = 12; a as str";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
@@ -177,8 +177,8 @@ fn if_expr_branch_types_are_equal() {
 #[test]
 fn if_expr_else_branch_not_needed_when_unit() {
     let input = "
-        var a = 3
-        val b = if 3 >= 4 {
+        let mut a = 3
+        let b = if 3 >= 4 {
             spill()
         } else if false {
             a = 7
@@ -233,7 +233,7 @@ fn if_statement_branch_types_can_differ() {
 
 #[test]
 fn statement_cannot_be_used_as_expr() {
-    let input = "val a = (val b = 12)";
+    let input = "let a = (let b = 12)";
     let mut ctx = Context::default();
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(error, crate::Error::ExpectedExpr(Span::cols(0, 9, 19)));
@@ -242,7 +242,7 @@ fn statement_cannot_be_used_as_expr() {
 #[test]
 fn recursive_function_calls() {
     let input = "
-        fun fib(i: int) -> int {
+        fn fib(i: int) -> int {
             if i == 0 {
                 0
             } else if i == 1 {
@@ -261,15 +261,15 @@ fn recursive_function_calls() {
 #[test]
 fn recursive_function_calls2() {
     let input = "
-        val a = first(23)
-        fun first(a: int) -> int {
+        let a = first(23)
+        fn first(a: int) -> int {
             if a < 0 {
                 0
             } else {
                 second(a)
             }
         }
-        fun second(b: int) -> int {
+        fn second(b: int) -> int {
             first(b - 1)
         }
         a
@@ -282,8 +282,8 @@ fn recursive_function_calls2() {
 #[test]
 fn function_call_before_definition() {
     let input = "
-        val a = test(23)
-        fun test(i: int) -> int {
+        let a = test(23)
+        fn test(i: int) -> int {
             i * 3
         }
         a
@@ -296,8 +296,8 @@ fn function_call_before_definition() {
 #[test]
 fn can_capture_global_var() {
     let input = "
-        val a = 3
-        fun captures() -> int {
+        let a = 3
+        fn captures() -> int {
             a
         }
         captures()
@@ -310,8 +310,8 @@ fn can_capture_global_var() {
 #[test]
 fn can_write_to_captured_global_var() {
     let input = "
-        var a = 3
-        fun captures() {
+        let mut a = 3
+        fn captures() {
             a *= 2
         }
         captures()
@@ -325,9 +325,9 @@ fn can_write_to_captured_global_var() {
 #[test]
 fn cannot_capture_var_in_dyn_scope() {
     let input = "
-        fun outer() {
-            val a = 3
-            fun inner() -> int {
+        fn outer() {
+            let a = 3
+            fn inner() -> int {
                 a
             }
         }
@@ -346,9 +346,9 @@ fn cannot_capture_var_in_dyn_scope() {
 #[test]
 fn cannot_capture_var_to_write_in_dyn_scope() {
     let input = "
-        fun outer() {
-            var a = 3
-            fun inner() {
+        fn outer() {
+            let mut a = 3
+            fn inner() {
                 a *= 3
             }
             a
@@ -360,7 +360,7 @@ fn cannot_capture_var_to_write_in_dyn_scope() {
         err,
         crate::Error::NotImplemented(
             "Capturing variables from a dynamic scope is not yet implemented",
-            vec![Span::pos(2, 16), Span::pos(4, 16)],
+            vec![Span::pos(2, 20), Span::pos(4, 16)],
         )
     );
 }
@@ -368,7 +368,7 @@ fn cannot_capture_var_to_write_in_dyn_scope() {
 #[test]
 fn early_return() {
     let input = "
-        fun test() -> int {
+        fn test() -> int {
             if true {
                 return 12
             }
@@ -385,7 +385,7 @@ fn early_return() {
 #[test]
 fn simple_return() {
     let input = "
-        fun test() -> int {
+        fn test() -> int {
             return 32
         }
         test()
@@ -406,7 +406,7 @@ fn cannot_return_from_global_context() {
 #[test]
 fn early_return_data_type_doesnt_match() {
     let input = "
-        fun test() -> bool {
+        fn test() -> bool {
             if true {
                 return 12
             }
@@ -422,7 +422,7 @@ fn early_return_data_type_doesnt_match() {
         crate::Error::MismatchedType {
             expected: DataType::Bool,
             found: DataType::Int,
-            spans: vec![Span::cols(3, 23, 25), Span::cols(1, 22, 26)]
+            spans: vec![Span::cols(3, 23, 25), Span::cols(1, 21, 25)]
         }
     );
 }
@@ -430,8 +430,8 @@ fn early_return_data_type_doesnt_match() {
 #[test]
 fn if_expr_early_return_data_type_1() {
     let input = "
-        fun test() -> int {
-            val a = if false {
+        fn test() -> int {
+            let a = if false {
                 return 12
             } else {
                 1
@@ -449,8 +449,8 @@ fn if_expr_early_return_data_type_1() {
 #[test]
 fn if_expr_early_return_data_type_2() {
     let input = "
-        fun test() -> int {
-            val a = if true {
+        fn test() -> int {
+            let a = if true {
                 1
             } else {
                 return 12
@@ -467,7 +467,7 @@ fn if_expr_early_return_data_type_2() {
 
 #[test]
 fn unused_var() {
-    let input = "val a = 0";
+    let input = "let a = 0";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Unit);
@@ -479,7 +479,7 @@ fn unused_var() {
 
 #[test]
 fn spill_uses_var() {
-    let input = "val a = 0; spill()";
+    let input = "let a = 0; spill()";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Unit);
@@ -488,20 +488,20 @@ fn spill_uses_var() {
 
 #[test]
 fn unused_fun() {
-    let input = "fun a() {}";
+    let input = "fn a() {}";
     let mut ctx = Context::default();
     let val = ctx.parse_and_eval(input).unwrap();
     assert_eq!(val, Val::Unit);
     assert_eq!(
         ctx.warnings,
-        vec![crate::Warning::UnusedFun("a".into(), Span::cols(0, 4, 5),)],
+        vec![crate::Warning::UnusedFun("a".into(), Span::pos(0, 3),)],
     );
 }
 
 #[test]
 fn code_after_return_is_unreachable() {
     let input = r#"
-        fun test() {
+        fn test() {
             return
 
             println("unreachable")
@@ -520,7 +520,7 @@ fn code_after_return_is_unreachable() {
 #[test]
 fn code_after_if_expr_is_unreachable() {
     let input = "
-        fun test(a: bool, b: bool) {
+        fn test(a: bool, b: bool) {
             if a {
                 return
             } else if b {
@@ -529,7 +529,7 @@ fn code_after_if_expr_is_unreachable() {
                 return
             }
 
-            val u = 3
+            let u = 3
         }
         test(false, true)
     ";
@@ -545,7 +545,7 @@ fn code_after_if_expr_is_unreachable() {
 #[test]
 fn if_cond_returns_block_unreachable() {
     let input = "
-        fun test() -> int {
+        fn test() -> int {
             if return 42 {
                 32
             } else if false {

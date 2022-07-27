@@ -494,8 +494,8 @@ pub enum KwT {
     While,
     For,
     In,
-    Fun,
+    Fn,
     Return,
-    Val,
-    Var,
+    Let,
+    Mut,
 }

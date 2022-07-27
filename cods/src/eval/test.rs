@@ -42,26 +42,26 @@ fn int() {
 
 #[test]
 fn infix_assign() {
-    assert("var a = 4; a += 8; a", Val::Int(12));
-    assert("var a = 4; a -= 8; a", Val::Int(-4));
-    assert("var a = 4; a *= 8; a", Val::Int(32));
-    assert("var a = 8; a /= 4; a", Val::Int(2));
-    assert("var a = 8; a %= 3; a", Val::Int(2));
+    assert("let mut a = 4; a += 8; a", Val::Int(12));
+    assert("let mut a = 4; a -= 8; a", Val::Int(-4));
+    assert("let mut a = 4; a *= 8; a", Val::Int(32));
+    assert("let mut a = 8; a /= 4; a", Val::Int(2));
+    assert("let mut a = 8; a %= 3; a", Val::Int(2));
 
-    assert("var a = false; a ||= true; a", Val::Bool(true));
-    assert("var a = true; a &&= false; a", Val::Bool(false));
+    assert("let mut a = false; a ||= true; a", Val::Bool(true));
+    assert("let mut a = true; a &&= false; a", Val::Bool(false));
 
-    assert("var a = false; a |= true; a", Val::Bool(true));
-    assert("var a = 8; a |= 4; a", Val::Int(12));
+    assert("let mut a = false; a |= true; a", Val::Bool(true));
+    assert("let mut a = 8; a |= 4; a", Val::Int(12));
 
-    assert("var a = false; a ^= true; a", Val::Bool(true));
-    assert("var a = 8; a ^= 12; a", Val::Int(4));
+    assert("let mut a = false; a ^= true; a", Val::Bool(true));
+    assert("let mut a = 8; a ^= 12; a", Val::Int(4));
 
-    assert("var a = true; a &= false; a", Val::Bool(false));
-    assert("var a = 6; a &= 4; a", Val::Int(4));
+    assert("let mut a = true; a &= false; a", Val::Bool(false));
+    assert("let mut a = 6; a &= 4; a", Val::Int(4));
 
-    assert("var a = 4; a <<= 2; a", Val::Int(16));
-    assert("var a = 4; a >>= 2; a", Val::Int(1));
+    assert("let mut a = 4; a <<= 2; a", Val::Int(16));
+    assert("let mut a = 4; a >>= 2; a", Val::Int(1));
 }
 
 #[test]
@@ -386,17 +386,17 @@ fn unmatched_par() {
 
 #[test]
 fn newline_sep() {
-    assert("val x = 7\n x", Val::Int(7));
+    assert("let x = 7\n x", Val::Int(7));
 }
 
 #[test]
 fn newline_ignored_after_op() {
-    assert("val x = 9 + \n 12 \n x", Val::Int(21));
+    assert("let x = 9 + \n 12 \n x", Val::Int(21));
 }
 
 #[test]
 fn newline_ignored_before_op() {
-    assert("val x = 34\n - 45 \n x", Val::Int(-11));
+    assert("let x = 34\n - 45 \n x", Val::Int(-11));
 }
 
 #[test]
@@ -427,10 +427,10 @@ fn assertion_eq_failed() {
 
 #[test]
 fn if_statement() {
-    assert("var x = 2; if 4 == 3 + 1 { x += 3 }; x", Val::Int(5));
+    assert("let mut x = 2; if 4 == 3 + 1 { x += 3 }; x", Val::Int(5));
     assert(
         r#"
-        var x = 2
+        let mut x = 2
         if false {
             x += 3
         } else if true {
@@ -446,9 +446,9 @@ fn if_statement() {
 
 #[test]
 fn if_expr() {
-    assert("val x = if false { 3 } else { 9 }; x", Val::Int(9));
+    assert("let x = if false { 3 } else { 9 }; x", Val::Int(9));
     assert(
-        r#"val x = if true { "hi" } else { "there" }; x"#,
+        r#"let x = if true { "hi" } else { "there" }; x"#,
         Val::Str("hi".into()),
     );
 }
@@ -457,7 +457,7 @@ fn if_expr() {
 fn while_loop() {
     assert(
         r#"
-        var i = 0
+        let mut i = 0
         while i < 10 {
             i += 1
         }
@@ -467,8 +467,8 @@ fn while_loop() {
     );
     assert(
         r#"
-        var i = 20
-        var c = 0;
+        let mut i = 20
+        let mut c = 0;
         while i > 0 {
             i = i / 2
             c += 1
@@ -483,7 +483,7 @@ fn while_loop() {
 fn for_loop() {
     assert(
         r#"
-        var sum = 0
+        let mut sum = 0
         for i in 0..10 {
             sum += i
         }
@@ -493,7 +493,7 @@ fn for_loop() {
     );
     assert(
         r#"
-        var sum = 0
+        let mut sum = 0
         for i in 1..=10 {
             sum += i
         }
@@ -507,8 +507,8 @@ fn for_loop() {
 fn function() {
     assert(
         r#"
-        fun factorial(n: int) -> int {
-            var f = 1
+        fn factorial(n: int) -> int {
+            let mut f = 1
             for i in 1..=n {
                 f *= i;
             }
@@ -527,11 +527,11 @@ fn spill() {
 
 #[test]
 fn line_comment() {
-    assert("val a = // yeeet\n 5; a", Val::Int(5));
-    assert("val a = 5 * 2// yeeet\n val b = 6; a + b", Val::Int(16));
+    assert("let a = // yeeet\n 5; a", Val::Int(5));
+    assert("let a = 5 * 2// yeeet\n let b = 6; a + b", Val::Int(16));
 }
 
 #[test]
 fn block_comment() {
-    assert("val a = /* yeeet */ 5; a", Val::Int(5));
+    assert("let a = /* yeeet */ 5; a", Val::Int(5));
 }

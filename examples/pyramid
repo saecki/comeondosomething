@@ -1,7 +1,7 @@
-val W = 41
-var w = 1
+let W = 41
+let mut w = 1
 while w < W {
-    val space = (W - w) / 2
+    let space = (W - w) / 2
     for _ in 0..space {
         print(" ")
     }

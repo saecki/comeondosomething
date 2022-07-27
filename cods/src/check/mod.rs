@@ -2,9 +2,7 @@ use std::cmp::max;
 use std::rc::Rc;
 
 use crate::cst::{self, Cst};
-use crate::{
-    Context, IdentSpan, Infix, InfixT, KwT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef,
-};
+use crate::{Context, IdentSpan, Infix, InfixT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef};
 
 pub use ast::{Ast, AstT, Asts, BuiltinFunCall};
 pub use builtin::*;
@@ -686,7 +684,7 @@ impl Context {
             None => val_data_type,
         };
 
-        let mutable = v.kw.typ == KwT::Var;
+        let mutable = v.mutable.is_some();
         let inner = self.def_var(scopes, v.ident, data_type, true, mutable);
 
         let val_returns = val.returns;

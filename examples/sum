@@ -1,5 +1,5 @@
-fun sum(n: int) -> int {
-    var sum = 0
+fn sum(n: int) -> int {
+    let mut sum = 0
     for i in 1..n {
         sum += i
     }

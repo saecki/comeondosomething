@@ -1,4 +1,4 @@
-fun euclid_gcd(a: int, b: int) -> int {
+fn euclid_gcd(a: int, b: int) -> int {
     if a == b {
         b
     } else if a > b {

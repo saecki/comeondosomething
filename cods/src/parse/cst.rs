@@ -300,6 +300,7 @@ impl Block {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VarDef {
     pub kw: Kw,
+    pub mutable: Option<Kw>,
     pub ident: IdentSpan,
     pub type_hint: Option<(Pct, IdentSpan)>,
     pub value: (Op, Box<Cst>),
@@ -308,12 +309,14 @@ pub struct VarDef {
 impl VarDef {
     pub fn new(
         kw: Kw,
+        mutable: Option<Kw>,
         ident: IdentSpan,
         type_hint: Option<(Pct, IdentSpan)>,
         value: (Op, Box<Cst>),
     ) -> Self {
         Self {
             kw,
+            mutable,
             ident,
             type_hint,
             value,

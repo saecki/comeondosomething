@@ -328,7 +328,7 @@ impl Context {
                 Ok(Cst::ForLoop(for_loop))
             }
             KwT::In => Err(crate::Error::WrongContext(kw)),
-            KwT::Fun => {
+            KwT::Fn => {
                 let ident = parser.expect_ident()?;
 
                 let name = self.idents.name(ident.ident);
@@ -395,7 +395,15 @@ impl Context {
                 let r = cst::Return::new(kw, val);
                 Ok(Cst::Return(r))
             }
-            KwT::Val | KwT::Var => {
+            KwT::Let => {
+                let mut mutable = None;
+                if let Some(Item::Kw(kw)) = parser.peek() {
+                    if kw.typ == KwT::Mut {
+                        mutable = Some(*kw);
+                        parser.next();
+                    }
+                };
+
                 let ident = parser.expect_ident()?;
 
                 let name = self.idents.name(ident.ident);
@@ -421,9 +429,10 @@ impl Context {
                     (op, Box::new(val))
                 };
 
-                let v = cst::VarDef::new(kw, ident, type_hint, value);
+                let v = cst::VarDef::new(kw, mutable, ident, type_hint, value);
                 Ok(Cst::VarDef(v))
             }
+            KwT::Mut => Err(crate::Error::WrongContext(kw)),
         }
     }
 
