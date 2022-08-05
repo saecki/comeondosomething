@@ -1,6 +1,6 @@
 let W = 41
 let mut w = 1
-while w < W {
+while w <= W {
     let space = (W - w) / 2
     for _ in 0..space {
         print(" ")
