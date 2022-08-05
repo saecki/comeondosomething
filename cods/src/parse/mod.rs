@@ -6,6 +6,8 @@ pub use cst::Cst;
 pub use op::*;
 use parser::*;
 
+use self::cst::MatchArm;
+
 pub mod cst;
 mod op;
 mod parser;
@@ -17,6 +19,7 @@ enum StopOn {
     Nothing,
     LCurly,
     Comma,
+    FatArrow,
 }
 
 impl Context {
@@ -97,7 +100,7 @@ impl Context {
                 Cst::Prefix(p, Box::new(val))
             }
             Some(&Item::Pct(p)) => match p.typ {
-                PctT::Comma | PctT::Colon | PctT::Arrow => {
+                PctT::Comma | PctT::Colon | PctT::Arrow | PctT::FatArrow => {
                     let i = parser.next().unwrap();
                     self.errors.push(crate::Error::UnexpectedItem(i));
                     return Ok(Cst::Error(p.span));
@@ -175,6 +178,9 @@ impl Context {
                         break;
                     }
                     if stop == StopOn::Comma && p.typ == PctT::Comma {
+                        break;
+                    }
+                    if stop == StopOn::FatArrow && p.typ == PctT::FatArrow {
                         break;
                     }
 
@@ -312,6 +318,31 @@ impl Context {
                 Ok(Cst::IfExpr(if_expr))
             }
             KwT::Else => Err(crate::Error::WrongContext(kw)),
+            KwT::Match => {
+                let cond = self.parse_bp(parser, 0, StopOn::LCurly)?;
+                let block = parser.expect_block()?;
+
+                let mut arm_parser = Parser::new(block.items, block.l_par.span.end);
+                let mut arms = Vec::new();
+                while arm_parser.peek().is_some() {
+                    let cond = self.parse_bp(&mut arm_parser, 0, StopOn::FatArrow)?;
+                    let arrow = arm_parser.expect_pct(PctT::FatArrow)?;
+                    let expr = self.parse_bp(&mut arm_parser, 0, StopOn::Comma)?;
+                    let comma = match arm_parser.peek() {
+                        Some(&Item::Pct(i)) if i.is_comma() => {
+                            arm_parser.next();
+                            Some(i)
+                        }
+                        _ => None,
+                    };
+
+                    arms.push(MatchArm::new(cond, arrow, expr, comma))
+                }
+
+                let match_expr =
+                    cst::MatchExpr::new(kw, Box::new(cond), block.l_par, block.r_par, arms);
+                Ok(Cst::MatchExpr(match_expr))
+            }
             KwT::While => {
                 let (cond, block) = self.parse_cond_block(parser)?;
                 let whl_loop = cst::WhileLoop::new(kw, Box::new(cond), block);

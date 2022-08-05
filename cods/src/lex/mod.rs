@@ -165,7 +165,21 @@ impl Context {
                     }
                 },
                 '%' => self.two_char_op(&mut lexer, OpT::Rem, OpT::RemAssign, '=')?,
-                '=' => self.two_char_op(&mut lexer, OpT::Assign, OpT::Eq, '=')?,
+                '=' => match lexer.peek() {
+                    Some('=') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(OpT::Eq, s))?;
+                    }
+                    Some('>') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::pct(PctT::FatArrow, s))?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Assign, span))?;
+                    }
+                },
                 '.' => match lexer.peek() {
                     Some('.') => {
                         lexer.next();
@@ -326,6 +340,7 @@ impl Context {
             "is" => Token::op(OpT::Is, span),
             "if" => Token::kw(KwT::If, span),
             "else" => Token::kw(KwT::Else, span),
+            "match" => Token::kw(KwT::Match, span),
             "while" => Token::kw(KwT::While, span),
             "for" => Token::kw(KwT::For, span),
             "in" => Token::kw(KwT::In, span),

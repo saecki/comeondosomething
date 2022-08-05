@@ -98,6 +98,7 @@ impl Context {
             Cst::Par(_, c, _) => self.check_par(scopes, *c, is_expr)?,
             Cst::Block(b) => self.check_block(scopes, b, is_expr)?,
             Cst::IfExpr(i) => self.check_if_expr(scopes, i, is_expr)?,
+            Cst::MatchExpr(m) => self.check_match_expr(scopes, m, is_expr)?,
             Cst::WhileLoop(w) => self.check_while_loop(scopes, w)?,
             Cst::ForLoop(f) => self.check_for_loop(scopes, f)?,
             Cst::FunDef(mut f) => {
@@ -282,12 +283,126 @@ impl Context {
         }
     }
 
+    fn check_match_expr(
+        &mut self,
+        scopes: &mut Scopes,
+        m: cst::MatchExpr,
+        is_expr: bool,
+    ) -> crate::Result<Ast> {
+        let mut arms: Vec<ast::MatchArm> = Vec::new();
+        let mut else_arm = None;
+        let mut data_type = DataType::Unit;
+        let mut first = true;
+        let mut returns = true;
+        let mut exaustive = false;
+        let span = m.span();
+
+        let value = self.check_type(scopes, *m.value, true)?;
+        let value_t = expect_expr(&value)?;
+
+        if value.returns {
+            let s = Span::across(m.l_par.span, m.r_par.span);
+            self.warnings.push(crate::Warning::Unreachable(s));
+
+            data_type = DataType::Never;
+        } else {
+            let mut arms_iter = m.arms.into_iter();
+            while let Some(a) = arms_iter.next() {
+                if let Cst::Ident(i) = a.cond {
+                    if self.idents.name(i.ident) == "_" {
+                        let expr = self.check_type(scopes, a.expr, is_expr)?;
+                        let expr_data_type = expect_expr(&expr)?;
+
+                        if !expr.returns {
+                            returns = false;
+                        }
+
+                        if is_expr {
+                            if first {
+                                data_type = expr_data_type;
+                            } else if expr_data_type.is_not(data_type) {
+                                return Err(crate::Error::MatchArmIncompatibleType(
+                                    (data_type, arms[0].expr.span),
+                                    (expr_data_type, expr.span),
+                                ));
+                            }
+                        }
+
+                        if let Some(next_arm) = arms_iter.next() {
+                            let start_span = next_arm.span();
+                            let last = arms_iter.next_back().unwrap_or(next_arm);
+                            let s = Span::across(start_span, last.span());
+                            self.warnings.push(crate::Warning::Unreachable(s));
+                        }
+
+                        else_arm = Some(Box::new(expr));
+                        exaustive = true;
+                        break;
+                    }
+                }
+
+                let cond = self.check_type(scopes, a.cond, true)?;
+                let cond_t = expect_expr(&cond)?;
+
+                if value_t.is_not_comparable_to(cond_t) {
+                    return Err(crate::Error::NotComparable(
+                        (value_t, value.span),
+                        (cond_t, cond.span),
+                    ));
+                }
+
+                if cond.returns {
+                    self.warnings
+                        .push(crate::Warning::Unreachable(a.expr.span()));
+                } else {
+                    let expr = self.check_type(scopes, a.expr, is_expr)?;
+                    let expr_data_type = expect_expr(&expr)?;
+
+                    if !expr.returns {
+                        returns = false;
+                    }
+
+                    if is_expr {
+                        if first {
+                            data_type = expr_data_type;
+                            first = false;
+                        } else if expr_data_type.is_not(data_type) {
+                            self.errors.push(crate::Error::MatchArmIncompatibleType(
+                                (data_type, arms[0].expr.span),
+                                (expr_data_type, expr.span),
+                            ))
+                        }
+                    }
+
+                    arms.push(ast::MatchArm::new(cond, expr));
+                }
+            }
+
+            if !exaustive {
+                // TODO: recognize exaustive matches without catch all `_` arm
+                return Err(crate::Error::MissingMatchArm(value.span));
+            }
+        }
+
+        let match_expr = ast::MatchExpr::new(Box::new(value), arms, else_arm);
+        if is_expr {
+            Ok(Ast::expr(
+                AstT::MatchExpr(match_expr),
+                data_type,
+                returns,
+                span,
+            ))
+        } else {
+            Ok(Ast::statement(AstT::MatchExpr(match_expr), returns, span))
+        }
+    }
+
     fn check_while_loop(&mut self, scopes: &mut Scopes, w: cst::WhileLoop) -> crate::Result<Ast> {
         let span = w.span();
 
-        let cond = self.check_cond(scopes, *w.cond)?;
-        let cond_returns = cond.returns;
-        let block = if cond.returns {
+        let value = self.check_cond(scopes, *w.cond)?;
+        let value_returns = value.returns;
+        let block = if value.returns {
             let s = w.block.span();
             self.warnings.push(crate::Warning::Unreachable(s));
 
@@ -299,10 +414,10 @@ impl Context {
             block
         };
 
-        let whl_loop = ast::WhileLoop::new(Box::new(cond), block);
+        let whl_loop = ast::WhileLoop::new(Box::new(value), block);
         Ok(Ast::statement(
             AstT::WhileLoop(whl_loop),
-            cond_returns,
+            value_returns,
             span,
         ))
     }

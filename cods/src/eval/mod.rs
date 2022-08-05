@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, Op, WhileLoop};
+use crate::ast::{BuiltinFunCall, ForLoop, Fun, IfExpr, MatchExpr, Op, WhileLoop};
 use crate::{Ast, AstT, Asts, DataType, Range, Span, Val, ValSpan};
 
 pub use stack::*;
@@ -56,6 +56,7 @@ fn eval_ast(stack: &mut Stack, ast: &Ast) -> EvalResult<Val> {
         AstT::Unit => Ok(Val::Unit),
         AstT::Block(b) => eval_asts(stack, b),
         AstT::IfExpr(i) => eval_if_expr(stack, i),
+        AstT::MatchExpr(m) => eval_match_expr(stack, m),
         AstT::WhileLoop(w) => eval_while_loop(stack, w),
         AstT::ForLoop(f) => eval_for_loop(stack, f),
         AstT::VarAssign(v, e) => eval_var_assign(stack, v, e),
@@ -355,6 +356,20 @@ fn eval_if_expr(stack: &mut Stack, if_expr: &IfExpr) -> EvalResult<Val> {
 
     match &if_expr.else_block {
         Some(b) => eval_asts(stack, b),
+        None => Ok(Val::Unit),
+    }
+}
+
+fn eval_match_expr(stack: &mut Stack, match_expr: &MatchExpr) -> EvalResult<Val> {
+    let value = eval_ast(stack, &match_expr.value)?;
+    for a in match_expr.arms.iter() {
+        if eval_ast(stack, &a.cond)? == value {
+            return eval_ast(stack, &a.expr);
+        }
+    }
+
+    match &match_expr.else_arm {
+        Some(a) => eval_ast(stack, a),
         None => Ok(Val::Unit),
     }
 }

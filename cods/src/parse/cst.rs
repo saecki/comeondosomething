@@ -9,6 +9,7 @@ pub enum Cst {
     Par(Par, Box<Cst>, Par),
     Block(Block),
     IfExpr(IfExpr),
+    MatchExpr(MatchExpr),
     WhileLoop(WhileLoop),
     ForLoop(ForLoop),
     FunDef(FunDef),
@@ -104,6 +105,55 @@ impl IfExpr {
         } else {
             Span::across(self.if_block.kw.span, self.if_block.block.r_par.span)
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchExpr {
+    pub kw: Kw,
+    pub value: Box<Cst>,
+    pub l_par: Par,
+    pub r_par: Par,
+    pub arms: Vec<MatchArm>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchArm {
+    pub cond: Cst,
+    pub arrow: Pct,
+    pub expr: Cst,
+    pub comma: Option<Pct>,
+}
+
+impl MatchArm {
+    pub fn new(cond: Cst, arrow: Pct, expr: Cst, comma: Option<Pct>) -> Self {
+        Self {
+            cond,
+            arrow,
+            expr,
+            comma,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        let end = self.comma.map_or(self.expr.span(), |c| c.span);
+        Span::across(self.cond.span(), end)
+    }
+}
+
+impl MatchExpr {
+    pub fn new(kw: Kw, value: Box<Cst>, l_par: Par, r_par: Par, arms: Vec<MatchArm>) -> Self {
+        Self {
+            kw,
+            value,
+            l_par,
+            r_par,
+            arms,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        Span::across(self.kw.span, self.r_par.span)
     }
 }
 
@@ -338,6 +388,7 @@ impl Cst {
             Self::Par(l, _, r) => Span::across(l.span, r.span),
             Self::Block(g) => g.span(),
             Self::IfExpr(i) => i.span(),
+            Self::MatchExpr(m) => m.span(),
             Self::WhileLoop(w) => w.span(),
             Self::ForLoop(f) => f.span(),
             Self::VarDef(v) => v.span(),

@@ -175,6 +175,82 @@ fn if_expr_branch_types_are_equal() {
 }
 
 #[test]
+fn match_expr_arm_types_are_not_equal() {
+    let input = "
+        let a = 3
+        match a {
+            4 => false
+            3 => true
+            _ => 'f'
+        }
+    ";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::MatchArmIncompatibleType(
+            (DataType::Bool, Span::cols(3, 17, 22)),
+            (DataType::Char, Span::cols(5, 17, 20)),
+        )
+    );
+}
+
+#[test]
+fn match_expr_arm_unreachable() {
+    let input = "
+        let a = 3
+        match a {
+            4 => false
+            _ => true
+            3 => true
+        }
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Bool(true));
+    assert_eq!(
+        ctx.warnings,
+        [crate::Warning::Unreachable(Span::cols(5, 12, 21))]
+    );
+}
+
+#[test]
+fn match_expr_arm_condition_types_are_equal() {
+    let input = "
+        let a = 3
+        match a {
+            2.0 => 'y'
+            3 => '3'
+            _ => 'f'
+        }
+    ";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::NotComparable(
+            (DataType::Int, Span::pos(2, 14)),
+            (DataType::Float, Span::cols(3, 12, 15)),
+        )
+    );
+}
+
+#[test]
+fn match_expr_arm_types_are_equal() {
+    let input = "
+        let a = 3
+        match a {
+            4 => 'y'
+            3 => '3'
+            _ => 'f'
+        }
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Char('3'));
+}
+
+#[test]
 fn if_expr_else_branch_not_needed_when_unit() {
     let input = "
         let mut a = 3

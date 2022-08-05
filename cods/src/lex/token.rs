@@ -425,6 +425,7 @@ pub enum PctT {
     Semi,
     Colon,
     Arrow,
+    FatArrow,
     Newln,
 }
 
@@ -435,6 +436,7 @@ impl Display for PctT {
             Self::Semi => write!(f, ";"),
             Self::Colon => write!(f, ":"),
             Self::Arrow => write!(f, "->"),
+            Self::FatArrow => write!(f, "=>"),
             Self::Newln => write!(f, "\\n"),
         }
     }
@@ -491,6 +493,7 @@ impl Kw {
 pub enum KwT {
     If,
     Else,
+    Match,
     While,
     For,
     In,

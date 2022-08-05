@@ -76,6 +76,8 @@ pub enum Error {
     },
     IfBranchIncompatibleType((DataType, Span), (DataType, Span)),
     MissingElseBranch(DataType, Span),
+    MatchArmIncompatibleType((DataType, Span), (DataType, Span)),
+    MissingMatchArm(Span),
     NotIterable(DataType, Span),
     UndefinedVar(String, Span),
     UninitializedVar(String, Span, Span),
@@ -246,6 +248,13 @@ impl UserFacing for Error {
             ),
             Self::MissingElseBranch(t, _) => {
                 write!(f, "Missing else branch for if expression of type `{t}`")
+            }
+            Self::MatchArmIncompatibleType((a, _), (b, _)) => write!(
+                f,
+                "Match arms have incompatible types: `{a}` and `{b}`"
+            ),
+            Self::MissingMatchArm(_) => {
+                write!(f, "Match expression is non-exaustive. Missing match arm")
             }
             Self::NotIterable(t, _) => write!(f, "Value of type `{t}` is not iterable"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable `{name}`"),
@@ -521,6 +530,8 @@ impl UserFacing for Error {
             Self::MismatchedType { spans, .. } => spans.clone(),
             Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
             Self::MissingElseBranch(_, s) => vec![*s],
+            Self::MatchArmIncompatibleType((_, a), (_, b)) => vec![*a, *b],
+            Self::MissingMatchArm(s) => vec![*s],
             Self::NotIterable(_, s) => vec![*s],
             Self::UndefinedVar(_, s) => vec![*s],
             Self::UninitializedVar(_, a, b) => vec![*a, *b],

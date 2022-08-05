@@ -59,6 +59,7 @@ pub enum AstT {
     Unit,
     Block(Vec<Ast>),
     IfExpr(IfExpr),
+    MatchExpr(MatchExpr),
     WhileLoop(WhileLoop),
     ForLoop(ForLoop),
     VarAssign(VarRef, Box<Ast>),
@@ -130,6 +131,35 @@ pub struct CondBlock {
 impl CondBlock {
     pub const fn new(cond: Ast, block: Vec<Ast>) -> Self {
         Self { cond, block }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchExpr {
+    pub value: Box<Ast>,
+    pub arms: Vec<MatchArm>,
+    pub else_arm: Option<Box<Ast>>,
+}
+
+impl MatchExpr {
+    pub fn new(value: Box<Ast>, arms: Vec<MatchArm>, else_arm: Option<Box<Ast>>) -> Self {
+        Self {
+            value,
+            arms,
+            else_arm,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchArm {
+    pub cond: Ast,
+    pub expr: Ast,
+}
+
+impl MatchArm {
+    pub fn new(cond: Ast, expr: Ast) -> Self {
+        Self { cond, expr }
     }
 }
 
