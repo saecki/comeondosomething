@@ -36,7 +36,7 @@ impl Context {
     }
 
     pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Val> {
-        let asts = self.parse_str(input)?;
+        let asts = self.parse_and_check(input)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
         }
@@ -45,7 +45,7 @@ impl Context {
         Ok(val)
     }
 
-    pub fn parse_str(&mut self, input: &str) -> crate::Result<Asts> {
+    pub fn parse_and_check(&mut self, input: &str) -> crate::Result<Asts> {
         let tokens = self.lex(input.as_ref())?;
         let items = self.group(tokens)?;
         let csts = self.parse(items)?;
@@ -54,7 +54,7 @@ impl Context {
     }
 }
 
-pub fn eval_str(input: &str) -> crate::Result<Val> {
+pub fn eval(input: &str) -> crate::Result<Val> {
     let mut ctx = Context::default();
     ctx.parse_and_eval(input)
 }
