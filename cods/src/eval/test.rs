@@ -107,7 +107,7 @@ fn string_escape() {
 #[test]
 fn char_escape() {
     assert(r#"'\b'"#, Val::Char('\x08'));
-    assert(r#"'\e'"#, Val::Char('\x1b'.into()));
+    assert(r#"'\e'"#, Val::Char('\x1b'));
     assert(r#"'\t'"#, Val::Char('\t'));
     assert(r#"'\n'"#, Val::Char('\n'));
     assert(r#"'\r'"#, Val::Char('\r'));
@@ -183,7 +183,7 @@ fn gcd() {
 
 #[test]
 fn factorial() {
-    assert("8!", Val::Int(8 * 7 * 6 * 5 * 4 * 3 * 2 * 1));
+    assert("8!", Val::Int((1..=8).product()));
 }
 
 #[test]
@@ -516,7 +516,7 @@ fn function() {
         }
         factorial(4)
         "#,
-        Val::Int(1 * 2 * 3 * 4),
+        Val::Int((1..=4).product()),
     )
 }
 

@@ -213,7 +213,7 @@ pub struct FunDef {
     pub defined: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FunParams {
     pub l_par: Par,
     pub r_par: Par,
@@ -230,7 +230,7 @@ impl FunParams {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FunParam {
     pub ident: IdentSpan,
     pub colon: Pct,
@@ -243,7 +243,7 @@ impl FunParam {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReturnType {
     pub arrow: Pct,
     pub typ: IdentSpan,

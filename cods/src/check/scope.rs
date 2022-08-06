@@ -400,7 +400,7 @@ impl Fun {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FunParam {
     pub ident: IdentSpan,
     pub data_type: DataType,
@@ -429,7 +429,7 @@ impl ReturnType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Var {
     pub ident: IdentSpan,
     pub data_type: DataType,

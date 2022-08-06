@@ -574,7 +574,7 @@ impl UserFacing for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Warning {
     UnusedVar(String, Span),
     UnusedFun(String, Span),

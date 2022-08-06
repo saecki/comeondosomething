@@ -10,7 +10,7 @@ const PI: Val = Val::Float(consts::PI);
 const TAU: Val = Val::Float(consts::TAU);
 const E: Val = Val::Float(consts::E);
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumDisplay, EnumFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 #[cods(rename_all = "snake_case")]
 pub enum BuiltinFun {
     Pow,
@@ -39,7 +39,7 @@ pub enum BuiltinFun {
     AssertEq,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumDisplay, EnumFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
 #[cods(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BuiltinConst {
     Pi,

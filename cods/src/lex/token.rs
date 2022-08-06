@@ -147,7 +147,7 @@ impl Display for Val {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Range {
     Exclusive(i128, i128),
     Inclusive(i128, i128),
@@ -378,7 +378,7 @@ impl ParT {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParKind {
     Round,
     Square,
