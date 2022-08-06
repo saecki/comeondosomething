@@ -9,5 +9,4 @@ edition = "2021"
 name = "cods"
 
 [dependencies]
-once_cell = { version = "1.13.0", default_features = false }
 cods-derive = { path = "../derive" }

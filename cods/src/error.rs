@@ -249,10 +249,9 @@ impl UserFacing for Error {
             Self::MissingElseBranch(t, _) => {
                 write!(f, "Missing else branch for if expression of type `{t}`")
             }
-            Self::MatchArmIncompatibleType((a, _), (b, _)) => write!(
-                f,
-                "Match arms have incompatible types: `{a}` and `{b}`"
-            ),
+            Self::MatchArmIncompatibleType((a, _), (b, _)) => {
+                write!(f, "Match arms have incompatible types: `{a}` and `{b}`")
+            }
             Self::MissingMatchArm(_) => {
                 write!(f, "Match expression is non-exaustive. Missing match arm")
             }

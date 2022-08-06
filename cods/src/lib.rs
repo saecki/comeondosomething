@@ -36,21 +36,18 @@ impl Context {
     }
 
     pub fn parse_and_eval(&mut self, input: &str) -> crate::Result<Val> {
-        let asts = self.parse_and_check(input)?;
+        let tokens = self.lex(input.as_ref())?;
+        let items = self.group(tokens)?;
+        let csts = self.parse(items)?;
+
+        let mut checker = Checker::default();
+        let asts = self.check_with(&mut checker, csts)?;
         if !self.errors.is_empty() {
             return Err(self.errors.remove(0));
         }
 
-        let val = eval::eval(&asts)?;
+        let val = eval::eval(&checker.funs, &asts)?;
         Ok(val)
-    }
-
-    pub fn parse_and_check(&mut self, input: &str) -> crate::Result<Asts> {
-        let tokens = self.lex(input.as_ref())?;
-        let items = self.group(tokens)?;
-        let csts = self.parse(items)?;
-        let asts = self.check(csts)?;
-        Ok(asts)
     }
 }
 

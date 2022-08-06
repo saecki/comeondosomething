@@ -6,31 +6,37 @@ use crate::{Context, IdentSpan, Infix, InfixT, Postfix, PostfixT, Prefix, Prefix
 
 pub use ast::{Ast, AstT, Asts, BuiltinFunCall};
 pub use builtin::*;
+pub use funs::*;
 pub use op::*;
 pub use scope::*;
 pub use types::*;
 
-use self::ast::InnerFun;
-
 pub mod ast;
 mod builtin;
+mod funs;
 mod op;
 mod scope;
 #[cfg(test)]
 mod test;
 mod types;
 
+#[derive(Default)]
+pub struct Checker {
+    pub scopes: Scopes,
+    pub funs: Funs,
+}
+
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Asts> {
-        let mut scopes = Scopes::default();
-        self.check_with(&mut scopes, csts)
+        let mut checker = Checker::default();
+        self.check_with(&mut checker, csts)
     }
 
-    pub fn check_with(&mut self, scopes: &mut Scopes, csts: Vec<Cst>) -> crate::Result<Asts> {
-        let (asts, _) = self.check_types(scopes, csts, true)?;
-        let global_frame_size = scopes.frame_size();
+    pub fn check_with(&mut self, checker: &mut Checker, csts: Vec<Cst>) -> crate::Result<Asts> {
+        let (asts, _) = self.check_types(checker, csts, true)?;
+        let global_frame_size = checker.scopes.frame_size();
 
-        self.check_unused(scopes);
+        self.check_unused(&checker.scopes);
 
         Ok(Asts {
             asts,
@@ -40,14 +46,14 @@ impl Context {
 
     fn check_types(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         mut csts: Vec<Cst>,
         is_expr: bool,
     ) -> crate::Result<(Vec<Ast>, bool)> {
         for c in csts.iter_mut() {
             if let Cst::FunDef(f) = c {
                 if !f.defined {
-                    self.check_fun_def_signature(scopes, f)?;
+                    self.check_fun_def_signature(checker, f)?;
                     f.defined = true;
                 }
             }
@@ -58,7 +64,7 @@ impl Context {
         if let Some(last) = csts.pop() {
             let mut iter = csts.into_iter();
             for c in iter.by_ref() {
-                let ast = self.check_type(scopes, c, false)?;
+                let ast = self.check_type(checker, c, false)?;
                 let ast_returns = ast.returns;
                 asts.push(ast);
                 if ast_returns {
@@ -74,7 +80,7 @@ impl Context {
                 };
                 self.warnings.push(crate::Warning::Unreachable(s));
             } else {
-                let ast = self.check_type(scopes, last, is_expr)?;
+                let ast = self.check_type(checker, last, is_expr)?;
                 if ast.returns {
                     returns = true;
                 }
@@ -85,55 +91,55 @@ impl Context {
         Ok((asts, returns))
     }
 
-    fn check_type(&mut self, scopes: &mut Scopes, cst: Cst, is_expr: bool) -> crate::Result<Ast> {
+    fn check_type(&mut self, checker: &mut Checker, cst: Cst, is_expr: bool) -> crate::Result<Ast> {
         let span = cst.span();
         let ast = match cst {
             Cst::Empty(s) => Ast::expr(AstT::Unit, DataType::Unit, false, s),
             Cst::Error(s) => Ast::expr(AstT::Error, DataType::Never, false, s),
             Cst::Val(v) => Ast::val(v.val, v.span),
-            Cst::Ident(i) => match self.get_var(scopes, &i)? {
+            Cst::Ident(i) => match self.get_var(&mut checker.scopes, &i)? {
                 ResolvedVar::Const(c) => Ast::val(c.val(), span),
                 ResolvedVar::Var(var) => Ast::var(var.inner, var.data_type, false, i.span),
             },
-            Cst::Par(_, c, _) => self.check_par(scopes, *c, is_expr)?,
-            Cst::Block(b) => self.check_block(scopes, b, is_expr)?,
-            Cst::IfExpr(i) => self.check_if_expr(scopes, i, is_expr)?,
-            Cst::MatchExpr(m) => self.check_match_expr(scopes, m, is_expr)?,
-            Cst::WhileLoop(w) => self.check_while_loop(scopes, w)?,
-            Cst::ForLoop(f) => self.check_for_loop(scopes, f)?,
+            Cst::Par(_, c, _) => self.check_par(checker, *c, is_expr)?,
+            Cst::Block(b) => self.check_block(checker, b, is_expr)?,
+            Cst::IfExpr(i) => self.check_if_expr(checker, i, is_expr)?,
+            Cst::MatchExpr(m) => self.check_match_expr(checker, m, is_expr)?,
+            Cst::WhileLoop(w) => self.check_while_loop(checker, w)?,
+            Cst::ForLoop(f) => self.check_for_loop(checker, f)?,
             Cst::FunDef(mut f) => {
                 if !f.defined {
-                    self.check_fun_def_signature(scopes, &f)?;
+                    self.check_fun_def_signature(checker, &f)?;
                     f.defined = true;
                 }
-                self.check_fun_def_block(scopes, f)?
+                self.check_fun_def_block(checker, f)?
             }
-            Cst::FunCall(f) => self.check_fun_call(scopes, f)?,
-            Cst::Return(r) => self.check_return(scopes, r)?,
-            Cst::VarDef(v) => self.check_var_def(scopes, v)?,
-            Cst::Prefix(p, a) => self.check_prefix(scopes, p, *a, span)?,
-            Cst::Postfix(a, p) => self.check_postfix(scopes, *a, p, span)?,
-            Cst::Infix(a, i, b) => self.check_infix(scopes, *a, i, *b, span)?,
+            Cst::FunCall(f) => self.check_fun_call(checker, f)?,
+            Cst::Return(r) => self.check_return(checker, r)?,
+            Cst::VarDef(v) => self.check_var_def(checker, v)?,
+            Cst::Prefix(p, a) => self.check_prefix(checker, p, *a, span)?,
+            Cst::Postfix(a, p) => self.check_postfix(checker, *a, p, span)?,
+            Cst::Infix(a, i, b) => self.check_infix(checker, *a, i, *b, span)?,
         };
         Ok(ast)
     }
 
-    fn check_par(&mut self, scopes: &mut Scopes, cst: Cst, is_expr: bool) -> crate::Result<Ast> {
-        let ast = self.check_type(scopes, cst, is_expr)?;
+    fn check_par(&mut self, checker: &mut Checker, cst: Cst, is_expr: bool) -> crate::Result<Ast> {
+        let ast = self.check_type(checker, cst, is_expr)?;
         expect_expr(&ast)?;
         Ok(ast)
     }
 
     fn check_block(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         block: cst::Block,
         is_expr: bool,
     ) -> crate::Result<Ast> {
         let span = block.span();
 
-        let (asts, returns) = self.with_new(scopes, |ctx, scopes| {
-            ctx.check_types(scopes, block.csts, is_expr) //
+        let (asts, returns) = self.with_new(checker, |ctx, checker| {
+            ctx.check_types(checker, block.csts, is_expr) //
         })?;
 
         let data_type = asts
@@ -146,7 +152,7 @@ impl Context {
 
     fn check_if_expr(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         i: cst::IfExpr,
         is_expr: bool,
     ) -> crate::Result<Ast> {
@@ -155,11 +161,11 @@ impl Context {
         let mut returns = true;
         let span = i.span();
 
-        let init_frame_size = scopes.frame_size();
+        let init_frame_size = checker.scopes.frame_size();
         let mut max_branch_frame_size = 0;
         let if_block_span = i.if_block.block.span();
         {
-            let cond = self.check_cond(scopes, *i.if_block.cond)?;
+            let cond = self.check_cond(checker, *i.if_block.cond)?;
             if cond.returns {
                 let s = Span::across(i.if_block.block.span(), span);
                 self.warnings.push(crate::Warning::Unreachable(s));
@@ -168,12 +174,12 @@ impl Context {
 
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
-                let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
-                    let b = ctx.check_types(scopes, i.if_block.block.csts, is_expr)?;
-                    max_branch_frame_size = scopes.frame_size();
+                let (block, block_returns) = self.with_new(checker, |ctx, checker| {
+                    let b = ctx.check_types(checker, i.if_block.block.csts, is_expr)?;
+                    max_branch_frame_size = checker.scopes.frame_size();
                     Ok(b)
                 })?;
-                scopes.set_frame_size(init_frame_size);
+                checker.scopes.set_frame_size(init_frame_size);
 
                 if is_expr {
                     data_type = block
@@ -192,19 +198,19 @@ impl Context {
 
         for e in i.else_if_blocks {
             let e_span = e.span();
-            let cond = self.check_cond(scopes, e.cond)?;
+            let cond = self.check_cond(checker, e.cond)?;
             if cond.returns {
                 self.warnings.push(crate::Warning::Unreachable(e_span));
 
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
                 let block_span = e.block.span();
-                let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
-                    let b = ctx.check_types(scopes, e.block.csts, is_expr)?;
-                    max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
+                let (block, block_returns) = self.with_new(checker, |ctx, checker| {
+                    let b = ctx.check_types(checker, e.block.csts, is_expr)?;
+                    max_branch_frame_size = max(max_branch_frame_size, checker.scopes.frame_size());
                     Ok(b)
                 })?;
-                scopes.set_frame_size(init_frame_size);
+                checker.scopes.set_frame_size(init_frame_size);
 
                 if is_expr {
                     let d = block
@@ -234,9 +240,9 @@ impl Context {
 
         let else_block = if let Some(e) = i.else_block {
             let block_span = e.block.span();
-            let (block, block_returns) = self.with_new(scopes, |ctx, scopes| {
-                let b = ctx.check_types(scopes, e.block.csts, is_expr)?;
-                max_branch_frame_size = max(max_branch_frame_size, scopes.frame_size());
+            let (block, block_returns) = self.with_new(checker, |ctx, checker| {
+                let b = ctx.check_types(checker, e.block.csts, is_expr)?;
+                max_branch_frame_size = max(max_branch_frame_size, checker.scopes.frame_size());
                 Ok(b)
             })?;
 
@@ -273,7 +279,7 @@ impl Context {
             }
         };
 
-        scopes.set_frame_size(max_branch_frame_size);
+        checker.scopes.set_frame_size(max_branch_frame_size);
 
         let if_expr = ast::IfExpr::new(cases, else_block);
         if is_expr {
@@ -285,7 +291,7 @@ impl Context {
 
     fn check_match_expr(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         m: cst::MatchExpr,
         is_expr: bool,
     ) -> crate::Result<Ast> {
@@ -297,7 +303,7 @@ impl Context {
         let mut exaustive = false;
         let span = m.span();
 
-        let value = self.check_type(scopes, *m.value, true)?;
+        let value = self.check_type(checker, *m.value, true)?;
         let value_t = expect_expr(&value)?;
 
         if value.returns {
@@ -310,7 +316,7 @@ impl Context {
             while let Some(a) = arms_iter.next() {
                 if let Cst::Ident(i) = a.cond {
                     if self.idents.name(i.ident) == "_" {
-                        let expr = self.check_type(scopes, a.expr, is_expr)?;
+                        let expr = self.check_type(checker, a.expr, is_expr)?;
                         let expr_data_type = expect_expr(&expr)?;
 
                         if !expr.returns {
@@ -341,7 +347,7 @@ impl Context {
                     }
                 }
 
-                let cond = self.check_type(scopes, a.cond, true)?;
+                let cond = self.check_type(checker, a.cond, true)?;
                 let cond_t = expect_expr(&cond)?;
 
                 if value_t.is_not_comparable_to(cond_t) {
@@ -355,7 +361,7 @@ impl Context {
                     self.warnings
                         .push(crate::Warning::Unreachable(a.expr.span()));
                 } else {
-                    let expr = self.check_type(scopes, a.expr, is_expr)?;
+                    let expr = self.check_type(checker, a.expr, is_expr)?;
                     let expr_data_type = expect_expr(&expr)?;
 
                     if !expr.returns {
@@ -397,10 +403,10 @@ impl Context {
         }
     }
 
-    fn check_while_loop(&mut self, scopes: &mut Scopes, w: cst::WhileLoop) -> crate::Result<Ast> {
+    fn check_while_loop(&mut self, checker: &mut Checker, w: cst::WhileLoop) -> crate::Result<Ast> {
         let span = w.span();
 
-        let value = self.check_cond(scopes, *w.cond)?;
+        let value = self.check_cond(checker, *w.cond)?;
         let value_returns = value.returns;
         let block = if value.returns {
             let s = w.block.span();
@@ -408,8 +414,8 @@ impl Context {
 
             Vec::new()
         } else {
-            let (block, _) = self.with_new(scopes, |ctx, scopes| {
-                ctx.check_types(scopes, w.block.csts, false) //
+            let (block, _) = self.with_new(checker, |ctx, checker| {
+                ctx.check_types(checker, w.block.csts, false) //
             })?;
             block
         };
@@ -422,8 +428,8 @@ impl Context {
         ))
     }
 
-    fn check_cond(&mut self, scopes: &mut Scopes, c: Cst) -> crate::Result<Ast> {
-        let cond = self.check_type(scopes, c, true)?;
+    fn check_cond(&mut self, checker: &mut Checker, c: Cst) -> crate::Result<Ast> {
+        let cond = self.check_type(checker, c, true)?;
         let cond_data_type = expect_expr(&cond)?;
         if cond_data_type.is_not(DataType::Bool) {
             return Err(crate::Error::MismatchedType {
@@ -435,19 +441,19 @@ impl Context {
         Ok(cond)
     }
 
-    fn check_for_loop(&mut self, scopes: &mut Scopes, f: cst::ForLoop) -> crate::Result<Ast> {
+    fn check_for_loop(&mut self, checker: &mut Checker, f: cst::ForLoop) -> crate::Result<Ast> {
         let span = f.span();
 
-        let iter = self.check_type(scopes, *f.iter, true)?;
+        let iter = self.check_type(checker, *f.iter, true)?;
         let iter_data_type = expect_expr(&iter)?;
         if iter_data_type.is_not(DataType::Range) {
             return Err(crate::Error::NotIterable(iter_data_type, iter.span));
         }
         let iter_type = DataType::Int;
 
-        let (inner, block) = self.with_new(scopes, |ctx, scopes| {
-            let inner = ctx.def_var(scopes, f.ident, iter_type, true, false);
-            let (block, _) = ctx.check_types(scopes, f.block.csts, false)?;
+        let (inner, block) = self.with_new(checker, |ctx, checker| {
+            let inner = ctx.def_var(&mut checker.scopes, f.ident, iter_type, true, false);
+            let (block, _) = ctx.check_types(checker, f.block.csts, false)?;
             Ok((inner, block))
         })?;
 
@@ -457,7 +463,7 @@ impl Context {
 
     fn check_fun_def_signature(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         f: &cst::FunDef,
     ) -> crate::Result<()> {
         let mut params = Vec::with_capacity(f.params.items.len());
@@ -473,33 +479,33 @@ impl Context {
             .map_or(Ok(DataType::Unit), |r| self.resolve_data_type(&r.typ))?;
 
         // Define fun before checking block to support recursive calls
-        let inner = Rc::new(ast::Fun::default());
+        let inner = checker.funs.push();
         let ret = ReturnType::new(return_type, f.return_type.as_ref().map(|r| r.typ.span));
-        let fun = Fun::new(f.ident, params, ret, Rc::clone(&inner));
-        self.def_fun(scopes, fun)?;
+        let fun = Fun::new(f.ident, params, ret, inner);
+        self.def_fun(&mut checker.scopes, fun)?;
 
         Ok(())
     }
 
-    fn check_fun_def_block(&mut self, scopes: &mut Scopes, f: cst::FunDef) -> crate::Result<Ast> {
+    fn check_fun_def_block(&mut self, checker: &mut Checker, f: cst::FunDef) -> crate::Result<Ast> {
         let span = f.span();
         let block_span = f.block.span();
 
-        let fun = match self.resolve_fun(scopes, &f.ident)? {
+        let fun = match self.resolve_fun(&checker.scopes, &f.ident)? {
             ResolvedFun::Fun(f) => f,
             ResolvedFun::Builtin(_) => return Ok(Ast::statement(AstT::Unit, false, span)),
         };
 
-        self.with_new_frame(scopes, Rc::clone(&fun), |ctx, scopes| {
+        self.with_new_frame(checker, Rc::clone(&fun), |ctx, checker| {
             let mut inner_params = Vec::new();
             for p in fun.params.iter() {
-                let param = ctx.def_var(scopes, p.ident, p.data_type, true, false);
+                let param = ctx.def_var(&mut checker.scopes, p.ident, p.data_type, true, false);
                 inner_params.push(param);
             }
 
             // Check function block
             let is_expr = f.return_type.is_some();
-            let (block, _) = ctx.check_types(scopes, f.block.csts, is_expr)?;
+            let (block, _) = ctx.check_types(checker, f.block.csts, is_expr)?;
 
             let block_type = block
                 .last()
@@ -518,8 +524,10 @@ impl Context {
             }
 
             // Initialize function
-            fun.inner
-                .init(InnerFun::new(inner_params, block, scopes.frame_size()));
+            checker.funs.init(
+                fun.inner,
+                ast::Fun::new(inner_params, block, checker.scopes.frame_size()),
+            );
 
             Ok(())
         })?;
@@ -527,12 +535,14 @@ impl Context {
         Ok(Ast::statement(AstT::Unit, false, span))
     }
 
-    fn check_fun_call(&mut self, scopes: &mut Scopes, f: cst::FunCall) -> crate::Result<Ast> {
+    fn check_fun_call(&mut self, checker: &mut Checker, f: cst::FunCall) -> crate::Result<Ast> {
         let span = f.span();
 
-        let fun = match self.resolve_fun(scopes, &f.ident)? {
+        let fun = match self.resolve_fun(&checker.scopes, &f.ident)? {
             ResolvedFun::Fun(f) => f,
-            ResolvedFun::Builtin(b) => return self.check_builtin_fun_call(scopes, b, f.args, span),
+            ResolvedFun::Builtin(b) => {
+                return self.check_builtin_fun_call(checker, b, f.args, span)
+            }
         };
 
         fun.uses.set(fun.uses.get() + 1);
@@ -564,7 +574,7 @@ impl Context {
         }
         let mut args = Vec::with_capacity(f.args.items.len());
         for (p, a) in fun.params.iter().zip(f.args.items.into_iter()) {
-            let val = self.check_type(scopes, a, true)?;
+            let val = self.check_type(checker, a, true)?;
             let expected = p.data_type;
             let found = expect_expr(&val)?;
             if found.is_not(expected) {
@@ -578,7 +588,7 @@ impl Context {
         }
 
         Ok(Ast::expr(
-            AstT::FunCall(Rc::clone(&fun.inner), args),
+            AstT::FunCall(fun.inner, args),
             fun.return_type.data_type,
             false,
             span,
@@ -587,14 +597,14 @@ impl Context {
 
     fn check_builtin_fun_call(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         b: BuiltinFun,
         f_args: cst::FunArgs,
         span: Span,
     ) -> crate::Result<Ast> {
         let mut args = Vec::with_capacity(f_args.items.len());
         for a in f_args.items {
-            args.push(self.check_type(scopes, a, true)?);
+            args.push(self.check_type(checker, a, true)?);
         }
 
         let signatures: &[_] = match b {
@@ -633,7 +643,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(self.resolve_current_vars(scopes));
+                let vars = self.collect_spill_vars(self.resolve_current_vars(&mut checker.scopes));
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
             BuiltinFun::SpillLocal => {
@@ -648,7 +658,7 @@ impl Context {
                         span,
                     });
                 }
-                let vars = self.collect_spill_vars(self.resolve_current_vars(scopes));
+                let vars = self.collect_spill_vars(self.resolve_current_vars(&mut checker.scopes));
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
         };
@@ -741,15 +751,15 @@ impl Context {
         ))
     }
 
-    fn check_return(&mut self, scopes: &mut Scopes, r: cst::Return) -> crate::Result<Ast> {
-        let fun = match scopes.fun_context() {
+    fn check_return(&mut self, checker: &mut Checker, r: cst::Return) -> crate::Result<Ast> {
+        let fun = match checker.scopes.fun_context() {
             Some(f) => f,
             None => return Err(crate::Error::GlobalContextReturn(r.kw.span)),
         };
 
         let span = r.span();
         let val = match r.val {
-            Some(val) => self.check_type(scopes, *val, true)?,
+            Some(val) => self.check_type(checker, *val, true)?,
             None => Ast::expr(AstT::Unit, DataType::Unit, true, span),
         };
 
@@ -774,9 +784,9 @@ impl Context {
         ))
     }
 
-    fn check_var_def(&mut self, scopes: &mut Scopes, v: cst::VarDef) -> crate::Result<Ast> {
+    fn check_var_def(&mut self, checker: &mut Checker, v: cst::VarDef) -> crate::Result<Ast> {
         let span = v.span();
-        let val = self.check_type(scopes, *v.value.1, true)?;
+        let val = self.check_type(checker, *v.value.1, true)?;
         let val_data_type = expect_expr(&val)?;
 
         if val.returns {
@@ -800,7 +810,7 @@ impl Context {
         };
 
         let mutable = v.mutable.is_some();
-        let inner = self.def_var(scopes, v.ident, data_type, true, mutable);
+        let inner = self.def_var(&mut checker.scopes, v.ident, data_type, true, mutable);
 
         let val_returns = val.returns;
         Ok(Ast::statement(
@@ -812,14 +822,14 @@ impl Context {
 
     fn check_prefix(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         p: Prefix,
         a: Cst,
         span: Span,
     ) -> crate::Result<Ast> {
         let ast = match p.typ {
             PrefixT::UnaryPlus => {
-                let a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(checker, a, true)?;
                 let a_data_type = expect_expr(&a)?;
                 for (_, s) in &op::NEG_SIGNATURES {
                     if s.params[0].is(a_data_type) {
@@ -834,10 +844,10 @@ impl Context {
                 });
             }
             PrefixT::UnaryMinus => {
-                self.check_prefix_signatures(scopes, p, a, &op::NEG_SIGNATURES, span)?
+                self.check_prefix_signatures(checker, p, a, &op::NEG_SIGNATURES, span)?
             }
             PrefixT::Not => {
-                self.check_prefix_signatures(scopes, p, a, &op::NOT_SIGNATURES, span)?
+                self.check_prefix_signatures(checker, p, a, &op::NOT_SIGNATURES, span)?
             }
         };
 
@@ -846,13 +856,13 @@ impl Context {
 
     fn check_prefix_signatures(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         prefix: Prefix,
         arg: Cst,
         signatures: &[(ast::Op, OpSignature<1>)],
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, arg, true)?;
+        let a = self.check_type(checker, arg, true)?;
         let a_data_type = expect_expr(&a)?;
 
         let mut op = None;
@@ -886,14 +896,14 @@ impl Context {
 
     fn check_postfix(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         a: Cst,
         p: Postfix,
         span: Span,
     ) -> crate::Result<Ast> {
         let ast = match p.typ {
             PostfixT::Factorial => {
-                self.check_postfix_signatures(scopes, p, a, &op::FACTORIAL_SIGNATURES, span)?
+                self.check_postfix_signatures(checker, p, a, &op::FACTORIAL_SIGNATURES, span)?
             }
         };
 
@@ -902,13 +912,13 @@ impl Context {
 
     fn check_postfix_signatures(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         postfix: Postfix,
         arg: Cst,
         signatures: &[(ast::Op, OpSignature<1>)],
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, arg, true)?;
+        let a = self.check_type(checker, arg, true)?;
         let a_data_type = expect_expr(&a)?;
 
         let mut op = None;
@@ -942,7 +952,7 @@ impl Context {
 
     fn check_infix(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         a: Cst,
         i: Infix,
         b: Cst,
@@ -955,10 +965,10 @@ impl Context {
                     _ => return Err(crate::Error::InvalidAssignment(a.span(), i.span)),
                 };
 
-                let expr = self.check_type(scopes, b, true)?;
+                let expr = self.check_type(checker, b, true)?;
                 let expr_data_type = expect_expr(&expr)?;
                 let returns = expr.returns;
-                let var = match self.resolve_var(scopes, &ident)? {
+                let var = match self.resolve_var(&mut checker.scopes, &ident)? {
                     ResolvedVar::Var(v) => v,
                     ResolvedVar::Const(c) => {
                         return Err(crate::Error::ConstAssign((c, ident.span), i.span))
@@ -973,74 +983,78 @@ impl Context {
                 }
 
                 let inner = var.inner;
-                self.set_var(scopes, &ident, &expr)?;
+                self.set_var(&mut checker.scopes, &ident, &expr)?;
 
                 Ast::statement(AstT::VarAssign(inner, Box::new(expr)), returns, span)
             }
             InfixT::AddAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::ADD_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::ADD_SIGNATURES, span)?
             }
             InfixT::SubAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SUB_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::SUB_SIGNATURES, span)?
             }
             InfixT::MulAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::MUL_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::MUL_SIGNATURES, span)?
             }
             InfixT::DivAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::DIV_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
             InfixT::RemAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::REM_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::REM_SIGNATURES, span)?
             }
             InfixT::OrAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::OR_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::OR_SIGNATURES, span)?
             }
             InfixT::AndAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::AND_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::AND_SIGNATURES, span)?
             }
             InfixT::BwOrAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::BW_OR_SIGNATURES, span)?
             }
             InfixT::XorAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::XOR_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::XOR_SIGNATURES, span)?
             }
-            InfixT::BwAndAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
-            }
+            InfixT::BwAndAssign => self.check_infix_assign_signatures(
+                checker,
+                i,
+                (a, b),
+                &op::BW_AND_SIGNATURES,
+                span,
+            )?,
             InfixT::ShlAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SHL_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::SHL_SIGNATURES, span)?
             }
             InfixT::ShrAssign => {
-                self.check_infix_assign_signatures(scopes, i, (a, b), &op::SHR_SIGNATURES, span)?
+                self.check_infix_assign_signatures(checker, i, (a, b), &op::SHR_SIGNATURES, span)?
             }
             InfixT::RangeEx => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_EX_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::RANGE_EX_SIGNATURES, span)?
             }
             InfixT::RangeIn => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::RANGE_IN_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::RANGE_IN_SIGNATURES, span)?
             }
             InfixT::Add => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::ADD_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::ADD_SIGNATURES, span)?
             }
             InfixT::Sub => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::SUB_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::SUB_SIGNATURES, span)?
             }
             InfixT::Mul => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::MUL_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::MUL_SIGNATURES, span)?
             }
             InfixT::Div => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::DIV_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
             InfixT::Rem => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::REM_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::REM_SIGNATURES, span)?
             }
             InfixT::RemEuclid => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::REM_EUCLID_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::REM_EUCLID_SIGNATURES, span)?
             }
             InfixT::Eq => {
-                let a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(checker, a, true)?;
                 let a_t = expect_expr(&a)?;
-                let b = self.check_type(scopes, b, true)?;
+                let b = self.check_type(checker, b, true)?;
                 let b_t = expect_expr(&b)?;
                 let returns = a.returns || b.returns;
 
@@ -1055,9 +1069,9 @@ impl Context {
                 )
             }
             InfixT::Ne => {
-                let a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(checker, a, true)?;
                 let a_t = expect_expr(&a)?;
-                let b = self.check_type(scopes, b, true)?;
+                let b = self.check_type(checker, b, true)?;
                 let b_t = expect_expr(&b)?;
                 let returns = a.returns || b.returns;
 
@@ -1072,37 +1086,37 @@ impl Context {
                 )
             }
             InfixT::Lt => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::LT_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::LT_SIGNATURES, span)?
             }
             InfixT::Le => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::LE_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::LE_SIGNATURES, span)?
             }
             InfixT::Gt => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::GT_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::GT_SIGNATURES, span)?
             }
             InfixT::Ge => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::GE_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::GE_SIGNATURES, span)?
             }
             InfixT::Or => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::OR_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::OR_SIGNATURES, span)?
             }
             InfixT::And => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::AND_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::AND_SIGNATURES, span)?
             }
             InfixT::BwOr => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::BW_OR_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::BW_OR_SIGNATURES, span)?
             }
             InfixT::Xor => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::XOR_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::XOR_SIGNATURES, span)?
             }
             InfixT::BwAnd => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::BW_AND_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::BW_AND_SIGNATURES, span)?
             }
             InfixT::Shl => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::SHL_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::SHL_SIGNATURES, span)?
             }
             InfixT::Shr => {
-                self.check_infix_signatures(scopes, i, (a, b), &op::SHR_SIGNATURES, span)?
+                self.check_infix_signatures(checker, i, (a, b), &op::SHR_SIGNATURES, span)?
             }
             InfixT::Dot => {
                 return Err(crate::Error::NotImplemented(
@@ -1116,7 +1130,7 @@ impl Context {
                     _ => return Err(crate::Error::ExpectedIdent(b.span())),
                 };
                 let data_type = self.resolve_data_type(&ident)?;
-                let a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(checker, a, true)?;
                 let a_data_type = expect_expr(&a)?;
 
                 if a_data_type == data_type {
@@ -1188,7 +1202,7 @@ impl Context {
                     _ => return Err(crate::Error::ExpectedIdent(b.span())),
                 };
                 let data_type = self.resolve_data_type(&ident)?;
-                let a = self.check_type(scopes, a, true)?;
+                let a = self.check_type(checker, a, true)?;
                 let a_data_type = expect_expr(&a)?;
 
                 if a_data_type == data_type {
@@ -1213,15 +1227,15 @@ impl Context {
 
     fn check_infix_signatures(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         infix: Infix,
         args: (Cst, Cst),
         signatures: &[(ast::Op, OpSignature<2>)],
         span: Span,
     ) -> crate::Result<Ast> {
-        let a = self.check_type(scopes, args.0, true)?;
+        let a = self.check_type(checker, args.0, true)?;
         let a_data_type = expect_expr(&a)?;
-        let b = self.check_type(scopes, args.1, true)?;
+        let b = self.check_type(checker, args.1, true)?;
         let b_data_type = expect_expr(&b)?;
 
         let mut op = None;
@@ -1261,7 +1275,7 @@ impl Context {
 
     fn check_infix_assign_signatures(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         infix: Infix,
         args: (Cst, Cst),
         signatures: &[(ast::Op, OpSignature<2>)],
@@ -1272,10 +1286,10 @@ impl Context {
             _ => return Err(crate::Error::InvalidAssignment(args.0.span(), infix.span)),
         };
 
-        let b = self.check_type(scopes, args.1, true)?;
+        let b = self.check_type(checker, args.1, true)?;
         let b_data_type = expect_expr(&b)?;
         let returns = b.returns;
-        let var = match self.get_var(scopes, &ident)? {
+        let var = match self.get_var(&mut checker.scopes, &ident)? {
             ResolvedVar::Var(v) => v,
             ResolvedVar::Const(c) => {
                 return Err(crate::Error::ConstAssign((c, ident.span), infix.span))
@@ -1319,7 +1333,7 @@ impl Context {
 
         let inner = var.inner;
 
-        self.set_var(scopes, &ident, &expr)?;
+        self.set_var(&mut checker.scopes, &ident, &expr)?;
 
         Ok(Ast::statement(
             AstT::VarAssign(inner, Box::new(expr)),

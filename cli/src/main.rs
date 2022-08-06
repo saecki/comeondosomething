@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write as _};
 use std::process::{exit, ExitCode};
 
-use cods::{Context, Scopes, Stack, Val};
+use cods::{Checker, Context, Stack, Val};
 
 use display::*;
 use style::*;
@@ -13,7 +13,7 @@ mod style;
 #[derive(Default)]
 struct State {
     ctx: Context,
-    scopes: Scopes,
+    checker: Checker,
     stack: Stack,
 }
 
@@ -125,11 +125,11 @@ fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
     let tokens = state.ctx.lex(input.as_ref())?;
     let items = state.ctx.group(tokens)?;
     let csts = state.ctx.parse(items)?;
-    let asts = state.ctx.check_with(&mut state.scopes, csts)?;
+    let asts = state.ctx.check_with(&mut state.checker, csts)?;
     if !state.ctx.errors.is_empty() {
         return Err(state.ctx.errors.remove(0));
     }
-    cods::eval_with(&mut state.stack, &asts)
+    cods::eval_with(&mut state.stack, &state.checker.funs, &asts)
 }
 
 fn help() {

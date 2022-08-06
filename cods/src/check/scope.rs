@@ -2,7 +2,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use crate::{
-    ast, Ast, BuiltinConst, BuiltinFun, Context, DataType, Ident, IdentSpan, Span, VarRef,
+    Ast, BuiltinConst, BuiltinFun, Checker, Context, DataType, FunRef, Ident, IdentSpan, Span,
+    VarRef,
 };
 
 pub enum ResolvedFun {
@@ -156,25 +157,25 @@ impl Context {
 
     pub fn with_new_frame<T>(
         &mut self,
-        scopes: &mut Scopes,
+        checker: &mut Checker,
         fun: Rc<Fun>,
-        f: impl FnOnce(&mut Self, &mut Scopes) -> T,
+        f: impl FnOnce(&mut Self, &mut Checker) -> T,
     ) -> T {
-        scopes.push_frame(fun);
-        let r = self.with_new(scopes, f);
-        scopes.pop_frame();
+        checker.scopes.push_frame(fun);
+        let r = self.with_new(checker, f);
+        checker.scopes.pop_frame();
         r
     }
 
     pub fn with_new<T>(
         &mut self,
-        scopes: &mut Scopes,
-        f: impl FnOnce(&mut Self, &mut Scopes) -> T,
+        checker: &mut Checker,
+        f: impl FnOnce(&mut Self, &mut Checker) -> T,
     ) -> T {
-        scopes.push();
-        let r = f(self, scopes);
-        self.check_unused(scopes);
-        scopes.pop();
+        checker.scopes.push();
+        let r = f(self, checker);
+        self.check_unused(&checker.scopes);
+        checker.scopes.pop();
         r
     }
 
@@ -380,7 +381,7 @@ pub struct Fun {
     pub params: Vec<FunParam>,
     pub return_type: ReturnType,
     pub uses: Cell<u32>,
-    pub inner: Rc<ast::Fun>,
+    pub inner: FunRef,
 }
 
 impl Fun {
@@ -388,7 +389,7 @@ impl Fun {
         ident: IdentSpan,
         params: Vec<FunParam>,
         return_type: ReturnType,
-        inner: Rc<ast::Fun>,
+        inner: FunRef,
     ) -> Self {
         Self {
             ident,

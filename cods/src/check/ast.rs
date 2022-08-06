@@ -1,9 +1,6 @@
 use std::fmt::Debug;
-use std::rc::Rc;
 
-use once_cell::unsync::OnceCell;
-
-use crate::{DataType, Span, Val, VarRef};
+use crate::{DataType, FunRef, Span, Val, VarRef};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Asts {
@@ -63,7 +60,7 @@ pub enum AstT {
     WhileLoop(WhileLoop),
     ForLoop(ForLoop),
     VarAssign(VarRef, Box<Ast>),
-    FunCall(Rc<Fun>, Vec<Ast>),
+    FunCall(FunRef, Vec<Ast>),
     Return(Box<Ast>),
     BuiltinFunCall(BuiltinFunCall, Vec<Ast>),
     Spill(Vec<(String, VarRef)>),
@@ -188,35 +185,20 @@ impl ForLoop {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Fun(OnceCell<InnerFun>);
-
 #[derive(Clone, Debug, PartialEq)]
-pub struct InnerFun {
+pub struct Fun {
     pub params: Vec<VarRef>,
     pub block: Vec<Ast>,
     pub frame_size: usize,
 }
 
-impl InnerFun {
+impl Fun {
     pub fn new(params: Vec<VarRef>, block: Vec<Ast>, frame_size: usize) -> Self {
         Self {
             params,
             block,
             frame_size,
         }
-    }
-}
-
-impl Fun {
-    pub fn init(&self, inner: InnerFun) {
-        self.0
-            .set(inner)
-            .expect("Expected function to be unitialized");
-    }
-
-    pub fn get(&self) -> &InnerFun {
-        self.0.get().expect("expected function to be initialized")
     }
 }
 
