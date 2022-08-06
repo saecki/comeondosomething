@@ -11,7 +11,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub trait UserFacing: Sized + Debug + Display {
     fn description(
         &self,
-        f: &mut fmt::Formatter,
+        f: &mut impl fmt::Write,
         line_prefix: &str,
         line_suffix: &str,
     ) -> fmt::Result;
@@ -156,7 +156,7 @@ impl Display for Error {
 impl UserFacing for Error {
     fn description(
         &self,
-        f: &mut fmt::Formatter<'_>,
+        f: &mut impl fmt::Write,
         line_prefix: &str,
         line_suffix: &str,
     ) -> fmt::Result {
@@ -591,7 +591,7 @@ impl Display for Warning {
 impl UserFacing for Warning {
     fn description(
         &self,
-        f: &mut fmt::Formatter<'_>,
+        f: &mut impl fmt::Write,
         line_prefix: &str,
         line_suffix: &str,
     ) -> fmt::Result {

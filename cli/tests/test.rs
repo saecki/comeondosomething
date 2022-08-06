@@ -24,6 +24,7 @@ fn outer() {
 
     Command::cargo_bin("cods")
         .unwrap()
+        .arg("--")
         .arg(input)
         .assert()
         .failure()
@@ -42,6 +43,7 @@ fn mark_error_after_line_end() {
 
     Command::cargo_bin("cods")
         .unwrap()
+        .arg("--")
         .arg(input)
         .assert()
         .failure()
@@ -66,6 +68,7 @@ fn builtin_fun_signature() {
 
     Command::cargo_bin("cods")
         .unwrap()
+        .arg("--")
         .arg(input)
         .assert()
         .failure()

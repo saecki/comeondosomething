@@ -29,13 +29,6 @@ struct Member {
     rename: Option<Literal>,
 }
 
-fn expect_ident_like(tokens: &mut impl Iterator<Item = TokenTree>, ident: &str) {
-    match tokens.next() {
-        Some(TokenTree::Ident(i)) if i.to_string() == ident => (),
-        _ => panic!("expected identifier: '{ident}'"),
-    }
-}
-
 fn expect_punct_like(tokens: &mut impl Iterator<Item = TokenTree>, punct: &str) {
     match tokens.next() {
         Some(TokenTree::Punct(p)) if p.to_string() == punct => (),
@@ -131,7 +124,14 @@ fn parse_enum(input: TokenStream) -> Enum {
                     _ => panic!("expected attribute list"),
                 };
 
-                expect_ident_like(&mut attributes, "cods");
+                match attributes.next() {
+                    Some(TokenTree::Ident(i)) => {
+                        if i.to_string() != "cods" {
+                            continue;
+                        }
+                    }
+                    _ => panic!("expected identifier"),
+                }
 
                 let mut attribute_args = match attributes.next() {
                     Some(TokenTree::Group(g)) => g.stream().into_iter(),

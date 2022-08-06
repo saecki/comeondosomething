@@ -2,12 +2,14 @@ use std::env::args;
 use std::io::{self, Write as _};
 use std::process::{exit, ExitCode};
 
-use cods::{Checker, Context, Stack, Val};
+use cods::{Asts, Checker, Context, Stack, Val};
+use cods_derive::EnumFromStr;
 
 use display::*;
 use style::*;
 
 mod display;
+mod json;
 mod style;
 
 #[derive(Default)]
@@ -17,30 +19,89 @@ struct State {
     stack: Stack,
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, EnumFromStr)]
+#[cods(rename_all = "snake_case")]
+enum OutputFormat {
+    #[default]
+    Pretty,
+    Json,
+}
+
+#[derive(Default)]
+struct Args {
+    format: OutputFormat,
+    input_args_start: usize,
+    /// all arguments that aren't specific options
+    items: Vec<String>,
+}
+
+enum Action {
+    Run,
+    Check,
+    Input,
+    Interactive,
+    Help,
+    Version,
+}
+
 fn main() -> ExitCode {
+    let mut action = None;
+    let mut user_args = Args::default();
+
     let mut args = args().skip(1);
-    if let Some(first) = args.next() {
-        match first.as_str() {
-            "-i" | "--interactive" => repl(),
-            "-p" | "--path" => calc_file(args.next()),
-            "-h" | "--help" => {
-                help();
-                ExitCode::SUCCESS
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "i" | "interactive" => action = Some(Action::Interactive),
+            "r" | "run" => action = Some(Action::Run),
+            "c" | "check" => action = Some(Action::Check),
+            "-h" | "--help" => action = Some(Action::Help),
+            "-v" | "--version" => action = Some(Action::Version),
+            "-f" | "--format" => match args.next() {
+                Some(f) => match f.parse::<OutputFormat>() {
+                    Ok(f) => user_args.format = f,
+                    Err(_) => {
+                        bprintln!(
+                            LRed,
+                            "Invalid --format: '{f}', possible values are [pretty, json]"
+                        );
+                        return ExitCode::FAILURE;
+                    }
+                },
+                None => {
+                    bprintln!(LRed, "Missing --format, possible values are [pretty, json]");
+                    return ExitCode::FAILURE;
+                }
+            },
+            "--" => {
+                action = Some(Action::Input);
+                user_args.input_args_start = user_args.items.len();
             }
-            "-v" | "--version" => {
-                version();
-                ExitCode::SUCCESS
-            }
-            _ => calc_args(first, args),
+            _ => user_args.items.push(arg),
         }
-    } else {
-        bprintln!(LRed, "Error: missing arguments\n");
-        help();
-        ExitCode::FAILURE
+    }
+
+    match action {
+        Some(Action::Run) => eval_path(&user_args),
+        Some(Action::Check) => check_path(&user_args),
+        Some(Action::Input) => eval_args(&user_args),
+        Some(Action::Interactive) => repl(&user_args),
+        Some(Action::Help) => {
+            help();
+            ExitCode::SUCCESS
+        }
+        Some(Action::Version) => {
+            version();
+            ExitCode::SUCCESS
+        }
+        None => {
+            bprintln!(LRed, "Missing arguments\n");
+            help();
+            ExitCode::FAILURE
+        }
     }
 }
 
-fn repl() -> ExitCode {
+fn repl(args: &Args) -> ExitCode {
     bprintln!(LBlue, "Started interactive repl");
 
     let mut output = io::stdout();
@@ -65,7 +126,7 @@ fn repl() -> ExitCode {
                 let _ = output.flush();
             }
             _ => {
-                print_calc(&mut state, &buf);
+                print_eval(&mut state, &buf, args);
             }
         }
     }
@@ -73,8 +134,8 @@ fn repl() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn calc_file(path: Option<String>) -> ExitCode {
-    let p = match path {
+fn eval_path(args: &Args) -> ExitCode {
+    let p = match args.items.first() {
         Some(p) => p,
         None => {
             bprintln!(LRed, "Path not specified");
@@ -85,7 +146,10 @@ fn calc_file(path: Option<String>) -> ExitCode {
     match std::fs::read_to_string(&p) {
         Ok(input) => {
             let mut state = State::default();
-            print_calc(&mut state, &input)
+            match print_eval(&mut state, &input, args) {
+                Some(_) => ExitCode::SUCCESS,
+                None => ExitCode::FAILURE,
+            }
         }
         Err(_) => {
             bprintln!(LRed, "Error reading file: {p}");
@@ -94,34 +158,93 @@ fn calc_file(path: Option<String>) -> ExitCode {
     }
 }
 
-fn calc_args(first: String, args: impl Iterator<Item = String>) -> ExitCode {
-    let input = args.fold(first, |a, b| a + " " + &b);
-    let mut state = State::default();
-    print_calc(&mut state, &input)
-}
-
-fn print_calc(state: &mut State, input: &str) -> ExitCode {
-    match calc(state, input) {
-        Ok(v) => {
-            for w in state.ctx.warnings.iter().rev() {
-                println!("{}\n", w.display(input));
-            }
-            if v != Val::Unit {
-                println!("{v}");
-            }
-            ExitCode::SUCCESS
+fn check_path(args: &Args) -> ExitCode {
+    let p = match args.items.first() {
+        Some(p) => p,
+        None => {
+            bprintln!(LRed, "Path not specified");
+            exit(1);
         }
-        Err(e) => {
-            for e in state.ctx.errors.iter().rev() {
-                println!("{}\n", e.display(input));
+    };
+
+    match std::fs::read_to_string(&p) {
+        Ok(input) => {
+            let mut state = State::default();
+            match print_check(&mut state, &input, args) {
+                Some(_) => ExitCode::SUCCESS,
+                None => ExitCode::FAILURE,
             }
-            println!("{}\n", e.display(input));
+        }
+        Err(_) => {
+            bprintln!(LRed, "Error reading file: {p}");
             ExitCode::FAILURE
         }
     }
 }
 
-fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
+fn eval_args(args: &Args) -> ExitCode {
+    let input = args.items[args.input_args_start..].join(" ");
+    let mut state = State::default();
+    match print_eval(&mut state, &input, args) {
+        Some(_) => ExitCode::SUCCESS,
+        None => ExitCode::FAILURE,
+    }
+}
+
+fn print_eval(state: &mut State, input: &str, args: &Args) -> Option<Val> {
+    if let Some(asts) = print_check(state, input, args) {
+        match cods::eval_with(&mut state.stack, &state.checker.funs, &asts) {
+            Ok(v) => {
+                if v != Val::Unit {
+                    println!("{v}");
+                }
+                return Some(v);
+            }
+            Err(e) => {
+                println!("{}", e.display(input));
+            }
+        }
+    }
+
+    None
+}
+
+fn print_check(state: &mut State, input: &str, args: &Args) -> Option<Asts> {
+    let asts = match check(state, input) {
+        Ok(asts) => Some(asts),
+        Err(e) => {
+            state.ctx.errors.push(e);
+            None
+        }
+    };
+
+    match args.format {
+        OutputFormat::Pretty => {
+            if state.ctx.errors.is_empty() {
+                for w in state.ctx.warnings.iter().rev() {
+                    println!("{}\n", w.display(input));
+                }
+            } else {
+                for w in state.ctx.errors.iter().rev() {
+                    println!("{}\n", w.display(input));
+                }
+            }
+        }
+        OutputFormat::Json => {
+            let mut buf = String::new();
+            if state.ctx.errors.is_empty() {
+                let _ = json::write_diagnostics(&mut buf, &[], &state.ctx.warnings);
+            } else {
+                let _ = json::write_diagnostics(&mut buf, &state.ctx.errors, &[]);
+            }
+            println!("{buf}");
+        }
+    }
+
+    asts
+}
+
+fn check(state: &mut State, input: &str) -> cods::Result<Asts> {
     let tokens = state.ctx.lex(input.as_ref())?;
     let items = state.ctx.group(tokens)?;
     let csts = state.ctx.parse(items)?;
@@ -129,7 +252,7 @@ fn calc(state: &mut State, input: &str) -> cods::Result<Val> {
     if !state.ctx.errors.is_empty() {
         return Err(state.ctx.errors.remove(0));
     }
-    cods::eval_with(&mut state.stack, &state.checker.funs, &asts)
+    Ok(asts)
 }
 
 fn help() {
@@ -140,16 +263,19 @@ fn help() {
 {desc}
 
 {yellow}USAGE:{esc}
-    cods [OPTIONS] [EXPRESSION]
+    cods [COMMAND][OPTIONS] [-- EXPRESSION]
 
 {yellow}EXPRESSION:{esc}
     An expression that will be evaluated
 
+{yellow}COMMANDS:{esc}
+    {green}r{esc}, {green}run   <file>{esc}     Run a file
+    {green}c{esc}, {green}check <file>{esc}     Check a file
+    {green}i{esc}, {green}interactive{esc}      Start an interactive repl
+
 {yellow}OPTIONS:{esc}
-    {green}-i{esc}, {green}--interactive{esc}   Start an interactive repl (read evaluate print loop)
     {green}-h{esc}, {green}--help{esc}          Show this help message
     {green}-v{esc}, {green}--version{esc}       Print the version
-    {green}-p{esc}, {green}--path <file>{esc}   Evaluate a file
 ",
         vers = env!("CARGO_PKG_VERSION"),
         authors = env!("CARGO_PKG_AUTHORS"),

@@ -11,6 +11,7 @@ name = "cods"
 path = "src/main.rs"
 
 [dependencies]
+cods-derive = { path = "../derive" }
 cods = { path = "../cods" }
 unicode-width = "0.1.9"
 
