@@ -183,7 +183,7 @@ impl Context {
         for v in scopes.current_vars() {
             if v.uses == 0 {
                 let name = self.idents.name(v.ident.ident);
-                if name == "_" {
+                if name.starts_with("_") {
                     continue;
                 }
 
