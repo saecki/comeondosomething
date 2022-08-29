@@ -269,13 +269,14 @@ fn help() {
     An expression that will be evaluated
 
 {yellow}COMMANDS:{esc}
-    {green}r{esc}, {green}run   <file>{esc}     Run a file
-    {green}c{esc}, {green}check <file>{esc}     Check a file
-    {green}i{esc}, {green}interactive{esc}      Start an interactive repl
+    {green}r{esc}, {green}run   <file>{esc}         Run a file
+    {green}c{esc}, {green}check <file>{esc}         Check a file
+    {green}i{esc}, {green}interactive{esc}          Start an interactive repl
 
 {yellow}OPTIONS:{esc}
-    {green}-h{esc}, {green}--help{esc}          Show this help message
-    {green}-v{esc}, {green}--version{esc}       Print the version
+    {green}-h{esc}, {green}--help{esc}              Show this help message
+    {green}-v{esc}, {green}--version{esc}           Print the version
+    {green}-f{esc}, {green}--format <format>{esc}   The output format [default: \"pretty\"] [possible values: \"pretty\", \"json\"]
 ",
         vers = env!("CARGO_PKG_VERSION"),
         authors = env!("CARGO_PKG_AUTHORS"),

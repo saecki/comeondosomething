@@ -11,16 +11,20 @@ Saecki <tobiasschmitz2001@gmail.com>
 A statically typed scripting language
 
 USAGE:
-    cods [OPTIONS] [EXPRESSION]
+    cods [COMMAND][OPTIONS] [-- EXPRESSION]
 
 EXPRESSION:
     An expression that will be evaluated
 
+COMMANDS:
+    r, run   <file>         Run a file
+    c, check <file>         Check a file
+    i, interactive          Start an interactive repl
+
 OPTIONS:
-    -i, --interactive   Start an interactive repl (read evaluate print loop)
-    -h, --help          Show this help message
-    -v, --version       Print the version
-    -p, --path <file>   Evaluate a file
+    -h, --help              Show this help message
+    -v, --version           Print the version
+    -f, --format <format>   The output format [default: "pretty"] [possible values: "pretty", "json"]
 ```
 
 ## TODO
