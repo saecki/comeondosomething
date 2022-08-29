@@ -183,7 +183,7 @@ impl Context {
         for v in scopes.current_vars() {
             if v.uses == 0 {
                 let name = self.idents.name(v.ident.ident);
-                if name.starts_with("_") {
+                if name.starts_with('_') {
                     continue;
                 }
 
@@ -375,7 +375,7 @@ impl Scopes {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Fun {
     pub ident: IdentSpan,
     pub params: Vec<FunParam>,
