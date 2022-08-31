@@ -1,6 +1,7 @@
 pub use check::*;
 pub use error::*;
 pub use eval::*;
+pub use eval2::*;
 pub use group::*;
 pub use ident::*;
 pub use lex::*;
@@ -10,6 +11,7 @@ pub use span::*;
 mod check;
 mod error;
 mod eval;
+mod eval2;
 mod group;
 mod ident;
 mod lex;

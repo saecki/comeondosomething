@@ -145,6 +145,9 @@ pub enum Error {
     InvalidClampBounds(ValSpan, ValSpan),
     AssertFailed(Span),
     AssertEqFailed(ValSpan, ValSpan),
+
+    StackOverflow,
+    StackUnderflow,
 }
 
 impl error::Error for Error {}
@@ -497,6 +500,9 @@ impl UserFacing for Error {
                     ls = line_suffix,
                 )
             }
+
+            Self::StackOverflow => write!(f, "Stack overflow"),
+            Self::StackUnderflow => write!(f, "Stack underflow"),
         }?;
         f.write_str(line_suffix)
     }
@@ -584,6 +590,9 @@ impl UserFacing for Error {
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
             Self::AssertFailed(s) => vec![*s],
             Self::AssertEqFailed(a, b) => vec![a.span, b.span],
+
+            Self::StackOverflow => vec![],
+            Self::StackUnderflow => vec![],
         }
     }
 }
