@@ -1,12 +1,11 @@
+use crate::util::{get, get_mut};
+
 #[cfg(test)]
 mod test;
 
+pub const REGISTERS: usize = 256;
+pub const STACK_PTR: usize = 255;
 pub const STACK_SIZE: usize = 1024 * 1024;
-pub const EQ_MASK: i64 = 0x1;
-pub const LT_MASK: i64 = 0x1;
-pub const LE_MASK: i64 = 0x1;
-pub const GT_MASK: i64 = 0x1;
-pub const GE_MASK: i64 = 0x1;
 
 /// The first byte of every instruction is the op code.
 ///
@@ -66,33 +65,37 @@ impl TryFrom<u8> for OpCode {
 }
 
 /// Register 0 is the stack pointer
-pub fn eval2(
+pub fn eval(
+    consts: &[u8],
     code: &[u8],
-    registers: &mut [i64; 256],
+    registers: &mut [i64; REGISTERS],
     stack: &mut [u8; STACK_SIZE],
 ) -> crate::Result<()> {
     let mut instruction_ptr: i32 = 0;
 
-    registers[0] = STACK_SIZE as i64;
+    registers[STACK_PTR] = STACK_SIZE as i64;
 
     while (instruction_ptr as usize) < code.len() {
+        dbg!(registers[STACK_PTR]);
+        dbg!(registers[1]);
+        dbg!(&stack[STACK_SIZE - 16..]);
         let [op, args @ ..] = *get::<[u8; 8]>(code, instruction_ptr as usize);
         let op: OpCode = OpCode::try_from(op).expect("Unknown op code");
         instruction_ptr += 8;
         match op {
             OpCode::Push => {
                 let size = *get::<i32>(&args, 3) as i64;
-                if registers[0] - size < 0 {
+                if registers[STACK_PTR] - size < 0 {
                     return Err(crate::Error::StackOverflow);
                 }
-                registers[0] -= size as i64;
+                registers[STACK_PTR] -= size as i64;
             }
             OpCode::Pop => {
                 let size = *get::<i32>(&args, 3) as i64;
-                if registers[0] + size > STACK_SIZE as i64 {
+                if registers[STACK_PTR] + size > STACK_SIZE as i64 {
                     return Err(crate::Error::StackUnderflow);
                 }
-                registers[0] += size as i64;
+                registers[STACK_PTR] += size as i64;
             }
             OpCode::JmpAbs => {
                 instruction_ptr = *get::<i32>(&args, 3);
@@ -157,7 +160,7 @@ pub fn eval2(
             OpCode::Ldc => {
                 let reg_dest = args[0] as usize;
                 let addr = *get::<u32>(&args, 3);
-                registers[reg_dest] = *get::<i64>(code, addr as usize);
+                registers[reg_dest] = *get::<i64>(consts, addr as usize);
             }
             OpCode::Lds => {
                 let reg_dest = args[0] as usize;
@@ -170,7 +173,9 @@ pub fn eval2(
                 let reg_src = args[0] as usize;
                 let reg_addr = args[1] as usize;
                 let offset = *get::<i32>(&args, 3) as i64;
+                dbg!(offset);
                 let addr = registers[reg_addr] + offset;
+                dbg!(addr);
                 *get_mut::<i64>(stack, addr as usize) = registers[reg_src];
             }
             OpCode::Mov => {
@@ -307,15 +312,11 @@ pub fn eval2(
         }
     }
 
+    dbg!(registers[STACK_PTR]);
+    dbg!(registers[1]);
+    dbg!(&stack[STACK_SIZE - 16..]);
+
     Ok(())
-}
-
-fn get<T: Sized>(buf: &[u8], index: usize) -> &T {
-    unsafe { std::mem::transmute(&buf[index] as *const u8) }
-}
-
-fn get_mut<T: Sized>(buf: &mut [u8], index: usize) -> &mut T {
-    unsafe { std::mem::transmute(&buf[index] as *const u8) }
 }
 
 fn float(val: i64) -> f64 {
