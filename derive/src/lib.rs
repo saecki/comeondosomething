@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use std::fmt::Write as _;
 
 struct Enum {
+    vis: String,
     name: String,
     rename_all: Option<Case>,
     members: Vec<Member>,
@@ -91,8 +92,11 @@ fn parse_enum(input: TokenStream) -> Enum {
         }
     }
 
+    let mut vis = String::new();
     if let Some(TokenTree::Ident(i)) = tokens.peek() {
-        if i.to_string() == "pub" {
+        let v = i.to_string();
+        if v == "pub" {
+            vis = v;
             tokens.next();
         }
     }
@@ -168,6 +172,7 @@ fn parse_enum(input: TokenStream) -> Enum {
     }
 
     Enum {
+        vis,
         name,
         rename_all,
         members,
@@ -239,6 +244,7 @@ pub fn derive_display(input: TokenStream) -> TokenStream {
         name,
         rename_all,
         members,
+        ..
     } = parse_enum(input);
 
     let mut output = format!(
@@ -271,6 +277,7 @@ pub fn derive_from_str(input: TokenStream) -> TokenStream {
         name,
         rename_all,
         members,
+        ..
     } = parse_enum(input);
 
     let mut output = format!(
@@ -298,5 +305,33 @@ pub fn derive_from_str(input: TokenStream) -> TokenStream {
     let _ = write!(output, "_ => Err(()),");
 
     output.push_str("}}}");
+    output.parse().unwrap()
+}
+
+#[proc_macro_derive(EnumMembersArray, attributes(cods))]
+pub fn derive_members_array(input: TokenStream) -> TokenStream {
+    let Enum {
+        vis, name, members, ..
+    } = parse_enum(input);
+
+    let count = members.len();
+    let mut output = format!(
+        "impl {name} {{
+            {vis} fn members() -> &'static [{name}; {count}] {{
+                &[\n"
+    );
+
+    for m in members {
+        let m_ident = m.ident.to_string();
+        let _ = write!(output, "{name}::{m_ident},\n");
+    }
+
+    let _ = write!(
+        output,
+        "       ]
+            }}
+        }}"
+    );
+
     output.parse().unwrap()
 }

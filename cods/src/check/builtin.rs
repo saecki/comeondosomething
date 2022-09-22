@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use cods_derive::{EnumDisplay, EnumFromStr};
+use cods_derive::{EnumDisplay, EnumFromStr, EnumMembersArray};
 
 use crate::ast::BuiltinFunCall::{self, *};
 use crate::DataType::*;
@@ -10,7 +10,7 @@ const PI: Val = Val::Float(consts::PI);
 const TAU: Val = Val::Float(consts::TAU);
 const E: Val = Val::Float(consts::E);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr, EnumMembersArray)]
 #[cods(rename_all = "snake_case")]
 pub enum BuiltinFun {
     Pow,
