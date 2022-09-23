@@ -1,4 +1,4 @@
-use cods_derive::{EnumDisplay, EnumFromStr};
+use cods_derive::{EnumDisplay, EnumFromStr, EnumMembersArray};
 
 use crate::Val;
 
@@ -16,7 +16,7 @@ impl Val {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr, EnumMembersArray)]
 #[cods(rename_all = "snake_case")]
 pub enum DataType {
     Int,

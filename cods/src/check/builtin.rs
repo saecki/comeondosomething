@@ -39,7 +39,7 @@ pub enum BuiltinFun {
     AssertEq,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr, EnumMembersArray)]
 #[cods(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BuiltinConst {
     Pi,
