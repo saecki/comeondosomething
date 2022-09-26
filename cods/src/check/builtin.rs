@@ -23,9 +23,15 @@ pub enum BuiltinFun {
     Sin,
     Cos,
     Tan,
+    Sinh,
+    Cosh,
+    Tanh,
     Asin,
     Acos,
     Atan,
+    Asinh,
+    Acosh,
+    Atanh,
     Gcd,
     Min,
     Max,
@@ -173,6 +179,15 @@ pub const COS_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! 
 pub const TAN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Tan(Float) -> Float
 };
+pub const SINH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Sinh(Float) -> Float
+};
+pub const COSH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Cosh(Float) -> Float
+};
+pub const TANH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Tanh(Float) -> Float
+};
 pub const ASIN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Asin(Float) -> Float
 };
@@ -181,6 +196,15 @@ pub const ACOS_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures!
 };
 pub const ATAN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Atan(Float) -> Float
+};
+pub const ASINH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Asinh(Float) -> Float
+};
+pub const ACOSH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Acosh(Float) -> Float
+};
+pub const ATANH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Atanh(Float) -> Float
 };
 pub const GCD_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Gcd(Int, Int) -> Int

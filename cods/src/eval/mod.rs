@@ -512,6 +512,18 @@ fn eval_builtin_fun_call(
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.tan())
         }
+        BuiltinFunCall::Sinh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.sinh())
+        }
+        BuiltinFunCall::Cosh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.cosh())
+        }
+        BuiltinFunCall::Tanh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.tanh())
+        }
         BuiltinFunCall::Asin => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.asin())
@@ -523,6 +535,18 @@ fn eval_builtin_fun_call(
         BuiltinFunCall::Atan => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.atan())
+        }
+        BuiltinFunCall::Asinh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.asinh())
+        }
+        BuiltinFunCall::Acosh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.acosh())
+        }
+        BuiltinFunCall::Atanh => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.atanh())
         }
         BuiltinFunCall::Gcd => {
             let mut a = eval_ast(stack, funs, &args[0])?.unwrap_int();
