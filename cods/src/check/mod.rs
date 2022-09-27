@@ -607,36 +607,9 @@ impl Context {
             args.push(self.check_type(checker, a, true)?);
         }
 
-        let signatures: &[_] = match b {
-            BuiltinFun::Pow => &builtin::POW_SIGNATURES,
-            BuiltinFun::Ln => &builtin::LN_SIGNATURES,
-            BuiltinFun::Log => &builtin::LOG_SIGNATURES,
-            BuiltinFun::Sqrt => &builtin::SQRT_SIGNATURES,
-            BuiltinFun::Ncr => &builtin::NCR_SIGNATURES,
-            BuiltinFun::ToDeg => &builtin::TO_DEG_SIGNATURES,
-            BuiltinFun::ToRad => &builtin::TO_RAD_SIGNATURES,
-            BuiltinFun::Sin => &builtin::SIN_SIGNATURES,
-            BuiltinFun::Cos => &builtin::COS_SIGNATURES,
-            BuiltinFun::Tan => &builtin::TAN_SIGNATURES,
-            BuiltinFun::Sinh => &builtin::SINH_SIGNATURES,
-            BuiltinFun::Cosh => &builtin::COSH_SIGNATURES,
-            BuiltinFun::Tanh => &builtin::TANH_SIGNATURES,
-            BuiltinFun::Asin => &builtin::ASIN_SIGNATURES,
-            BuiltinFun::Acos => &builtin::ACOS_SIGNATURES,
-            BuiltinFun::Atan => &builtin::ATAN_SIGNATURES,
-            BuiltinFun::Asinh => &builtin::ASINH_SIGNATURES,
-            BuiltinFun::Acosh => &builtin::ACOSH_SIGNATURES,
-            BuiltinFun::Atanh => &builtin::ATANH_SIGNATURES,
-            BuiltinFun::Gcd => &builtin::GCD_SIGNATURES,
-            BuiltinFun::Min => &builtin::MIN_SIGNATURES,
-            BuiltinFun::Max => &builtin::MAX_SIGNATURES,
-            BuiltinFun::Clamp => &builtin::CLAMP_SIGNATURES,
-            BuiltinFun::Abs => &builtin::ABS_SIGNATURES,
-            BuiltinFun::Print => &builtin::PRINT_SIGNATURES,
-            BuiltinFun::Println => &builtin::PRINTLN_SIGNATURES,
-            BuiltinFun::Assert => &builtin::ASSERT_SIGNATURES,
-            BuiltinFun::AssertEq => &builtin::ASSERT_EQ_SIGNATURES,
-            BuiltinFun::Spill => {
+        let signatures: &[_] = match b.signatures() {
+            SignatureKind::Normal(s) => s,
+            SignatureKind::Spill(SpillKind::Global) => {
                 // TODO: support non local references
                 if !args.is_empty() {
                     return Err(crate::Error::NoMatchingBuiltinFunSignature {
@@ -652,7 +625,7 @@ impl Context {
                 let vars = self.collect_spill_vars(self.resolve_current_vars(&mut checker.scopes));
                 return Ok(Ast::expr(AstT::Spill(vars), DataType::Unit, false, span));
             }
-            BuiltinFun::SpillLocal => {
+            SignatureKind::Spill(SpillKind::Local) => {
                 if !args.is_empty() {
                     return Err(crate::Error::NoMatchingBuiltinFunSignature {
                         name: b.to_string(),

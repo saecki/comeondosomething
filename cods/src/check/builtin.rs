@@ -45,6 +45,55 @@ pub enum BuiltinFun {
     AssertEq,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SignatureKind {
+    Normal(&'static [(BuiltinFunCall, FunSignature)]),
+    Spill(SpillKind),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SpillKind {
+    Global,
+    Local,
+}
+
+impl BuiltinFun {
+    pub fn signatures(&self) -> SignatureKind {
+        match self {
+            BuiltinFun::Pow => SignatureKind::Normal(&POW_SIGNATURES),
+            BuiltinFun::Ln => SignatureKind::Normal(&LN_SIGNATURES),
+            BuiltinFun::Log => SignatureKind::Normal(&LOG_SIGNATURES),
+            BuiltinFun::Sqrt => SignatureKind::Normal(&SQRT_SIGNATURES),
+            BuiltinFun::Ncr => SignatureKind::Normal(&NCR_SIGNATURES),
+            BuiltinFun::ToDeg => SignatureKind::Normal(&TO_DEG_SIGNATURES),
+            BuiltinFun::ToRad => SignatureKind::Normal(&TO_RAD_SIGNATURES),
+            BuiltinFun::Sin => SignatureKind::Normal(&SIN_SIGNATURES),
+            BuiltinFun::Cos => SignatureKind::Normal(&COS_SIGNATURES),
+            BuiltinFun::Tan => SignatureKind::Normal(&TAN_SIGNATURES),
+            BuiltinFun::Sinh => SignatureKind::Normal(&SINH_SIGNATURES),
+            BuiltinFun::Cosh => SignatureKind::Normal(&COSH_SIGNATURES),
+            BuiltinFun::Tanh => SignatureKind::Normal(&TANH_SIGNATURES),
+            BuiltinFun::Asin => SignatureKind::Normal(&ASIN_SIGNATURES),
+            BuiltinFun::Acos => SignatureKind::Normal(&ACOS_SIGNATURES),
+            BuiltinFun::Atan => SignatureKind::Normal(&ATAN_SIGNATURES),
+            BuiltinFun::Asinh => SignatureKind::Normal(&ASINH_SIGNATURES),
+            BuiltinFun::Acosh => SignatureKind::Normal(&ACOSH_SIGNATURES),
+            BuiltinFun::Atanh => SignatureKind::Normal(&ATANH_SIGNATURES),
+            BuiltinFun::Gcd => SignatureKind::Normal(&GCD_SIGNATURES),
+            BuiltinFun::Min => SignatureKind::Normal(&MIN_SIGNATURES),
+            BuiltinFun::Max => SignatureKind::Normal(&MAX_SIGNATURES),
+            BuiltinFun::Clamp => SignatureKind::Normal(&CLAMP_SIGNATURES),
+            BuiltinFun::Abs => SignatureKind::Normal(&ABS_SIGNATURES),
+            BuiltinFun::Print => SignatureKind::Normal(&PRINT_SIGNATURES),
+            BuiltinFun::Println => SignatureKind::Normal(&PRINTLN_SIGNATURES),
+            BuiltinFun::Assert => SignatureKind::Normal(&ASSERT_SIGNATURES),
+            BuiltinFun::AssertEq => SignatureKind::Normal(&ASSERT_EQ_SIGNATURES),
+            BuiltinFun::Spill => SignatureKind::Spill(SpillKind::Global),
+            BuiltinFun::SpillLocal => SignatureKind::Spill(SpillKind::Local),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumDisplay, EnumFromStr, EnumMembersArray)]
 #[cods(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BuiltinConst {
