@@ -549,7 +549,19 @@ fn unused_var() {
     assert_eq!(val, Val::Unit);
     assert_eq!(
         ctx.warnings,
-        vec![crate::Warning::UnusedVar("a".into(), Span::cols(0, 4, 5),)],
+        vec![crate::Warning::UnusedVar("a".into(), Span::cols(0, 4, 5))],
+    );
+}
+
+#[test]
+fn unread_var() {
+    let input = "let mut a = 0; a = 3";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::UnreadVar("a".into(), Span::cols(0, 8, 9))],
     );
 }
 
@@ -570,7 +582,7 @@ fn unused_fun() {
     assert_eq!(val, Val::Unit);
     assert_eq!(
         ctx.warnings,
-        vec![crate::Warning::UnusedFun("a".into(), Span::pos(0, 3),)],
+        vec![crate::Warning::UnusedFun("a".into(), Span::pos(0, 3))],
     );
 }
 

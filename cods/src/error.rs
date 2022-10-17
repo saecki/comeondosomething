@@ -576,6 +576,7 @@ impl UserFacing for Error {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Warning {
     UnusedVar(String, Span),
+    UnreadVar(String, Span),
     UnusedFun(String, Span),
     Unreachable(Span),
     UnnecesaryCast(DataType, Span),
@@ -598,6 +599,7 @@ impl UserFacing for Warning {
         f.write_str(line_prefix)?;
         match self {
             Warning::UnusedVar(name, _) => write!(f, "Unused variable `{name}`"),
+            Warning::UnreadVar(name, _) => write!(f, "Variable is never read `{name}`"),
             Warning::UnusedFun(name, _) => write!(f, "Unused function `{name}`"),
             Warning::Unreachable(_) => write!(f, "Unreachable code"),
             Warning::UnnecesaryCast(d, _) => {
@@ -614,6 +616,7 @@ impl UserFacing for Warning {
     fn spans(&self) -> Vec<Span> {
         match self {
             Warning::UnusedVar(_, s) => vec![*s],
+            Warning::UnreadVar(_, s) => vec![*s],
             Warning::UnusedFun(_, s) => vec![*s],
             Warning::Unreachable(s) => vec![*s],
             Warning::UnnecesaryCast(_, s) => vec![*s],

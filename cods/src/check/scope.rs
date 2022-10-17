@@ -65,10 +65,7 @@ impl Context {
         }
 
         match scopes.var_mut(id.ident) {
-            Ok(v) => {
-                v.uses += 1;
-                Ok(ResolvedVar::Var(v))
-            }
+            Ok(v) => Ok(ResolvedVar::Var(v)),
             Err(ResolveError::DynCapture(s)) => Err(crate::Error::NotImplemented(
                 "Capturing variables from a dynamic scope is not yet implemented",
                 vec![s, id.span],
@@ -82,8 +79,8 @@ impl Context {
     pub fn resolve_current_vars<'a>(&self, scopes: &'a mut Scopes) -> &'a [Var] {
         let vars = scopes.current_vars_mut();
 
-        for v in vars.iter_mut() {
-            v.uses += 1;
+        for v in vars.iter_mut().filter(|v| v.assigned) {
+            v.reads += 1;
         }
 
         vars
@@ -95,9 +92,22 @@ impl Context {
         scopes: &'a mut Scopes,
         id: &IdentSpan,
     ) -> crate::Result<ResolvedVar<'a>> {
-        let var = match self.resolve_var(scopes, id)? {
-            c @ ResolvedVar::Const(_) => return Ok(c),
-            ResolvedVar::Var(v) => v,
+        let name = self.idents.name(id.ident);
+        if let Ok(b) = name.parse::<BuiltinConst>() {
+            return Ok(ResolvedVar::Const(b));
+        }
+
+        let var = match scopes.var_mut(id.ident) {
+            Ok(v) => v,
+            Err(ResolveError::DynCapture(s)) => {
+                return Err(crate::Error::NotImplemented(
+                    "Capturing variables from a dynamic scope is not yet implemented",
+                    vec![s, id.span],
+                ));
+            }
+            Err(ResolveError::NotFound) => {
+                return Err(crate::Error::UndefinedVar(name.to_owned(), id.span));
+            }
         };
 
         if !var.assigned {
@@ -108,6 +118,8 @@ impl Context {
                 id.span,
             ));
         }
+
+        var.reads += 1;
 
         Ok(ResolvedVar::Var(var))
     }
@@ -140,7 +152,7 @@ impl Context {
                 }
 
                 v.assigned = true;
-                v.uses += 1;
+                v.writes += 1;
 
                 Ok(())
             }
@@ -181,14 +193,24 @@ impl Context {
 
     pub fn check_unused(&mut self, scopes: &Scopes) {
         for v in scopes.current_vars() {
-            if v.uses == 0 {
-                let name = self.idents.name(v.ident.ident);
-                if name.starts_with('_') {
-                    continue;
-                }
+            if v.reads == 0 {
+                if v.writes == 0 {
+                    let name = self.idents.name(v.ident.ident);
+                    if name.starts_with('_') {
+                        continue;
+                    }
 
-                self.warnings
-                    .push(crate::Warning::UnusedVar(name.to_owned(), v.ident.span));
+                    self.warnings
+                        .push(crate::Warning::UnusedVar(name.to_owned(), v.ident.span));
+                } else {
+                    let name = self.idents.name(v.ident.ident);
+                    if name.starts_with('_') {
+                        continue;
+                    }
+
+                    self.warnings
+                        .push(crate::Warning::UnreadVar(name.to_owned(), v.ident.span));
+                }
             }
         }
 
@@ -436,7 +458,8 @@ pub struct Var {
     pub data_type: DataType,
     pub assigned: bool,
     pub mutable: bool,
-    pub uses: u32,
+    pub reads: u32,
+    pub writes: u32,
     pub inner: VarRef,
 }
 
@@ -453,7 +476,8 @@ impl Var {
             data_type,
             assigned,
             mutable,
-            uses: 0,
+            reads: 0,
+            writes: 0,
             inner,
         }
     }
