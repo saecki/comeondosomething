@@ -323,7 +323,7 @@ pub fn derive_members_array(input: TokenStream) -> TokenStream {
 
     for m in members {
         let m_ident = m.ident.to_string();
-        let _ = write!(output, "{name}::{m_ident},\n");
+        let _ = writeln!(output, "{name}::{m_ident},");
     }
 
     let _ = write!(
