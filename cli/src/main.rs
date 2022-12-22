@@ -11,6 +11,8 @@ use style::*;
 mod display;
 mod json;
 mod style;
+#[cfg(test)]
+mod test;
 
 #[derive(Default)]
 struct State {
