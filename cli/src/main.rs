@@ -2,7 +2,7 @@ use std::env::args;
 use std::io::{self, Write as _};
 use std::process::{exit, ExitCode};
 
-use cods::{Asts, Checker, Context, Stack, Val};
+use cods::{Asts, Checker, Context, Stack, Val, Warning};
 use cods_derive::EnumFromStr;
 
 use display::*;
@@ -31,6 +31,7 @@ enum OutputFormat {
 struct Args {
     format: OutputFormat,
     input_args_start: usize,
+    skip_unused_warnings: bool,
     /// all arguments that aren't specific options
     items: Vec<String>,
 }
@@ -84,7 +85,7 @@ fn main() -> ExitCode {
         Some(Action::Run) => eval_path(&user_args),
         Some(Action::Check) => check_path(&user_args),
         Some(Action::Input) => eval_args(&user_args),
-        Some(Action::Interactive) => repl(&user_args),
+        Some(Action::Interactive) => repl(&mut user_args),
         Some(Action::Help) => {
             help();
             ExitCode::SUCCESS
@@ -101,8 +102,10 @@ fn main() -> ExitCode {
     }
 }
 
-fn repl(args: &Args) -> ExitCode {
+fn repl(args: &mut Args) -> ExitCode {
     bprintln!(LBlue, "Started interactive repl");
+
+    args.skip_unused_warnings = true;
 
     let mut output = io::stdout();
     let input = io::stdin();
@@ -222,7 +225,17 @@ fn print_check(state: &mut State, input: &str, args: &Args) -> Option<Asts> {
         OutputFormat::Pretty => {
             if state.ctx.errors.is_empty() {
                 for w in state.ctx.warnings.iter().rev() {
-                    println!("{}\n", w.display(input));
+                    let skip = args.skip_unused_warnings
+                        && matches!(
+                            w,
+                            Warning::UnusedVar(_, _)
+                                | Warning::UnreadVar(_, _)
+                                | Warning::UnusedFun(_, _)
+                        );
+
+                    if !skip {
+                        println!("{}\n", w.display(input));
+                    }
                 }
             } else {
                 for w in state.ctx.errors.iter().rev() {
