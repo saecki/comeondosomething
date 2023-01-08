@@ -146,7 +146,7 @@ fn eval_path(args: &Args) -> ExitCode {
         }
     };
 
-    match std::fs::read_to_string(&p) {
+    match std::fs::read_to_string(p) {
         Ok(input) => {
             let mut state = State::default();
             match print_eval(&mut state, &input, args) {
@@ -170,7 +170,7 @@ fn check_path(args: &Args) -> ExitCode {
         }
     };
 
-    match std::fs::read_to_string(&p) {
+    match std::fs::read_to_string(p) {
         Ok(input) => {
             let mut state = State::default();
             match print_check(&mut state, &input, args) {
