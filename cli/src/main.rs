@@ -128,6 +128,11 @@ fn repl(args: &mut Args) -> ExitCode {
                 print!("\x1b[1;1H\x1B[2J");
                 let _ = output.flush();
             }
+            Some("reset") => {
+                state = State::default();
+                print!("\x1b[1;1H\x1B[2J");
+                let _ = output.flush();
+            }
             _ => {
                 print_eval(&mut state, &buf, args);
             }
