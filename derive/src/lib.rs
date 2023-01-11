@@ -77,7 +77,7 @@ fn parse_enum(input: TokenStream) -> Enum {
                                     "snake_case" => Some(Case::Snake),
                                     "SCREAMING_SNAKE_CASE" => Some(Case::ScreamingSnake),
                                     "kebab-case" => Some(Case::Kebab),
-                                    "SCREAMIGN-KEBAB-CASE" => Some(Case::ScreamingKebab),
+                                    "SCREAMING-KEBAB-CASE" => Some(Case::ScreamingKebab),
                                     _ => panic!("unknown case"),
                                 };
                             }
