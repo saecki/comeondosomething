@@ -1130,6 +1130,7 @@ impl Context {
                     DataType::Int => match a_data_type {
                         DataType::Int => a,
                         DataType::Float => a,
+                        DataType::Char => a,
                         DataType::Any => a,
                         _ => return cast_err(),
                     },
@@ -1147,6 +1148,7 @@ impl Context {
                     },
                     DataType::Char => match a_data_type {
                         DataType::Char => a,
+                        DataType::Int => a,
                         DataType::Any => a,
                         _ => return cast_err(),
                     },

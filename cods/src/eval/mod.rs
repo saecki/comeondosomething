@@ -311,6 +311,7 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
         DataType::Int => Val::Int(match va {
             Val::Int(i) => i,
             Val::Float(f) => f as i128,
+            Val::Char(c) => c as i128,
             v => return cast_err(v, t, a.span),
         }),
         DataType::Float => Val::Float(match va {
@@ -325,6 +326,16 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
         }),
         DataType::Char => Val::Char(match va {
             Val::Char(c) => c,
+            Val::Int(i) => {
+                if i > char::MAX as i128 {
+                    return cast_err(va, t, a.span);
+                }
+                let Some(c) = char::from_u32(i as u32) else {
+                    return cast_err(va, t, a.span)
+                };
+
+                c
+            },
             v => return cast_err(v, t, a.span),
         }),
         DataType::Str => Val::Str(match va {
