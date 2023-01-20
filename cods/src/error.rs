@@ -69,6 +69,7 @@ pub enum Error {
 
     // Check
     UnknownType(String, Span),
+    ExpectedType(Span),
     MismatchedType {
         expected: DataType,
         found: DataType,
@@ -239,6 +240,7 @@ impl UserFacing for Error {
 
             // Check
             Self::UnknownType(name, _) => write!(f, "Unknown type `{name}`"),
+            Self::ExpectedType(_) => write!(f, "Expected type"),
             Self::MismatchedType {
                 expected, found, ..
             } => write!(f, "Mismatched type expected `{expected}`, found `{found}`"),
@@ -526,6 +528,7 @@ impl UserFacing for Error {
 
             // Check
             Self::UnknownType(_, s) => vec![*s],
+            Self::ExpectedType(s) => vec![*s],
             Self::MismatchedType { spans, .. } => spans.clone(),
             Self::IfBranchIncompatibleType((_, a), (_, b)) => vec![*a, *b],
             Self::MissingElseBranch(_, s) => vec![*s],

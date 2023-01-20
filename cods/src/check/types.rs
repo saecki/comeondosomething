@@ -25,6 +25,7 @@ pub enum DataType {
     Char,
     Str,
     Range,
+    #[cods(rename = "()")]
     Unit,
     Any,
     Never,

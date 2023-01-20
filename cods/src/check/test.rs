@@ -356,6 +356,44 @@ fn recursive_function_calls2() {
 }
 
 #[test]
+fn explicit_unit_return_type() {
+    let input = "
+        let mut a = 0;
+        fn yeet() -> () {
+            a += 1;
+        }
+        yeet();
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(1));
+}
+
+#[test]
+fn explicit_unit_type_hint() {
+    let input = "
+        let a: () = assert(true);
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+}
+
+#[test]
+fn unit_function_parameter() {
+    let input = "
+        fn useless_param(p: ()) -> int {
+            5
+        }
+        useless_param(())
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(5));
+}
+
+#[test]
 fn function_call_before_definition() {
     let input = "
         let a = test(23)

@@ -20,6 +20,7 @@ enum StopOn {
     LCurly,
     Comma,
     FatArrow,
+    Assign,
 }
 
 impl Context {
@@ -55,9 +56,9 @@ impl Context {
                 match g.par_kind() {
                     ParKind::Round => {
                         let s = g.span();
-                        let mut group_parser = Parser::new(g.items, s.start);
-                        let cst = self.parse_bp(&mut group_parser, 0, StopOn::Nothing)?;
-                        if let Some(i) = group_parser.next() {
+                        let mut parser = Parser::new(g.items, s.start);
+                        let cst = self.parse_bp(&mut parser, 0, StopOn::Nothing)?;
+                        if let Some(i) = parser.next() {
                             return Err(crate::Error::UnexpectedItem(i));
                         }
 
@@ -169,7 +170,13 @@ impl Context {
                     let s = Span::between(lhs.span(), i.span);
                     return Err(crate::Error::MissingOperator(s));
                 }
-                &Item::Op(o) => o,
+                &Item::Op(o) => {
+                    if stop == StopOn::Assign && o.typ == OpT::Assign {
+                        break;
+                    }
+
+                    o
+                }
                 &Item::Pct(p) => {
                     if newln {
                         break;
@@ -373,9 +380,9 @@ impl Context {
                 let param_group = parser.expect_fun_pars()?;
                 let params = {
                     let s = param_group.span();
-                    let mut group_parser = Parser::new(param_group.items, s.start);
+                    let mut parser = Parser::new(param_group.items, s.start);
                     let mut params = Vec::new();
-                    while let Some(i) = group_parser.next() {
+                    while let Some(i) = parser.next() {
                         let s = i.span();
 
                         let ident = match i {
@@ -383,12 +390,15 @@ impl Context {
                             _ => return Err(crate::Error::ExpectedIdent(s)),
                         };
 
-                        let colon = group_parser.expect_pct(PctT::Colon)?;
-                        let typ = group_parser.expect_ident()?;
+                        let colon = parser.expect_pct(PctT::Colon)?;
+                        let typ = match self.parse_bp(&mut parser, 0, StopOn::Comma)? {
+                            Cst::Empty(s) => return Err(crate::Error::ExpectedType(s)),
+                            c => c,
+                        };
 
                         params.push(cst::FunParam::new(ident, colon, typ));
 
-                        match group_parser.next() {
+                        match parser.next() {
                             Some(i) if i.is_comma() => (),
                             Some(i) => {
                                 let s = i.span().before();
@@ -404,8 +414,12 @@ impl Context {
                 if let Some(&Item::Pct(p)) = parser.peek() {
                     if let PctT::Arrow = p.typ {
                         parser.next();
-                        let t = parser.expect_ident()?;
-                        return_type = Some(cst::ReturnType::new(p, t));
+
+                        let t = match self.parse_bp(parser, 0, StopOn::LCurly)? {
+                            Cst::Empty(s) => return Err(crate::Error::ExpectedType(s)),
+                            c => c,
+                        };
+                        return_type = Some(cst::ReturnType::new(p, Box::new(t)));
                     }
                 }
 
@@ -449,8 +463,11 @@ impl Context {
                 if let Some(&Item::Pct(p)) = parser.peek() {
                     if let PctT::Colon = p.typ {
                         parser.next();
-                        let t = parser.expect_ident()?;
-                        type_hint = Some((p, t));
+                        let t = match self.parse_bp(parser, 0, StopOn::Assign)? {
+                            Cst::Empty(s) => return Err(crate::Error::ExpectedType(s)),
+                            c => c,
+                        };
+                        type_hint = Some((p, Box::new(t)));
                     }
                 }
 

@@ -213,7 +213,7 @@ pub struct FunDef {
     pub defined: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunParams {
     pub l_par: Par,
     pub r_par: Par,
@@ -230,27 +230,27 @@ impl FunParams {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunParam {
     pub ident: IdentSpan,
     pub colon: Pct,
-    pub typ: IdentSpan,
+    pub typ: Cst,
 }
 
 impl FunParam {
-    pub fn new(ident: IdentSpan, colon: Pct, typ: IdentSpan) -> Self {
+    pub fn new(ident: IdentSpan, colon: Pct, typ: Cst) -> Self {
         Self { ident, colon, typ }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReturnType {
     pub arrow: Pct,
-    pub typ: IdentSpan,
+    pub typ: Box<Cst>,
 }
 
 impl ReturnType {
-    pub fn new(arrow: Pct, typ: IdentSpan) -> Self {
+    pub fn new(arrow: Pct, typ: Box<Cst>) -> Self {
         Self { arrow, typ }
     }
 }
@@ -352,7 +352,7 @@ pub struct VarDef {
     pub kw: Kw,
     pub mutable: Option<Kw>,
     pub ident: IdentSpan,
-    pub type_hint: Option<(Pct, IdentSpan)>,
+    pub type_hint: Option<(Pct, Box<Cst>)>,
     pub value: (Op, Box<Cst>),
 }
 
@@ -361,7 +361,7 @@ impl VarDef {
         kw: Kw,
         mutable: Option<Kw>,
         ident: IdentSpan,
-        type_hint: Option<(Pct, IdentSpan)>,
+        type_hint: Option<(Pct, Box<Cst>)>,
         value: (Op, Box<Cst>),
     ) -> Self {
         Self {

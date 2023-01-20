@@ -2,7 +2,7 @@ use std::cmp::max;
 use std::rc::Rc;
 
 use crate::cst::{self, Cst};
-use crate::{Context, IdentSpan, Infix, InfixT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef};
+use crate::{Context, Infix, InfixT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef};
 
 pub use ast::{Ast, AstT, Asts, BuiltinFunCall};
 pub use builtin::*;
@@ -476,7 +476,7 @@ impl Context {
         let mut params = Vec::with_capacity(f.params.items.len());
         for p in f.params.items.iter() {
             let typ = self.resolve_data_type(&p.typ)?;
-            let span = Span::across(p.ident.span, p.typ.span);
+            let span = Span::across(p.ident.span, p.typ.span());
             params.push(FunParam::new(p.ident, typ, span));
         }
 
@@ -487,7 +487,7 @@ impl Context {
 
         // Define fun before checking block to support recursive calls
         let inner = checker.funs.push();
-        let ret = ReturnType::new(return_type, f.return_type.as_ref().map(|r| r.typ.span));
+        let ret = ReturnType::new(return_type, f.return_type.as_ref().map(|r| r.typ.span()));
         let fun = Fun::new(f.ident, params, ret, inner);
         self.def_fun(&mut checker.scopes, fun)?;
 
@@ -525,7 +525,7 @@ impl Context {
                     return Err(crate::Error::MismatchedType {
                         expected: fun.return_type.data_type,
                         found: block_type,
-                        spans: vec![r.typ.span, span],
+                        spans: vec![r.typ.span(), span],
                     });
                 }
             }
@@ -787,7 +787,7 @@ impl Context {
                     return Err(crate::Error::MismatchedType {
                         expected: data_type,
                         found: val_data_type,
-                        spans: vec![t.span, val.span],
+                        spans: vec![t.span(), val.span],
                     });
                 }
                 data_type
@@ -1111,16 +1111,13 @@ impl Context {
                 ))
             }
             InfixT::As => {
-                let ident = match b {
-                    Cst::Ident(i) => i,
-                    _ => return Err(crate::Error::ExpectedIdent(b.span())),
-                };
-                let data_type = self.resolve_data_type(&ident)?;
+                let data_type = self.resolve_data_type(&b)?;
+
                 let a = self.check_type(checker, a, true)?;
                 let a_data_type = expect_expr(&a)?;
 
                 if a_data_type == data_type {
-                    let s = Span::across(i.span, ident.span);
+                    let s = Span::across(i.span, b.span());
                     self.warnings
                         .push(crate::Warning::UnnecesaryCast(data_type, s));
                     return Ok(a);
@@ -1185,16 +1182,12 @@ impl Context {
                 Ast::expr(AstT::Cast(Box::new(a), data_type), data_type, returns, span)
             }
             InfixT::Is => {
-                let ident = match b {
-                    Cst::Ident(i) => i,
-                    _ => return Err(crate::Error::ExpectedIdent(b.span())),
-                };
-                let data_type = self.resolve_data_type(&ident)?;
+                let data_type = self.resolve_data_type(&b)?;
                 let a = self.check_type(checker, a, true)?;
                 let a_data_type = expect_expr(&a)?;
 
                 if a_data_type == data_type {
-                    let s = Span::across(i.span, ident.span);
+                    let s = Span::across(i.span, b.span());
                     self.warnings
                         .push(crate::Warning::TypeCheckIsAlwaysTrue(data_type, s));
                 }
@@ -1330,10 +1323,16 @@ impl Context {
         ))
     }
 
-    fn resolve_data_type(&self, typ: &IdentSpan) -> crate::Result<DataType> {
-        let name = self.idents.name(typ.ident);
-        name.parse::<DataType>()
-            .map_err(|_| crate::Error::UnknownType(name.into(), typ.span))
+    fn resolve_data_type(&self, cst: &Cst) -> crate::Result<DataType> {
+        match cst {
+            Cst::Ident(ident) => {
+                let name = self.idents.name(ident.ident);
+                name.parse::<DataType>()
+                    .map_err(|_| crate::Error::UnknownType(name.into(), ident.span))
+            }
+            Cst::Par(_, val, _) if val.is_empty() => Ok(DataType::Unit),
+            _ => Err(crate::Error::ExpectedType(cst.span())),
+        }
     }
 
     fn collect_spill_vars(&self, vars: &[Var]) -> Vec<(String, VarRef)> {
