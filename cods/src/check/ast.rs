@@ -11,16 +11,32 @@ pub struct Asts {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ast {
     pub typ: AstT,
-    pub data_type: Option<DataType>,
+    pub data_type: AstDatatype,
     pub returns: bool,
     pub span: Span,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AstDatatype {
+    Expr(DataType),
+    Statement,
+}
+
+impl AstDatatype {
+    pub fn as_expr(&self) -> Option<DataType> {
+        if let Self::Expr(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
 }
 
 impl Ast {
     pub const fn expr(typ: AstT, data_type: DataType, returns: bool, span: Span) -> Self {
         Self {
             typ,
-            data_type: Some(data_type),
+            data_type: AstDatatype::Expr(data_type),
             returns,
             span,
         }
@@ -29,7 +45,7 @@ impl Ast {
     pub const fn statement(typ: AstT, returns: bool, span: Span) -> Self {
         Self {
             typ,
-            data_type: None,
+            data_type: AstDatatype::Statement,
             returns,
             span,
         }

@@ -151,7 +151,7 @@ impl Context {
 
         let data_type = asts
             .last()
-            .and_then(|a| a.data_type)
+            .and_then(|a| a.data_type.as_expr())
             .unwrap_or(DataType::Unit);
 
         Ok(Ast::expr(AstT::Block(asts), data_type, returns, span))
@@ -191,7 +191,7 @@ impl Context {
                 if is_expr {
                     data_type = block
                         .last()
-                        .and_then(|a| a.data_type)
+                        .and_then(|a| a.data_type.as_expr())
                         .unwrap_or(DataType::Unit);
                 }
 
@@ -222,7 +222,7 @@ impl Context {
                 if is_expr {
                     let d = block
                         .last()
-                        .and_then(|a| a.data_type)
+                        .and_then(|a| a.data_type.as_expr())
                         .unwrap_or(DataType::Unit);
 
                     if data_type == DataType::Never {
@@ -256,7 +256,7 @@ impl Context {
             if is_expr {
                 let d = block
                     .last()
-                    .and_then(|a| a.data_type)
+                    .and_then(|a| a.data_type.as_expr())
                     .unwrap_or(DataType::Unit);
 
                 if data_type == DataType::Never {
@@ -516,7 +516,7 @@ impl Context {
 
             let block_type = block
                 .last()
-                .and_then(|a| a.data_type)
+                .and_then(|a| a.data_type.as_expr())
                 .unwrap_or(DataType::Unit);
 
             if let Some(r) = f.return_type {
@@ -1348,5 +1348,7 @@ impl Context {
 }
 
 fn expect_expr(ast: &Ast) -> crate::Result<DataType> {
-    ast.data_type.ok_or(crate::Error::ExpectedExpr(ast.span))
+    ast.data_type
+        .as_expr()
+        .ok_or(crate::Error::ExpectedExpr(ast.span))
 }

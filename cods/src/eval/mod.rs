@@ -335,7 +335,7 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
                 };
 
                 c
-            },
+            }
             v => return cast_err(v, t, a.span),
         }),
         DataType::Str => Val::Str(match va {
