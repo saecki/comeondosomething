@@ -26,6 +26,13 @@ pub struct Checker {
     pub funs: Funs,
 }
 
+impl Checker {
+    pub fn clear(&mut self) {
+        self.scopes.clear();
+        self.funs.clear();
+    }
+}
+
 impl Context {
     pub fn check(&mut self, csts: Vec<Cst>) -> crate::Result<Asts> {
         let mut checker = Checker::default();

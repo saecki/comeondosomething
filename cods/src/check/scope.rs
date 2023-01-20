@@ -233,6 +233,15 @@ pub struct Scopes {
     frames: Vec<Frame>,
 }
 
+impl Scopes {
+    pub fn clear(&mut self) {
+        self.vars.clear();
+        self.funs.clear();
+        self.scopes.clear();
+        self.frames.clear();
+    }
+}
+
 /// Starting indices of var and fun scopes.
 #[derive(Clone, Debug)]
 struct Scope {

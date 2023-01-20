@@ -6,6 +6,10 @@ pub struct Funs {
 }
 
 impl Funs {
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     pub fn push(&mut self) -> FunRef {
         let fun_ref = self.items.len();
         self.items.push(None);

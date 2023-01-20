@@ -19,6 +19,14 @@ struct State {
     stack: Stack,
 }
 
+impl State {
+    fn clear(&mut self) {
+        self.ctx.clear();
+        self.checker.clear();
+        self.stack.clear();
+    }
+}
+
 #[derive(Clone, Copy, Default, PartialEq, Eq, EnumFromStr)]
 #[cods(rename_all = "snake_case")]
 enum OutputFormat {
@@ -129,7 +137,7 @@ fn repl(args: &mut Args) -> ExitCode {
                 let _ = output.flush();
             }
             Some("reset") => {
-                state = State::default();
+                state.clear();
                 print!("\x1b[1;1H\x1B[2J");
                 let _ = output.flush();
             }

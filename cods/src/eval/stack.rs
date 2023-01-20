@@ -18,6 +18,11 @@ impl Default for Stack {
 }
 
 impl Stack {
+    pub fn clear(&mut self) {
+        self.values.clear();
+        self.frames.clear();
+    }
+
     fn frame_start(&self) -> usize {
         *self.frames.last().expect("Expected frames to be non empty")
     }
