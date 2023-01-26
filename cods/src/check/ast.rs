@@ -97,6 +97,9 @@ pub enum Op {
     MulFloat,
     DivInt,
     DivFloat,
+    PowInt,
+    PowFloat,
+    PowFloatInt,
     RemInt,
     RemFloat,
     RemEuclidInt,
@@ -222,6 +225,7 @@ impl Fun {
 pub enum BuiltinFunCall {
     PowInt,
     PowFloat,
+    PowFloatInt,
     Ln,
     Log,
     Sqrt,

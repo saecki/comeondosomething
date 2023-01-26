@@ -254,6 +254,8 @@ pub enum OpT {
     Div,
     #[cods(rename = "/=")]
     DivAssign,
+    #[cods(rename = "**")]
+    Pow,
     #[cods(rename = "%")]
     Rem,
     #[cods(rename = "%=")]

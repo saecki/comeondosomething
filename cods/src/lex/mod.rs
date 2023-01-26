@@ -145,7 +145,21 @@ impl Context {
                         self.new_atom(&mut lexer, Token::op(OpT::Sub, span))?;
                     }
                 },
-                '*' => self.two_char_op(&mut lexer, OpT::Mul, OpT::MulAssign, '=')?,
+                '*' => match lexer.peek() {
+                    Some('=') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(OpT::MulAssign, s))?;
+                    }
+                    Some('*') => {
+                        lexer.next();
+                        let s = Span::new(span.start, lexer.end_pos());
+                        self.new_atom(&mut lexer, Token::op(OpT::Pow, s))?;
+                    }
+                    _ => {
+                        self.new_atom(&mut lexer, Token::op(OpT::Mul, span))?;
+                    }
+                },
                 '/' => match lexer.peek() {
                     Some('=') => {
                         lexer.next();

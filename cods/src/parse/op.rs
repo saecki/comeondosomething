@@ -55,6 +55,8 @@ pub enum InfixT {
     Div,
     #[cods(rename = "/=")]
     DivAssign,
+    #[cods(rename = "**")]
+    Pow,
     #[cods(rename = "%")]
     Rem,
     #[cods(rename = "%=")]
@@ -185,6 +187,7 @@ impl OpT {
             Self::Is => Some((23, InfixT::Is, 24)),
             Self::Mul => Some((21, InfixT::Mul, 22)),
             Self::Div => Some((21, InfixT::Div, 22)),
+            Self::Pow => Some((21, InfixT::Pow, 22)),
             Self::Rem => Some((21, InfixT::Rem, 22)),
             Self::RemEuclid => Some((21, InfixT::RemEuclid, 22)),
             Self::Add => Some((19, InfixT::Add, 20)),
@@ -243,6 +246,7 @@ impl OpT {
             | Self::Sub
             | Self::Mul
             | Self::Div
+            | Self::Pow
             | Self::Rem
             | Self::RemEuclid
             | Self::Eq
@@ -286,6 +290,7 @@ impl OpT {
             | Self::RangeIn
             | Self::Mul
             | Self::Div
+            | Self::Pow
             | Self::Rem
             | Self::RemEuclid
             | Self::Eq

@@ -197,9 +197,10 @@ macro_rules! fun_signature {
     }};
 }
 
-pub const POW_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
+pub const POW_SIGNATURES: [(BuiltinFunCall, FunSignature); 3] = fun_signatures! {
     PowInt(Int, Int) -> Int
     PowFloat(Float, Float) -> Float
+    PowFloatInt(Float, Int) -> Float
 };
 pub const LN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Ln(Float) -> Float

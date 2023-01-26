@@ -70,6 +70,11 @@ pub const DIV_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     DivInt(Int, Int) -> Int
     DivFloat(Float, Float) -> Float
 };
+pub const POW_SIGNATURES: [(Op, OpSignature<2>); 3] = op_signatures! {
+    PowInt(Int, Int) -> Int
+    PowFloat(Float, Float) -> Float
+    PowFloatInt(Float, Int) -> Float
+};
 pub const REM_SIGNATURES: [(Op, OpSignature<2>); 2] = op_signatures! {
     RemInt(Int, Int) -> Int
     RemFloat(Float, Float) -> Float

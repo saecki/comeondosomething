@@ -1031,6 +1031,9 @@ impl Context {
             InfixT::Div => {
                 self.check_infix_signatures(checker, i, (a, b), &op::DIV_SIGNATURES, span)?
             }
+            InfixT::Pow => {
+                self.check_infix_signatures(checker, i, (a, b), &op::POW_SIGNATURES, span)?
+            }
             InfixT::Rem => {
                 self.check_infix_signatures(checker, i, (a, b), &op::REM_SIGNATURES, span)?
             }

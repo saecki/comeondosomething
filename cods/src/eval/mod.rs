@@ -141,6 +141,37 @@ fn eval_op(stack: &mut Stack, funs: &Funs, op: &Op, args: &[Ast]) -> EvalResult<
             let vb = eval_ast(stack, funs, &args[1])?.unwrap_float();
             Val::Float(va / vb)
         }
+        Op::PowInt => {
+            let a = &args[0];
+            let b = &args[1];
+            let base = eval_ast(stack, funs, a)?.unwrap_int();
+            let exp = eval_ast(stack, funs, b)?.unwrap_int();
+            if exp < 0 {
+                return err(crate::Error::NegativeIntPow(a.span, b.span));
+            }
+            if exp > u32::MAX as i128 {
+                return err(crate::Error::PowOverflow(a.span, b.span));
+            }
+            match base.checked_pow(exp as u32) {
+                Some(i) => Val::Int(i),
+                None => return err(crate::Error::PowOverflow(a.span, b.span)),
+            }
+        }
+        Op::PowFloat => {
+            let base = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            let exp = eval_ast(stack, funs, &args[1])?.unwrap_float();
+            Val::Float(base.powf(exp))
+        }
+        Op::PowFloatInt => {
+            let a = &args[0];
+            let b = &args[1];
+            let base = eval_ast(stack, funs, a)?.unwrap_float();
+            let exp = eval_ast(stack, funs, b)?.unwrap_int();
+            if exp > i32::MAX as i128 {
+                return err(crate::Error::PowOverflow(a.span, b.span));
+            }
+            Val::Float(base.powi(exp as i32))
+        }
         Op::RemInt => {
             let va = eval_ast(stack, funs, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, funs, &args[1])?.unwrap_int();
@@ -460,6 +491,16 @@ fn eval_builtin_fun_call(
             let base = eval_ast(stack, funs, &args[0])?.unwrap_float();
             let exp = eval_ast(stack, funs, &args[1])?.unwrap_float();
             Val::Float(base.powf(exp))
+        }
+        BuiltinFunCall::PowFloatInt => {
+            let a = &args[0];
+            let b = &args[1];
+            let base = eval_ast(stack, funs, a)?.unwrap_float();
+            let exp = eval_ast(stack, funs, b)?.unwrap_int();
+            if exp > i32::MAX as i128 {
+                return err(crate::Error::PowOverflow(a.span, b.span));
+            }
+            Val::Float(base.powi(exp as i32))
         }
         BuiltinFunCall::Ln => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
