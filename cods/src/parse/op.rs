@@ -182,12 +182,12 @@ pub enum PostfixT {
 impl OpT {
     pub fn infix_bp(&self) -> Option<(u8, InfixT, u8)> {
         match self {
-            Self::Dot => Some((27, InfixT::Dot, 28)),
-            Self::As => Some((23, InfixT::As, 24)),
-            Self::Is => Some((23, InfixT::Is, 24)),
+            Self::Dot => Some((29, InfixT::Dot, 30)),
+            Self::As => Some((25, InfixT::As, 26)),
+            Self::Is => Some((25, InfixT::Is, 26)),
+            Self::Pow => Some((23, InfixT::Pow, 24)),
             Self::Mul => Some((21, InfixT::Mul, 22)),
             Self::Div => Some((21, InfixT::Div, 22)),
-            Self::Pow => Some((21, InfixT::Pow, 22)),
             Self::Rem => Some((21, InfixT::Rem, 22)),
             Self::RemEuclid => Some((21, InfixT::RemEuclid, 22)),
             Self::Add => Some((19, InfixT::Add, 20)),
@@ -226,7 +226,7 @@ impl OpT {
 
     pub fn postfix_bp(&self) -> Option<(u8, PostfixT)> {
         match self {
-            Self::Bang => Some((25, PostfixT::Factorial)),
+            Self::Bang => Some((27, PostfixT::Factorial)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign
@@ -270,9 +270,9 @@ impl OpT {
 
     pub fn prefix_bp(&self) -> Option<(PrefixT, u8)> {
         match self {
-            Self::Bang => Some((PrefixT::Not, 26)),
-            Self::Add => Some((PrefixT::UnaryPlus, 26)),
-            Self::Sub => Some((PrefixT::UnaryMinus, 26)),
+            Self::Bang => Some((PrefixT::Not, 28)),
+            Self::Add => Some((PrefixT::UnaryPlus, 28)),
+            Self::Sub => Some((PrefixT::UnaryMinus, 28)),
             Self::Assign
             | Self::AddAssign
             | Self::SubAssign

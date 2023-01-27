@@ -377,6 +377,11 @@ fn not() {
 }
 
 #[test]
+fn pow_precedence() {
+    assert("4 * 2 ** 2", Val::Int(16));
+}
+
+#[test]
 fn unmatched_par() {
     assert_err(
         "4 ) + 5)",
