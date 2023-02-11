@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use crate::{BuiltinConst, Context, DataType, Pos, Span, Val};
+use crate::{BuiltinConst, Context, DataType, Initialized, Pos, Span, Val};
 
 #[test]
 fn undefined_var() {
@@ -47,7 +47,28 @@ fn cannot_assign_twice_to_immutable_var() {
     let error = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         error,
-        crate::Error::ImmutableAssign("x".into(), Span::pos(0, 11), Span::pos(0, 15)),
+        crate::Error::ImmutableAssign(
+            "x".into(),
+            Initialized::Yes,
+            Span::pos(0, 11),
+            Span::pos(0, 15)
+        ),
+    );
+}
+
+#[test]
+fn cannot_assign_twice_to_immutable_var_from_block() {
+    let input = "let x = 2; { x = 4 }";
+    let mut ctx = Context::default();
+    let error = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        error,
+        crate::Error::ImmutableAssign(
+            "x".into(),
+            Initialized::Yes,
+            Span::pos(0, 13),
+            Span::pos(0, 17)
+        ),
     );
 }
 
@@ -175,7 +196,7 @@ fn if_expr_branch_types_are_equal() {
 }
 
 #[test]
-fn match_expr_arm_types_are_not_equal() {
+fn match_expr_arm_types_incompatible() {
     let input = "
         let a = 3
         match a {
@@ -691,6 +712,356 @@ fn if_cond_returns_block_unreachable() {
             Pos::new(2, 25),
             Pos::new(8, 13)
         ))],
+    );
+}
+
+#[test]
+fn all_branches_initialize_var() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            a = 32
+        } else if false {
+            a = 4
+        } else {
+            a = 9
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(9));
+}
+
+#[test]
+fn variable_could_already_be_initialized_if() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            a = 32
+        }
+        a = 4
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::ImmutableAssign(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(5, 8),
+            Span::pos(5, 12)
+        ),
+    );
+}
+
+#[test]
+fn first_branch_doesnt_initialize_var() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            // do nothing
+        } else if false {
+            a = 32
+        } else {
+            a = 4
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(1, 12),
+            Span::pos(9, 8)
+        ),
+    );
+}
+
+#[test]
+fn not_all_branches_initialize_var() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            a = 32
+        } else if false {
+            // do nothing
+        } else {
+            a = 4
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(1, 12),
+            Span::pos(9, 8)
+        ),
+    );
+}
+
+#[test]
+fn else_branch_doesent_initialize_var() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            a = 32
+        } else if false {
+            a = 4
+        } else {
+            // do nothing
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(1, 12),
+            Span::pos(9, 8)
+        ),
+    );
+}
+
+#[test]
+fn missing_else_branch_doesent_initialize_var() {
+    let input = "
+        let a: int
+        if 4 < 3 {
+            a = 32
+        } else if false {
+            a = 4
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(1, 12),
+            Span::pos(7, 8)
+        ),
+    );
+}
+
+#[test]
+fn all_match_arms_initialize_var() {
+    let input = "
+        let b = 324
+        let a: int
+        match b {
+            3 => a = 3
+            332 => a = 43
+            _ => a = 32
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(32));
+}
+
+#[test]
+fn variable_could_already_be_initialized_match() {
+    let input = "
+        let b = 3
+        let a: int
+        match b {
+            4 => ()
+            _ => a = 5
+        }
+        a = 43
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::ImmutableAssign(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(7, 8),
+            Span::cols(7, 12, 14)
+        ),
+    );
+}
+
+#[test]
+fn one_match_arm_doesnt_initialize_var() {
+    let input = "
+        let b = 324
+        let a: int
+        match b {
+            3 => a = 3
+            332 => ()
+            _ => a = 32
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(2, 12),
+            Span::pos(8, 8)
+        ),
+    );
+}
+
+#[test]
+fn default_match_arm_doesnt_initialize_var() {
+    let input = "
+        let b = 324
+        let a: int
+        match b {
+            3 => a = 3
+            332 => a = 43
+            _ => ()
+        }
+        a
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::UninitializedVar(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(2, 12),
+            Span::pos(8, 8)
+        ),
+    );
+}
+
+#[test]
+fn can_initialize_mutable_variable_in_while_loop() {
+    let input = "
+        let mut b = 0
+        let mut a: int
+
+        let mut i = 0
+        while i < 5 {
+            a = 5
+            b = a
+
+            i += 1
+        }
+        b
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(5));
+}
+
+#[test]
+fn cant_initialize_immutable_variable_in_while_loop() {
+    let input = "
+        let a: int
+        let mut i = 0
+        while i < 5 {
+            a = 5
+
+            i += 1
+        }
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::ImmutableAssign(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(4, 12),
+            Span::pos(4, 16)
+        ),
+    );
+}
+
+#[test]
+fn can_initialize_mutable_variable_in_for_loop() {
+    let input = "
+        let mut b = 0
+        let mut a: int
+        for i in 0..100 {
+            a = 5
+            b = a
+        }
+        b
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(5));
+}
+
+#[test]
+fn cant_initialize_immutable_variable_in_for_loop() {
+    let input = "
+        let a: int
+        for i in 0..100 {
+            a = 5
+        }
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::ImmutableAssign(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(3, 12),
+            Span::pos(3, 16)
+        ),
+    );
+}
+
+#[test]
+fn can_initialize_mutable_variable_in_function() {
+    let input = "
+        let mut a: int
+        fn test() -> int {
+            a = 32
+            return a
+        }
+        test()
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(32));
+}
+
+#[test]
+fn cant_initialize_immutable_variable_in_function() {
+    let input = "
+        let a: int
+        fn test() {
+            a = 32
+        }
+    ";
+    let mut ctx = Context::default();
+    let err = ctx.parse_and_eval(input).unwrap_err();
+    assert_eq!(
+        err,
+        crate::Error::ImmutableAssign(
+            "a".into(),
+            Initialized::Maybe,
+            Span::pos(3, 12),
+            Span::cols(3, 16, 18)
+        ),
     );
 }
 

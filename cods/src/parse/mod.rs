@@ -4,7 +4,7 @@ use crate::{
 
 pub use cst::Cst;
 pub use op::*;
-use parser::*;
+pub use parser::*;
 
 use self::cst::MatchArm;
 
@@ -120,10 +120,7 @@ impl Context {
         loop {
             parser.eat_newlns();
             let newln = parser.current_newln;
-            let i = match parser.peek() {
-                Some(i) => i,
-                None => break,
-            };
+            let Some(i) = parser.peek() else { break };
 
             let op = match i {
                 Item::Group(g) => {
@@ -463,6 +460,7 @@ impl Context {
                 if let Some(&Item::Pct(p)) = parser.peek() {
                     if let PctT::Colon = p.typ {
                         parser.next();
+
                         let t = match self.parse_bp(parser, 0, StopOn::Assign)? {
                             Cst::Empty(s) => return Err(crate::Error::ExpectedType(s)),
                             c => c,
@@ -471,13 +469,29 @@ impl Context {
                     }
                 }
 
-                let value = {
-                    let op = parser.expect_op(OpT::Assign)?;
-                    let val = self.parse_bp(parser, 0, stop)?;
-                    (op, Box::new(val))
+                let mut value = None;
+                if let Some(&Item::Op(op)) = parser.peek() {
+                    if let OpT::Assign = op.typ {
+                        parser.next();
+
+                        let val = self.parse_bp(parser, 0, stop)?;
+                        value = Some((op, Box::new(val)));
+                    }
+                }
+
+                let inner = match (type_hint, value) {
+                    (Some(type_hint), Some(value)) => {
+                        cst::VarDefInner::ExplicitAssign { type_hint, value }
+                    }
+                    (None, Some(value)) => cst::VarDefInner::ImplicitAssign { value },
+                    (Some(type_hint), None) => cst::VarDefInner::Declaration { type_hint },
+                    (None, None) => {
+                        let span = Span::across(kw.span, ident.span);
+                        return Err(crate::Error::NotImplemented("Variable declaration without explicit type and assignment are not yet implemented", vec![span]));
+                    }
                 };
 
-                let v = cst::VarDef::new(kw, mutable, ident, type_hint, value);
+                let v = cst::VarDef::new(kw, mutable, ident, inner);
                 Ok(Cst::VarDef(v))
             }
             KwT::Mut => Err(crate::Error::WrongContext(kw)),

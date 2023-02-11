@@ -145,8 +145,8 @@ impl Context {
     ) -> crate::Result<Ast> {
         let span = block.span();
 
-        let (asts, returns) = self.with_new(checker, |ctx, checker| {
-            ctx.check_types(checker, block.csts, is_expr) //
+        let (asts, returns) = self.with_new_scope(checker, ExecPolicy::Once, |ctx, checker| {
+            ctx.check_types(checker, block.csts, is_expr)
         })?;
 
         let data_type = asts
@@ -169,7 +169,8 @@ impl Context {
         let span = i.span();
 
         let init_frame_size = checker.scopes.frame_size();
-        let mut max_branch_frame_size = 0;
+        let mut max_frame_size = init_frame_size;
+        let mut uninitialized_vars = checker.scopes.uninitialized_vars();
         let if_block_span = i.if_block.block.span();
         {
             let cond = self.check_cond(checker, *i.if_block.cond)?;
@@ -181,11 +182,11 @@ impl Context {
 
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
-                let (block, block_returns) = self.with_new(checker, |ctx, checker| {
-                    let b = ctx.check_types(checker, i.if_block.block.csts, is_expr)?;
-                    max_branch_frame_size = checker.scopes.frame_size();
-                    Ok(b)
-                })?;
+                let (block, block_returns) =
+                    self.with_new_scope(checker, ExecPolicy::Once, |ctx, checker| {
+                        ctx.check_types(checker, i.if_block.block.csts, is_expr)
+                    })?;
+                max_frame_size = checker.scopes.frame_size();
                 checker.scopes.set_frame_size(init_frame_size);
 
                 if is_expr {
@@ -201,6 +202,15 @@ impl Context {
 
                 cases.push(ast::CondBlock::new(cond, block));
             }
+
+            // check if variables have been initialized in this branch
+            for uninit_var in uninitialized_vars.iter_mut() {
+                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+
+                // set the initial resultant state of initialization for this if statement
+                uninit_var.result = var.initialized;
+                var.initialized = uninit_var.prev;
+            }
         }
 
         for e in i.else_if_blocks {
@@ -212,11 +222,11 @@ impl Context {
                 cases.push(ast::CondBlock::new(cond, Vec::new()));
             } else {
                 let block_span = e.block.span();
-                let (block, block_returns) = self.with_new(checker, |ctx, checker| {
-                    let b = ctx.check_types(checker, e.block.csts, is_expr)?;
-                    max_branch_frame_size = max(max_branch_frame_size, checker.scopes.frame_size());
-                    Ok(b)
-                })?;
+                let (block, block_returns) =
+                    self.with_new_scope(checker, ExecPolicy::Once, |ctx, checker| {
+                        ctx.check_types(checker, e.block.csts, is_expr)
+                    })?;
+                max_frame_size = max(max_frame_size, checker.scopes.frame_size());
                 checker.scopes.set_frame_size(init_frame_size);
 
                 if is_expr {
@@ -243,15 +253,26 @@ impl Context {
 
                 cases.push(ast::CondBlock::new(cond, block));
             }
+
+            // check if variables have been initialized in this branch
+            for uninit_var in uninitialized_vars.iter_mut() {
+                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+
+                if var.initialized != uninit_var.result {
+                    uninit_var.result = Initialized::Maybe;
+                }
+                var.initialized = uninit_var.prev;
+            }
         }
 
         let else_block = if let Some(e) = i.else_block {
             let block_span = e.block.span();
-            let (block, block_returns) = self.with_new(checker, |ctx, checker| {
-                let b = ctx.check_types(checker, e.block.csts, is_expr)?;
-                max_branch_frame_size = max(max_branch_frame_size, checker.scopes.frame_size());
-                Ok(b)
-            })?;
+            let (block, block_returns) =
+                self.with_new_scope(checker, ExecPolicy::Once, |ctx, checker| {
+                    let b = ctx.check_types(checker, e.block.csts, is_expr)?;
+                    Ok(b)
+                })?;
+            max_frame_size = max(max_frame_size, checker.scopes.frame_size());
 
             if is_expr {
                 let d = block
@@ -286,7 +307,24 @@ impl Context {
             }
         };
 
-        checker.scopes.set_frame_size(max_branch_frame_size);
+        checker.scopes.set_frame_size(max_frame_size);
+
+        // check if variables have been initialized in the else branch, even if there is none
+        // explicitly declared
+        for uninit_var in uninitialized_vars.iter_mut() {
+            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+
+            if var.initialized != uninit_var.result {
+                uninit_var.result = Initialized::Maybe;
+            }
+            var.initialized = uninit_var.prev;
+        }
+
+        // Set variables initialization to the resultant state of all branches
+        for uninit_var in uninitialized_vars.iter_mut() {
+            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+            var.initialized = uninit_var.result;
+        }
 
         let if_expr = ast::IfExpr::new(cases, else_block);
         if is_expr {
@@ -302,8 +340,11 @@ impl Context {
         m: cst::MatchExpr,
         is_expr: bool,
     ) -> crate::Result<Ast> {
-        let mut arms: Vec<ast::MatchArm> = Vec::new();
-        let mut else_arm = None;
+        let mut uninitialized_vars = checker.scopes.uninitialized_vars();
+        let mut arms: Vec<ast::MatchArm> = Vec::with_capacity(m.arms.len());
+        let init_frame_size = checker.scopes.frame_size();
+        let mut max_frame_size = init_frame_size;
+        let mut default_arm = None;
         let mut data_type = DataType::Unit;
         let mut first = true;
         let mut returns = true;
@@ -321,10 +362,13 @@ impl Context {
         } else {
             let mut arms_iter = m.arms.into_iter();
             while let Some(a) = arms_iter.next() {
+                // check for default arm
                 if let Cst::Ident(i) = a.cond {
                     if self.idents.name(i.ident) == "_" {
                         let expr = self.check_type(checker, a.expr, is_expr)?;
-                        let expr_data_type = expect_expr(&expr)?;
+                        let expr_data_type = expr.data_type.as_expr().unwrap_or(DataType::Unit);
+
+                        max_frame_size = max(max_frame_size, checker.scopes.frame_size());
 
                         if !expr.returns {
                             returns = false;
@@ -341,6 +385,17 @@ impl Context {
                             }
                         }
 
+                        // check if variables have been initialized in the default arm
+                        for uninit_var in uninitialized_vars.iter_mut() {
+                            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+
+                            if first {
+                                uninit_var.result = var.initialized;
+                            } else if var.initialized != uninit_var.result {
+                                uninit_var.result = Initialized::Maybe;
+                            }
+                        }
+
                         if let Some(next_arm) = arms_iter.next() {
                             let start_span = next_arm.span();
                             let last = arms_iter.next_back().unwrap_or(next_arm);
@@ -348,12 +403,13 @@ impl Context {
                             self.warnings.push(crate::Warning::Unreachable(s));
                         }
 
-                        else_arm = Some(Box::new(expr));
+                        default_arm = Some(Box::new(expr));
                         exaustive = true;
                         break;
                     }
                 }
 
+                // other match arms
                 let cond = self.check_type(checker, a.cond, true)?;
                 let cond_t = expect_expr(&cond)?;
 
@@ -369,7 +425,10 @@ impl Context {
                         .push(crate::Warning::Unreachable(a.expr.span()));
                 } else {
                     let expr = self.check_type(checker, a.expr, is_expr)?;
-                    let expr_data_type = expect_expr(&expr)?;
+                    let expr_data_type = expr.data_type.as_expr().unwrap_or(DataType::Unit);
+
+                    max_frame_size = max(max_frame_size, checker.scopes.frame_size());
+                    checker.scopes.set_frame_size(init_frame_size);
 
                     if !expr.returns {
                         returns = false;
@@ -378,7 +437,6 @@ impl Context {
                     if is_expr {
                         if first {
                             data_type = expr_data_type;
-                            first = false;
                         } else if expr_data_type.is_not(data_type) {
                             self.errors.push(crate::Error::MatchArmIncompatibleType(
                                 (data_type, arms[0].expr.span),
@@ -389,15 +447,37 @@ impl Context {
 
                     arms.push(ast::MatchArm::new(cond, expr));
                 }
+
+                // check if variables have been initialized in this arm
+                for uninit_var in uninitialized_vars.iter_mut() {
+                    let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+
+                    if first {
+                        uninit_var.result = var.initialized;
+                    } else if var.initialized != uninit_var.result {
+                        uninit_var.result = Initialized::Maybe;
+                    }
+                    var.initialized = uninit_var.prev;
+                }
+
+                first = false;
             }
 
             if !exaustive {
-                // TODO: recognize exaustive matches without catch all `_` arm
+                // TODO: recognize exhaustive matches without catch all `_` arm
                 return Err(crate::Error::MissingMatchArm(value.span));
             }
         }
 
-        let match_expr = ast::MatchExpr::new(Box::new(value), arms, else_arm);
+        checker.scopes.set_frame_size(max_frame_size);
+
+        // Set variables initialization to the resultant state of all arms
+        for uninit_var in uninitialized_vars.iter_mut() {
+            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+            var.initialized = uninit_var.result
+        }
+
+        let match_expr = ast::MatchExpr::new(Box::new(value), arms, default_arm);
         if is_expr {
             Ok(Ast::expr(
                 AstT::MatchExpr(match_expr),
@@ -413,24 +493,35 @@ impl Context {
     fn check_while_loop(&mut self, checker: &mut Checker, w: cst::WhileLoop) -> crate::Result<Ast> {
         let span = w.span();
 
-        let value = self.check_cond(checker, *w.cond)?;
-        let value_returns = value.returns;
-        let block = if value.returns {
+        let cond = self.check_cond(checker, *w.cond)?;
+        let cond_returns = cond.returns;
+        let block = if cond.returns {
             let s = w.block.span();
             self.warnings.push(crate::Warning::Unreachable(s));
 
             Vec::new()
         } else {
-            let (block, _) = self.with_new(checker, |ctx, checker| {
-                ctx.check_types(checker, w.block.csts, false) //
-            })?;
+            let uninitialized_vars = checker.scopes.uninitialized_vars();
+            let (block, _) =
+                self.with_new_scope(checker, ExecPolicy::MultipleTimes, |ctx, checker| {
+                    ctx.check_types(checker, w.block.csts, false)
+                })?;
+
+            // Mark variables that have been initialized as possibly initialized.
+            for uninit_var in uninitialized_vars.iter() {
+                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+                if uninit_var.prev != var.initialized {
+                    var.initialized = Initialized::Maybe;
+                }
+            }
+
             block
         };
 
-        let whl_loop = ast::WhileLoop::new(Box::new(value), block);
+        let whl_loop = ast::WhileLoop::new(Box::new(cond), block);
         Ok(Ast::statement(
             AstT::WhileLoop(whl_loop),
-            value_returns,
+            cond_returns,
             span,
         ))
     }
@@ -458,11 +549,27 @@ impl Context {
         }
         let iter_type = DataType::Int;
 
-        let (inner, block) = self.with_new(checker, |ctx, checker| {
-            let inner = ctx.def_var(&mut checker.scopes, f.ident, iter_type, true, false);
-            let (block, _) = ctx.check_types(checker, f.block.csts, false)?;
-            Ok((inner, block))
-        })?;
+        let uninitialized_vars = checker.scopes.uninitialized_vars();
+        let (inner, block) =
+            self.with_new_scope(checker, ExecPolicy::MultipleTimes, |ctx, checker| {
+                let inner = ctx.def_var(
+                    &mut checker.scopes,
+                    f.ident,
+                    iter_type,
+                    Initialized::Yes,
+                    false,
+                );
+                let (block, _) = ctx.check_types(checker, f.block.csts, false)?;
+                Ok((inner, block))
+            })?;
+
+        // Mark variables that have been initialized as possibly initialized.
+        for uninit_var in uninitialized_vars.iter() {
+            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+            if uninit_var.prev != var.initialized {
+                var.initialized = Initialized::Maybe;
+            }
+        }
 
         let for_loop = ast::ForLoop::new(inner, Box::new(iter), block);
         Ok(Ast::statement(AstT::ForLoop(for_loop), false, span))
@@ -485,7 +592,7 @@ impl Context {
             .as_ref()
             .map_or(Ok(DataType::Unit), |r| self.resolve_data_type(&r.typ))?;
 
-        // Define fun before checking block to support recursive calls
+        // Define function before checking block to support recursive calls
         let inner = checker.funs.push();
         let ret = ReturnType::new(return_type, f.return_type.as_ref().map(|r| r.typ.span()));
         let fun = Fun::new(f.ident, params, ret, inner);
@@ -503,41 +610,60 @@ impl Context {
             ResolvedFun::Builtin(_) => return Ok(Ast::statement(AstT::Unit, false, span)),
         };
 
-        self.with_new_frame(checker, Rc::clone(&fun), |ctx, checker| {
-            let mut inner_params = Vec::new();
-            for p in fun.params.iter() {
-                let param = ctx.def_var(&mut checker.scopes, p.ident, p.data_type, true, false);
-                inner_params.push(param);
-            }
-
-            // Check function block
-            let is_expr = f.return_type.is_some();
-            let (block, _) = ctx.check_types(checker, f.block.csts, is_expr)?;
-
-            let block_type = block
-                .last()
-                .and_then(|a| a.data_type.as_expr())
-                .unwrap_or(DataType::Unit);
-
-            if let Some(r) = f.return_type {
-                if block_type.is_not(fun.return_type.data_type) {
-                    let span = block.last().map_or(block_span, |a| a.span);
-                    return Err(crate::Error::MismatchedType {
-                        expected: fun.return_type.data_type,
-                        found: block_type,
-                        spans: vec![r.typ.span(), span],
-                    });
+        // TODO: store variables initialized by this function block and set their initialization
+        // state after calling this function
+        let uninitialized_vars = checker.scopes.uninitialized_vars();
+        self.with_new_scope_and_frame(
+            checker,
+            ExecPolicy::MultipleTimes,
+            Rc::clone(&fun),
+            |ctx, checker| {
+                let mut inner_params = Vec::new();
+                for p in fun.params.iter() {
+                    let param = ctx.def_var(
+                        &mut checker.scopes,
+                        p.ident,
+                        p.data_type,
+                        Initialized::Yes,
+                        false,
+                    );
+                    inner_params.push(param);
                 }
-            }
 
-            // Initialize function
-            checker.funs.init(
-                fun.inner,
-                ast::Fun::new(inner_params, block, checker.scopes.frame_size()),
-            );
+                // Check function block
+                let is_expr = f.return_type.is_some();
+                let (block, _) = ctx.check_types(checker, f.block.csts, is_expr)?;
 
-            Ok(())
-        })?;
+                let block_type = block
+                    .last()
+                    .and_then(|a| a.data_type.as_expr())
+                    .unwrap_or(DataType::Unit);
+
+                if let Some(r) = f.return_type {
+                    if block_type.is_not(fun.return_type.data_type) {
+                        let span = block.last().map_or(block_span, |a| a.span);
+                        return Err(crate::Error::MismatchedType {
+                            expected: fun.return_type.data_type,
+                            found: block_type,
+                            spans: vec![r.typ.span(), span],
+                        });
+                    }
+                }
+
+                // Initialize function block data
+                checker.funs.init(
+                    fun.inner,
+                    ast::Fun::new(inner_params, block, checker.scopes.frame_size()),
+                );
+
+                Ok(())
+            },
+        )?;
+        // Restore intialization state of variables
+        for uninit_var in uninitialized_vars.iter() {
+            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+            var.initialized = uninit_var.prev;
+        }
 
         Ok(Ast::statement(AstT::Unit, false, span))
     }
@@ -772,38 +898,78 @@ impl Context {
 
     fn check_var_def(&mut self, checker: &mut Checker, v: cst::VarDef) -> crate::Result<Ast> {
         let span = v.span();
-        let val = self.check_type(checker, *v.value.1, true)?;
-        let val_data_type = expect_expr(&val)?;
 
-        if val.returns {
-            let s = Span::across(v.kw.span, v.value.0.span);
-            self.warnings.push(crate::Warning::Unreachable(s));
-        }
+        let mutable = v.mutable.is_some();
 
-        let data_type = match v.type_hint {
-            Some((_, t)) => {
-                let data_type = self.resolve_data_type(&t)?;
+        match v.inner {
+            cst::VarDefInner::ExplicitAssign { type_hint, value } => {
+                let val = self.check_type(checker, *value.1, true)?;
+                let val_data_type = expect_expr(&val)?;
+
+                if val.returns {
+                    let s = Span::across(v.kw.span, value.0.span);
+                    self.warnings.push(crate::Warning::Unreachable(s));
+                }
+
+                let data_type = self.resolve_data_type(&type_hint.1)?;
                 if val_data_type.is_not(data_type) {
                     return Err(crate::Error::MismatchedType {
                         expected: data_type,
                         found: val_data_type,
-                        spans: vec![t.span(), val.span],
+                        spans: vec![type_hint.1.span(), val.span],
                     });
                 }
-                data_type
+
+                let val_returns = val.returns;
+                let var_ref = self.def_var(
+                    &mut checker.scopes,
+                    v.ident,
+                    data_type,
+                    Initialized::Yes,
+                    mutable,
+                );
+                Ok(Ast::statement(
+                    AstT::VarAssign(var_ref, Box::new(val)),
+                    val_returns,
+                    span,
+                ))
             }
-            None => val_data_type,
-        };
+            cst::VarDefInner::ImplicitAssign { value } => {
+                let val = self.check_type(checker, *value.1, true)?;
+                let data_type = expect_expr(&val)?;
 
-        let mutable = v.mutable.is_some();
-        let inner = self.def_var(&mut checker.scopes, v.ident, data_type, true, mutable);
+                if val.returns {
+                    let s = Span::across(v.kw.span, value.0.span);
+                    self.warnings.push(crate::Warning::Unreachable(s));
+                }
 
-        let val_returns = val.returns;
-        Ok(Ast::statement(
-            AstT::VarAssign(inner, Box::new(val)),
-            val_returns,
-            span,
-        ))
+                let val_returns = val.returns;
+                let var_ref = self.def_var(
+                    &mut checker.scopes,
+                    v.ident,
+                    data_type,
+                    Initialized::Yes,
+                    mutable,
+                );
+                Ok(Ast::statement(
+                    AstT::VarAssign(var_ref, Box::new(val)),
+                    val_returns,
+                    span,
+                ))
+            }
+            cst::VarDefInner::Declaration { type_hint } => {
+                let data_type = self.resolve_data_type(&type_hint.1)?;
+                self.def_var(
+                    &mut checker.scopes,
+                    v.ident,
+                    data_type,
+                    Initialized::No,
+                    mutable,
+                );
+
+                Ok(Ast::statement(AstT::Unit, false, span))
+            }
+        }
     }
 
     fn check_prefix(
@@ -1133,6 +1299,7 @@ impl Context {
                     ))
                 };
 
+                // This has to be kept in sync with the implementation in `cods/eval/mod.rs`
                 let a = match data_type {
                     DataType::Int => match a_data_type {
                         DataType::Int => a,
@@ -1340,7 +1507,7 @@ impl Context {
 
     fn collect_spill_vars(&self, vars: &[Var]) -> Vec<(String, VarRef)> {
         vars.iter()
-            .filter(|v| v.assigned)
+            .filter(|v| v.initialized == Initialized::Yes)
             .map(|v| {
                 let name = self.idents.name(v.ident.ident).to_owned();
                 (name, v.inner)

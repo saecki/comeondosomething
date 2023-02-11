@@ -338,6 +338,7 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
     }
 
     let va = eval_ast(stack, funs, a)?;
+    // This has to be kept in sync with the implementation in `cods/check/mod.rs`
     let val = match t {
         DataType::Int => Val::Int(match va {
             Val::Int(i) => i,
@@ -408,7 +409,7 @@ fn eval_match_expr(stack: &mut Stack, funs: &Funs, match_expr: &MatchExpr) -> Ev
         }
     }
 
-    match &match_expr.else_arm {
+    match &match_expr.default_arm {
         Some(a) => eval_ast(stack, funs, a),
         None => Ok(Val::Unit),
     }

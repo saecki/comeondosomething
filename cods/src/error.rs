@@ -2,8 +2,8 @@ use std::error;
 use std::fmt::{self, Debug, Display};
 
 use crate::{
-    BuiltinConst, DataType, FunSignature, InfixT, Item, Kw, KwT, Op, OpSignature, OpT, Par, PctT,
-    PostfixT, PrefixT, Span, ValSpan,
+    BuiltinConst, DataType, FunSignature, InfixT, Initialized, Item, Kw, KwT, Op, OpSignature, OpT,
+    Par, PctT, PostfixT, PrefixT, Span, ValSpan,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -81,7 +81,8 @@ pub enum Error {
     MissingMatchArm(Span),
     NotIterable(DataType, Span),
     UndefinedVar(String, Span),
-    UninitializedVar(String, Span, Span),
+    // TODO separate definition and usage into hint and error
+    UninitializedVar(String, Initialized, Span, Span),
     RedefinedBuiltinConst(String, Span),
     UndefinedFun(String, Span),
     RedefinedFun(String, Span, Span),
@@ -120,7 +121,7 @@ pub enum Error {
     },
     AssignTypeMismatch((DataType, Span), (DataType, Span)),
     InvalidAssignment(Span, Span),
-    ImmutableAssign(String, Span, Span),
+    ImmutableAssign(String, Initialized, Span, Span),
     ConstAssign((BuiltinConst, Span), Span),
     NotComparable((DataType, Span), (DataType, Span)),
     CastAlwaysFails((DataType, Span), (DataType, Span)),
@@ -259,7 +260,12 @@ impl UserFacing for Error {
             }
             Self::NotIterable(t, _) => write!(f, "Value of type `{t}` is not iterable"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable `{name}`"),
-            Self::UninitializedVar(name, _, _) => write!(f, "Uninitialized variable `{name}`"), // TODO separate definition and usage into hint and error
+            Self::UninitializedVar(name, initialized, _, _) => {
+                let possibly = (*initialized == Initialized::Maybe)
+                    .then_some("possibly ")
+                    .unwrap_or_default();
+                write!(f, "Variable `{name}` is {possibly}not initialized")
+            }
             Self::RedefinedBuiltinConst(name, _) => {
                 write!(f, "Redefined builtin constant `{name}`")
             }
@@ -410,8 +416,14 @@ impl UserFacing for Error {
             Self::InvalidAssignment(_, _) => {
                 write!(f, "Cannot assign to something that is not a variable")
             }
-            Self::ImmutableAssign(name, _, _) => {
-                write!(f, "Cannot assign twice to immutable variable `{name}`")
+            Self::ImmutableAssign(name, initialized, _, _) => {
+                let possibly_initialized = (*initialized == Initialized::Maybe)
+                    .then_some("possibly initialized ")
+                    .unwrap_or_default();
+                write!(
+                    f,
+                    "Cannot assign twice to {possibly_initialized}immutable variable `{name}`"
+                )
             }
             Self::ConstAssign((c, _), _) => {
                 write!(f, "Cannot assign to builtin constant `{c}`")
@@ -536,7 +548,7 @@ impl UserFacing for Error {
             Self::MissingMatchArm(s) => vec![*s],
             Self::NotIterable(_, s) => vec![*s],
             Self::UndefinedVar(_, s) => vec![*s],
-            Self::UninitializedVar(_, a, b) => vec![*a, *b],
+            Self::UninitializedVar(_, _, a, b) => vec![*a, *b],
             Self::RedefinedBuiltinConst(_, s) => vec![*s],
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
@@ -548,7 +560,7 @@ impl UserFacing for Error {
             Self::NoMatchingPostfixSignature { span, .. } => vec![*span],
             Self::AssignTypeMismatch((_, a), (_, b)) => vec![*a, *b],
             Self::InvalidAssignment(a, b) => vec![*a, *b],
-            Self::ImmutableAssign(_, a, b) => vec![*a, *b],
+            Self::ImmutableAssign(_, _, a, b) => vec![*a, *b],
             Self::ConstAssign((_, a), b) => vec![*a, *b],
             Self::NotComparable((_, a), (_, b)) => vec![*a, *b],
             Self::CastAlwaysFails((_, a), (_, b)) => vec![*a, *b],

@@ -28,7 +28,6 @@ OPTIONS:
 ```
 
 ## TODO
-- Variable definition without assignment (`val x` or `val y: str`)
 - structs `struct A { b: int, c: float }`
 - Generics for functions `fun a<T>(i: T) -> T { i }`
 - Warnings

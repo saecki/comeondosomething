@@ -352,29 +352,40 @@ pub struct VarDef {
     pub kw: Kw,
     pub mutable: Option<Kw>,
     pub ident: IdentSpan,
-    pub type_hint: Option<(Pct, Box<Cst>)>,
-    pub value: (Op, Box<Cst>),
+    pub inner: VarDefInner,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum VarDefInner {
+    ExplicitAssign {
+        type_hint: (Pct, Box<Cst>),
+        value: (Op, Box<Cst>),
+    },
+    ImplicitAssign {
+        value: (Op, Box<Cst>),
+    },
+    Declaration {
+        type_hint: (Pct, Box<Cst>),
+    },
 }
 
 impl VarDef {
-    pub fn new(
-        kw: Kw,
-        mutable: Option<Kw>,
-        ident: IdentSpan,
-        type_hint: Option<(Pct, Box<Cst>)>,
-        value: (Op, Box<Cst>),
-    ) -> Self {
+    pub fn new(kw: Kw, mutable: Option<Kw>, ident: IdentSpan, inner: VarDefInner) -> Self {
         Self {
             kw,
             mutable,
             ident,
-            type_hint,
-            value,
+            inner,
         }
     }
 
     pub fn span(&self) -> Span {
-        Span::across(self.kw.span, self.value.1.span())
+        let end = match &self.inner {
+            VarDefInner::ExplicitAssign { value: (_, v), .. } => v.span(),
+            VarDefInner::ImplicitAssign { value: (_, v) } => v.span(),
+            VarDefInner::Declaration { type_hint: (_, t) } => t.span(),
+        };
+        Span::across(self.kw.span, end)
     }
 }
 

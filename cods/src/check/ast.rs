@@ -154,15 +154,15 @@ impl CondBlock {
 pub struct MatchExpr {
     pub value: Box<Ast>,
     pub arms: Vec<MatchArm>,
-    pub else_arm: Option<Box<Ast>>,
+    pub default_arm: Option<Box<Ast>>,
 }
 
 impl MatchExpr {
-    pub fn new(value: Box<Ast>, arms: Vec<MatchArm>, else_arm: Option<Box<Ast>>) -> Self {
+    pub fn new(value: Box<Ast>, arms: Vec<MatchArm>, default_arm: Option<Box<Ast>>) -> Self {
         Self {
             value,
             arms,
-            else_arm,
+            default_arm,
         }
     }
 }

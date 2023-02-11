@@ -79,7 +79,10 @@ impl Context {
     pub fn resolve_current_vars<'a>(&self, scopes: &'a mut Scopes) -> &'a [Var] {
         let vars = scopes.current_vars_mut();
 
-        for v in vars.iter_mut().filter(|v| v.assigned) {
+        for v in vars
+            .iter_mut()
+            .filter(|v| v.initialized == Initialized::Yes)
+        {
             v.reads += 1;
         }
 
@@ -110,10 +113,11 @@ impl Context {
             }
         };
 
-        if !var.assigned {
+        if var.initialized != Initialized::Yes {
             let name = self.idents.name(id.ident);
             return Err(crate::Error::UninitializedVar(
                 name.into(),
+                var.initialized,
                 var.ident.span,
                 id.span,
             ));
@@ -129,30 +133,53 @@ impl Context {
         scopes: &mut Scopes,
         ident: IdentSpan,
         data_type: DataType,
-        assigned: bool,
+        initialized: Initialized,
         mutable: bool,
     ) -> VarRef {
         let inner = scopes.var_ref();
-        let var = Var::new(ident, data_type, assigned, mutable, inner);
+        let var = Var::new(ident, data_type, initialized, mutable, inner);
         scopes.extend_frame(1);
         scopes.vars.push(var);
         inner
     }
 
     pub fn set_var(&self, scopes: &mut Scopes, id: &IdentSpan, val: &Ast) -> crate::Result<()> {
-        match scopes.var_mut(id.ident) {
-            Ok(v) => {
-                if !v.mutable && v.assigned {
-                    let name = self.idents.name(id.ident);
-                    return Err(crate::Error::ImmutableAssign(
-                        name.into(),
-                        id.span,
-                        val.span,
-                    ));
+        match scopes.var_index(id.ident) {
+            Ok(var_idx) => {
+                let var = &mut scopes.vars[var_idx];
+                if !var.mutable {
+                    if var.initialized != Initialized::No {
+                        let name = self.idents.name(id.ident);
+                        return Err(crate::Error::ImmutableAssign(
+                            name.into(),
+                            var.initialized,
+                            id.span,
+                            val.span,
+                        ));
+                    }
+
+                    // if this variable is initialized from a scope that is possibly executed
+                    // multiple times we could assign to it multiple times. So don't allow
+                    // initializing immutable variables here.
+                    for s in scopes.scopes.iter().rev() {
+                        if s.var < var_idx {
+                            break;
+                        }
+                        if s.exec_policy == ExecPolicy::MultipleTimes {
+                            let name = self.idents.name(id.ident);
+                            return Err(crate::Error::ImmutableAssign(
+                                name.into(),
+                                Initialized::Maybe,
+                                id.span,
+                                val.span,
+                            ));
+                        }
+                    }
                 }
 
-                v.assigned = true;
-                v.writes += 1;
+                let var = &mut scopes.vars[var_idx];
+                var.initialized = Initialized::Yes;
+                var.writes += 1;
 
                 Ok(())
             }
@@ -167,24 +194,26 @@ impl Context {
         }
     }
 
-    pub fn with_new_frame<T>(
+    pub fn with_new_scope_and_frame<T>(
         &mut self,
         checker: &mut Checker,
+        exec_policy: ExecPolicy,
         fun: Rc<Fun>,
         f: impl FnOnce(&mut Self, &mut Checker) -> T,
     ) -> T {
         checker.scopes.push_frame(fun);
-        let r = self.with_new(checker, f);
+        let r = self.with_new_scope(checker, exec_policy, f);
         checker.scopes.pop_frame();
         r
     }
 
-    pub fn with_new<T>(
+    pub fn with_new_scope<T>(
         &mut self,
         checker: &mut Checker,
+        exec_policy: ExecPolicy,
         f: impl FnOnce(&mut Self, &mut Checker) -> T,
     ) -> T {
-        checker.scopes.push();
+        checker.scopes.push(exec_policy);
         let r = f(self, checker);
         self.check_unused(&checker.scopes);
         checker.scopes.pop();
@@ -233,6 +262,18 @@ pub struct Scopes {
     frames: Vec<Frame>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExecPolicy {
+    Once,
+    MultipleTimes,
+}
+
+pub struct UninitializedVar {
+    pub ident: IdentSpan,
+    pub prev: Initialized,
+    pub result: Initialized,
+}
+
 impl Scopes {
     pub fn clear(&mut self) {
         self.vars.clear();
@@ -240,22 +281,43 @@ impl Scopes {
         self.scopes.clear();
         self.frames.clear();
     }
+
+    pub fn uninitialized_vars(&self) -> Vec<UninitializedVar> {
+        self.vars
+            .iter()
+            .filter(|v| v.initialized != Initialized::Yes)
+            .map(|v| UninitializedVar {
+                ident: v.ident,
+                prev: v.initialized,
+                result: v.initialized,
+            })
+            .collect()
+    }
 }
 
 /// Starting indices of var and fun scopes.
 #[derive(Clone, Debug)]
 struct Scope {
+    exec_policy: ExecPolicy,
     var: usize,
     fun: usize,
 }
 
 impl Scope {
-    fn new(var: usize, fun: usize) -> Self {
-        Self { var, fun }
+    fn new(exec_policy: ExecPolicy, var: usize, fun: usize) -> Self {
+        Self {
+            exec_policy,
+            var,
+            fun,
+        }
     }
 
     fn global() -> Self {
-        Self { var: 0, fun: 0 }
+        Self {
+            exec_policy: ExecPolicy::Once,
+            var: 0,
+            fun: 0,
+        }
     }
 }
 
@@ -315,9 +377,9 @@ impl Scopes {
         &self.funs[start..]
     }
 
-    fn push(&mut self) {
+    fn push(&mut self, exec_policy: ExecPolicy) {
         self.scopes
-            .push(Scope::new(self.vars.len(), self.funs.len()));
+            .push(Scope::new(exec_policy, self.vars.len(), self.funs.len()));
     }
 
     fn pop(&mut self) {
@@ -335,24 +397,29 @@ impl Scopes {
         None
     }
 
-    fn var_mut(&mut self, id: Ident) -> Result<&mut Var, ResolveError> {
-        let current_scope = self.scopes[self.current_frame().scope_index].var;
-        for v in self.vars[current_scope..].iter_mut().rev() {
+    pub fn var_mut(&mut self, id: Ident) -> Result<&mut Var, ResolveError> {
+        self.var_index(id).map(|idx| &mut self.vars[idx])
+    }
+
+    pub fn var_index(&self, id: Ident) -> Result<usize, ResolveError> {
+        let current_frame = self.scopes[self.current_frame().scope_index].var;
+        for (i, v) in self.vars[current_frame..].iter().enumerate().rev() {
             if v.ident.ident == id {
-                // workaround for lifetime issue: https://github.com/rust-lang/rust/issues/54663
-                return Ok(unsafe { std::mem::transmute::<_, _>(v) });
+                return Ok(current_frame + i);
             }
         }
         if let Some(f) = self.frames.get(1) {
-            let second_scope = self.scopes[f.scope_index].var;
-            for v in self.vars[second_scope..current_scope].iter_mut().rev() {
+            let second_frame = self.scopes[f.scope_index].var;
+            // frames in between
+            for v in self.vars[second_frame..current_frame].iter().rev() {
                 if v.ident.ident == id {
                     return Err(ResolveError::DynCapture(v.ident.span));
                 }
             }
-            for v in self.vars[..second_scope].iter_mut().rev() {
+            // global frame
+            for (i, v) in self.vars[..second_frame].iter().enumerate().rev() {
                 if v.ident.ident == id {
-                    return Ok(v);
+                    return Ok(i);
                 }
             }
         }
@@ -465,25 +532,32 @@ impl ReturnType {
 pub struct Var {
     pub ident: IdentSpan,
     pub data_type: DataType,
-    pub assigned: bool,
+    pub initialized: Initialized,
     pub mutable: bool,
     pub reads: u32,
     pub writes: u32,
     pub inner: VarRef,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Initialized {
+    No = 0,
+    Maybe = 1,
+    Yes = 2,
+}
+
 impl Var {
     pub fn new(
         ident: IdentSpan,
         data_type: DataType,
-        assigned: bool,
+        initialized: Initialized,
         mutable: bool,
         inner: VarRef,
     ) -> Self {
         Self {
             ident,
             data_type,
-            assigned,
+            initialized,
             mutable,
             reads: 0,
             writes: 0,
