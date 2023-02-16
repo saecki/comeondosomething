@@ -205,7 +205,10 @@ impl Context {
 
             // check if variables have been initialized in this branch
             for uninit_var in uninitialized_vars.iter_mut() {
-                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+                let var = checker
+                    .scopes
+                    .var_mut(uninit_var.ident.ident)
+                    .expect("This variable should exist");
 
                 // set the initial resultant state of initialization for this if statement
                 uninit_var.result = var.initialized;
@@ -256,7 +259,10 @@ impl Context {
 
             // check if variables have been initialized in this branch
             for uninit_var in uninitialized_vars.iter_mut() {
-                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+                let var = checker
+                    .scopes
+                    .var_mut(uninit_var.ident.ident)
+                    .expect("This variable should exist");
 
                 if var.initialized != uninit_var.result {
                     uninit_var.result = Initialized::Maybe;
@@ -312,7 +318,10 @@ impl Context {
         // check if variables have been initialized in the else branch, even if there is none
         // explicitly declared
         for uninit_var in uninitialized_vars.iter_mut() {
-            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+            let var = checker
+                .scopes
+                .var_mut(uninit_var.ident.ident)
+                .expect("This variable should exist");
 
             if var.initialized != uninit_var.result {
                 uninit_var.result = Initialized::Maybe;
@@ -322,7 +331,10 @@ impl Context {
 
         // Set variables initialization to the resultant state of all branches
         for uninit_var in uninitialized_vars.iter_mut() {
-            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+            let var = checker
+                .scopes
+                .var_mut(uninit_var.ident.ident)
+                .expect("This variable should exist");
             var.initialized = uninit_var.result;
         }
 
@@ -387,7 +399,10 @@ impl Context {
 
                         // check if variables have been initialized in the default arm
                         for uninit_var in uninitialized_vars.iter_mut() {
-                            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+                            let var = checker
+                                .scopes
+                                .var_mut(uninit_var.ident.ident)
+                                .expect("This variable should exist");
 
                             if first {
                                 uninit_var.result = var.initialized;
@@ -450,7 +465,10 @@ impl Context {
 
                 // check if variables have been initialized in this arm
                 for uninit_var in uninitialized_vars.iter_mut() {
-                    let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+                    let var = checker
+                        .scopes
+                        .var_mut(uninit_var.ident.ident)
+                        .expect("This variable should exist");
 
                     if first {
                         uninit_var.result = var.initialized;
@@ -473,7 +491,10 @@ impl Context {
 
         // Set variables initialization to the resultant state of all arms
         for uninit_var in uninitialized_vars.iter_mut() {
-            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("This variable should exist") };
+            let var = checker
+                .scopes
+                .var_mut(uninit_var.ident.ident)
+                .expect("This variable should exist");
             var.initialized = uninit_var.result
         }
 
@@ -509,7 +530,10 @@ impl Context {
 
             // Mark variables that have been initialized as possibly initialized.
             for uninit_var in uninitialized_vars.iter() {
-                let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+                let var = checker
+                    .scopes
+                    .var_mut(uninit_var.ident.ident)
+                    .expect("variable should exist");
                 if uninit_var.prev != var.initialized {
                     var.initialized = Initialized::Maybe;
                 }
@@ -565,7 +589,10 @@ impl Context {
 
         // Mark variables that have been initialized as possibly initialized.
         for uninit_var in uninitialized_vars.iter() {
-            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+            let var = checker
+                .scopes
+                .var_mut(uninit_var.ident.ident)
+                .expect("variable should exist");
             if uninit_var.prev != var.initialized {
                 var.initialized = Initialized::Maybe;
             }
@@ -661,7 +688,10 @@ impl Context {
         )?;
         // Restore intialization state of variables
         for uninit_var in uninitialized_vars.iter() {
-            let Ok(var) = checker.scopes.var_mut(uninit_var.ident.ident) else { panic!("variable should exist") };
+            let var = checker
+                .scopes
+                .var_mut(uninit_var.ident.ident)
+                .expect("variable should exist");
             var.initialized = uninit_var.prev;
         }
 

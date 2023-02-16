@@ -16,6 +16,7 @@ pub enum ResolvedVar<'a> {
     Const(BuiltinConst),
 }
 
+#[derive(Debug)]
 pub enum ResolveError {
     NotFound,
     DynCapture(Span),
