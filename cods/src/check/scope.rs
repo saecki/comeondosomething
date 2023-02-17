@@ -119,7 +119,6 @@ impl Context {
             return Err(crate::Error::UninitializedVar(
                 name.into(),
                 var.initialized,
-                var.ident.span,
                 id.span,
             ));
         }

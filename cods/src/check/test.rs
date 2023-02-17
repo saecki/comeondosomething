@@ -775,7 +775,6 @@ fn first_branch_doesnt_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(1, 12),
             Span::pos(9, 8)
         ),
     );
@@ -801,7 +800,6 @@ fn not_all_branches_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(1, 12),
             Span::pos(9, 8)
         ),
     );
@@ -827,7 +825,6 @@ fn else_branch_doesent_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(1, 12),
             Span::pos(9, 8)
         ),
     );
@@ -851,7 +848,6 @@ fn missing_else_branch_doesent_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(1, 12),
             Span::pos(7, 8)
         ),
     );
@@ -917,7 +913,6 @@ fn one_match_arm_doesnt_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(2, 12),
             Span::pos(8, 8)
         ),
     );
@@ -942,7 +937,6 @@ fn default_match_arm_doesnt_initialize_var() {
         crate::Error::UninitializedVar(
             "a".into(),
             Initialized::Maybe,
-            Span::pos(2, 12),
             Span::pos(8, 8)
         ),
     );

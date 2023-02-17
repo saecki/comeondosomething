@@ -81,8 +81,8 @@ pub enum Error {
     MissingMatchArm(Span),
     NotIterable(DataType, Span),
     UndefinedVar(String, Span),
-    // TODO separate definition and usage into hint and error
-    UninitializedVar(String, Initialized, Span, Span),
+    // TODO add hint showing definition
+    UninitializedVar(String, Initialized, Span),
     RedefinedBuiltinConst(String, Span),
     UndefinedFun(String, Span),
     RedefinedFun(String, Span, Span),
@@ -260,7 +260,7 @@ impl UserFacing for Error {
             }
             Self::NotIterable(t, _) => write!(f, "Value of type `{t}` is not iterable"),
             Self::UndefinedVar(name, _) => write!(f, "Undefined variable `{name}`"),
-            Self::UninitializedVar(name, initialized, _, _) => {
+            Self::UninitializedVar(name, initialized, _) => {
                 let possibly = (*initialized == Initialized::Maybe)
                     .then_some("possibly ")
                     .unwrap_or_default();
@@ -548,7 +548,7 @@ impl UserFacing for Error {
             Self::MissingMatchArm(s) => vec![*s],
             Self::NotIterable(_, s) => vec![*s],
             Self::UndefinedVar(_, s) => vec![*s],
-            Self::UninitializedVar(_, _, a, b) => vec![*a, *b],
+            Self::UninitializedVar(_, _, s) => vec![*s],
             Self::RedefinedBuiltinConst(_, s) => vec![*s],
             Self::UndefinedFun(_, s) => vec![*s],
             Self::RedefinedFun(_, a, b) => vec![*a, *b],
