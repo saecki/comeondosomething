@@ -1,10 +1,18 @@
 fn sum(n: int) -> int {
     let mut sum = 0
-    for i in 1..n {
+    for i in 1..=n {
         sum += i
     }
     sum
 }
 
-assert_eq(sum(10), 45)
-assert_eq(sum(23432), 274517596)
+let sum1 = sum(10)
+assert_eq(sum1, 55)
+
+let sum2 = sum(23432)
+assert_eq(sum2, 274541028)
+
+let sum3 = sum(500000)
+assert_eq(sum3, 125000250000)
+
+spill()

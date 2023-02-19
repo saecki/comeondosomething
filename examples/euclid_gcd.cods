@@ -8,5 +8,10 @@ fn euclid_gcd(a: int, b: int) -> int {
     }
 }
 
-assert_eq(euclid_gcd(16, 24), 8)
-assert_eq(euclid_gcd(7, 13), 1)
+let a = euclid_gcd(16, 24)
+assert_eq(a, 8)
+
+let b = euclid_gcd(7, 13)
+assert_eq(b, 1)
+
+spill()
