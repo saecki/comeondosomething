@@ -53,7 +53,7 @@ fn gen_op(state: &mut State, op: Op, args: &[Ast], reg_dest: u8) {
             let reg_b = use_register(state);
             gen_to_reg(state, &args[0], reg_a);
             gen_to_reg(state, &args[1], reg_b);
-            instruction[0] = OpCode::AddInt as u8;
+            instruction[0] = OpCode::Add as u8;
             instruction[1] = reg_dest;
             instruction[2] = reg_a;
             instruction[3] = reg_b;
@@ -64,7 +64,7 @@ fn gen_op(state: &mut State, op: Op, args: &[Ast], reg_dest: u8) {
             let reg_b = use_register(state);
             gen_to_reg(state, &args[0], reg_a);
             gen_to_reg(state, &args[1], reg_b);
-            instruction[0] = OpCode::SubInt as u8;
+            instruction[0] = OpCode::Sub as u8;
             instruction[1] = reg_dest;
             instruction[2] = reg_a;
             instruction[3] = reg_b;
@@ -75,7 +75,7 @@ fn gen_op(state: &mut State, op: Op, args: &[Ast], reg_dest: u8) {
             let reg_b = use_register(state);
             gen_to_reg(state, &args[0], reg_a);
             gen_to_reg(state, &args[1], reg_b);
-            instruction[0] = OpCode::MulInt as u8;
+            instruction[0] = OpCode::Mul as u8;
             instruction[1] = reg_dest;
             instruction[2] = reg_a;
             instruction[3] = reg_b;
@@ -86,7 +86,7 @@ fn gen_op(state: &mut State, op: Op, args: &[Ast], reg_dest: u8) {
             let reg_b = use_register(state);
             gen_to_reg(state, &args[0], reg_a);
             gen_to_reg(state, &args[1], reg_b);
-            instruction[0] = OpCode::DivInt as u8;
+            instruction[0] = OpCode::Div as u8;
             instruction[1] = reg_dest;
             instruction[2] = reg_a;
             instruction[3] = reg_b;
@@ -100,7 +100,7 @@ fn gen_op(state: &mut State, op: Op, args: &[Ast], reg_dest: u8) {
             let reg_b = use_register(state);
             gen_to_reg(state, &args[0], reg_a);
             gen_to_reg(state, &args[1], reg_b);
-            instruction[0] = OpCode::RemInt as u8;
+            instruction[0] = OpCode::Rem as u8;
             instruction[1] = reg_dest;
             instruction[2] = reg_a;
             instruction[3] = reg_b;
@@ -138,7 +138,7 @@ fn gen_to_reg(state: &mut State, arg: &Ast, reg: u8) {
     match &arg.typ {
         AstT::Val(v) => {
             let addr = push_const(state, v);
-            instruction[0] = OpCode::Ldc as u8;
+            instruction[0] = OpCode::LoadConst as u8;
             instruction[1] = reg;
             *get_mut(&mut instruction, 4) = addr;
         }

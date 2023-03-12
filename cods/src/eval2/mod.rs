@@ -13,50 +13,53 @@ pub const STACK_SIZE: usize = 1024 * 1024;
 #[repr(u8)]
 #[rustfmt::skip]
 pub enum OpCode {
-    Push     = 0x00,
-    Pop      = 0x01,
-    JmpAbs   = 0x02,
-    JmpRel   = 0x03,
-    Cbzr     = 0x04,
-    Cbnz     = 0x05,
-    Cbeq     = 0x06,
-    Cbne     = 0x07,
-    Cblt     = 0x08,
-    Cble     = 0x09,
-    Cbgt     = 0x0A,
-    Cbge     = 0x0B,
-    Ldc      = 0x0C,
-    Lds      = 0x0D,
-    Str      = 0x0E,
-    Mov      = 0x0F,
-    Eq       = 0x10,
-    Ne       = 0x11,
-    Lt       = 0x12,
-    Le       = 0x13,
-    Gt       = 0x14,
-    Ge       = 0x15,
-    Or       = 0x16,
-    Xor      = 0x17,
-    And      = 0x18,
-    Shl      = 0x19,
-    Shr      = 0x1A,
-    AddInt   = 0x1B,
-    SubInt   = 0x1C,
-    MulInt   = 0x1D,
-    DivInt   = 0x1E,
-    RemInt   = 0x1F,
-    AddFloat = 0x20,
-    SubFloat = 0x21,
-    MulFloat = 0x22,
-    DivFloat = 0x23,
-    RemFloat = 0x24,
+    Push      = 0x00,
+    Pop       = 0x01,
+    JmpAbs    = 0x02,
+    JmpRel    = 0x03,
+    Cbzr      = 0x04,
+    Cbnz      = 0x05,
+    Cbeq      = 0x06,
+    Cbne      = 0x07,
+    Cblt      = 0x08,
+    Cble      = 0x09,
+    Cbgt      = 0x0A,
+    Cbge      = 0x0B,
+    LoadConst = 0x0C,
+    Load      = 0x0D,
+    Store     = 0x0E,
+    Move      = 0x0F,
+    Eq        = 0x10,
+    Ne        = 0x11,
+    Lt        = 0x12,
+    Le        = 0x13,
+    Gt        = 0x14,
+    Ge        = 0x15,
+    Or        = 0x16,
+    Xor       = 0x17,
+    And       = 0x18,
+    Shl       = 0x19,
+    Shr       = 0x1A,
+    Add    = 0x1B,
+    Sub    = 0x1C,
+    Mul    = 0x1D,
+    IMul   = 0x1E,
+    Div    = 0x1F,
+    IDiv   = 0x20,
+    Rem    = 0x21,
+    IRem   = 0x22,
+    FAdd  = 0x23,
+    FSub  = 0x24,
+    FMul  = 0x25,
+    FDiv  = 0x26,
+    FRem  = 0x27,
 }
 
 impl TryFrom<u8> for OpCode {
     type Error = ();
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value > 0x24 {
+        if value > 0x27 {
             Err(())
         } else {
             unsafe { Ok(std::mem::transmute(value)) }
@@ -68,12 +71,12 @@ impl TryFrom<u8> for OpCode {
 pub fn eval(
     consts: &[u8],
     code: &[u8],
-    registers: &mut [i64; REGISTERS],
+    registers: &mut [u64; REGISTERS],
     stack: &mut [u8; STACK_SIZE],
 ) -> crate::Result<()> {
     let mut instruction_ptr: i32 = 0;
 
-    registers[STACK_PTR] = STACK_SIZE as i64;
+    registers[STACK_PTR] = STACK_SIZE as u64;
 
     while (instruction_ptr as usize) < code.len() {
         dbg!(registers[STACK_PTR]);
@@ -84,18 +87,18 @@ pub fn eval(
         instruction_ptr += 8;
         match op {
             OpCode::Push => {
-                let size = *get::<i32>(&args, 3) as i64;
-                if registers[STACK_PTR] - size < 0 {
+                let size = *get::<u32>(&args, 3) as u64;
+                if registers[STACK_PTR] < size {
                     return Err(crate::Error::StackOverflow);
                 }
-                registers[STACK_PTR] -= size as i64;
+                registers[STACK_PTR] -= size;
             }
             OpCode::Pop => {
-                let size = *get::<i32>(&args, 3) as i64;
-                if registers[STACK_PTR] + size > STACK_SIZE as i64 {
+                let size = *get::<u32>(&args, 3) as u64;
+                if registers[STACK_PTR] + size > STACK_SIZE as u64 {
                     return Err(crate::Error::StackUnderflow);
                 }
-                registers[STACK_PTR] += size as i64;
+                registers[STACK_PTR] += size;
             }
             OpCode::JmpAbs => {
                 instruction_ptr = *get::<i32>(&args, 3);
@@ -157,28 +160,28 @@ pub fn eval(
                     instruction_ptr += *get::<i32>(&args, 3);
                 }
             }
-            OpCode::Ldc => {
+            OpCode::LoadConst => {
                 let reg_dest = args[0] as usize;
                 let addr = *get::<u32>(&args, 3);
-                registers[reg_dest] = *get::<i64>(consts, addr as usize);
+                registers[reg_dest] = *get::<u64>(consts, addr as usize);
             }
-            OpCode::Lds => {
+            OpCode::Load => {
                 let reg_dest = args[0] as usize;
                 let reg_addr = args[1] as usize;
                 let offset = *get::<i32>(&args, 3) as i64;
-                let addr = registers[reg_addr] + offset;
-                registers[reg_dest] = *get::<i64>(stack, addr as usize);
+                let addr = registers[reg_addr] as i64 + offset;
+                registers[reg_dest] = *get::<u64>(stack, addr as usize);
             }
-            OpCode::Str => {
+            OpCode::Store => {
                 let reg_src = args[0] as usize;
                 let reg_addr = args[1] as usize;
                 let offset = *get::<i32>(&args, 3) as i64;
                 dbg!(offset);
-                let addr = registers[reg_addr] + offset;
+                let addr = registers[reg_addr] as i64 + offset;
                 dbg!(addr);
-                *get_mut::<i64>(stack, addr as usize) = registers[reg_src];
+                *get_mut::<u64>(stack, addr as usize) = registers[reg_src];
             }
-            OpCode::Mov => {
+            OpCode::Move => {
                 let reg_dest = args[0] as usize;
                 let reg_src = args[1] as usize;
                 registers[reg_dest] = registers[reg_src];
@@ -187,37 +190,37 @@ pub fn eval(
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] == registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] == registers[reg_b]) as u64;
             }
             OpCode::Ne => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] != registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] != registers[reg_b]) as u64;
             }
             OpCode::Lt => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] < registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] < registers[reg_b]) as u64;
             }
             OpCode::Le => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] <= registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] <= registers[reg_b]) as u64;
             }
             OpCode::Gt => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] > registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] > registers[reg_b]) as u64;
             }
             OpCode::Ge => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = (registers[reg_a] >= registers[reg_b]) as i64;
+                registers[reg_dest] = (registers[reg_a] >= registers[reg_b]) as u64;
             }
             OpCode::Or => {
                 let reg_dest = args[0] as usize;
@@ -249,61 +252,79 @@ pub fn eval(
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = registers[reg_a] >> registers[reg_b];
             }
-            OpCode::AddInt => {
+            OpCode::Add => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = registers[reg_a] + registers[reg_b];
+                registers[reg_dest] = registers[reg_a].wrapping_add(registers[reg_b]);
             }
-            OpCode::AddFloat => {
+            OpCode::FAdd => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) + float(registers[reg_b]));
             }
-            OpCode::SubInt => {
+            OpCode::Sub => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
-                registers[reg_dest] = registers[reg_a] - registers[reg_b];
+                registers[reg_dest] = registers[reg_a].wrapping_sub(registers[reg_b]);
             }
-            OpCode::SubFloat => {
+            OpCode::FSub => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) - float(registers[reg_b]));
             }
-            OpCode::MulInt => {
+            OpCode::Mul => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = registers[reg_a] * registers[reg_b];
             }
-            OpCode::MulFloat => {
+            OpCode::IMul => {
+                let reg_dest = args[0] as usize;
+                let reg_a = args[1] as usize;
+                let reg_b = args[2] as usize;
+                registers[reg_dest] = unsigned(signed(registers[reg_a]) * signed(registers[reg_b]));
+            }
+            OpCode::FMul => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) * float(registers[reg_b]));
             }
-            OpCode::DivInt => {
+            OpCode::Div => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = registers[reg_a] / registers[reg_b];
             }
-            OpCode::DivFloat => {
+            OpCode::IDiv => {
+                let reg_dest = args[0] as usize;
+                let reg_a = args[1] as usize;
+                let reg_b = args[2] as usize;
+                registers[reg_dest] = unsigned(signed(registers[reg_a]) / signed(registers[reg_b]));
+            }
+            OpCode::FDiv => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) / float(registers[reg_b]));
             }
-            OpCode::RemInt => {
+            OpCode::Rem => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
                 registers[reg_dest] = registers[reg_a] % registers[reg_b];
             }
-            OpCode::RemFloat => {
+            OpCode::IRem => {
+                let reg_dest = args[0] as usize;
+                let reg_a = args[1] as usize;
+                let reg_b = args[2] as usize;
+                registers[reg_dest] = unsigned(signed(registers[reg_a]) % signed(registers[reg_b]));
+            }
+            OpCode::FRem => {
                 let reg_dest = args[0] as usize;
                 let reg_a = args[1] as usize;
                 let reg_b = args[2] as usize;
@@ -319,10 +340,18 @@ pub fn eval(
     Ok(())
 }
 
-fn float(val: i64) -> f64 {
+fn signed(val: u64) -> i64 {
     unsafe { std::mem::transmute(val) }
 }
 
-fn int(val: f64) -> i64 {
+fn unsigned(val: i64) -> u64 {
+    unsafe { std::mem::transmute(val) }
+}
+
+fn float(val: u64) -> f64 {
+    unsafe { std::mem::transmute(val) }
+}
+
+fn int(val: f64) -> u64 {
     unsafe { std::mem::transmute(val) }
 }

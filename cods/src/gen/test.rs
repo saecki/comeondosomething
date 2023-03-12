@@ -26,6 +26,6 @@ fn add_constants() {
     gen_op(&mut state, op, &args, 1);
     eval2::eval(&state.consts, &state.code, &mut registers, &mut stack).unwrap();
 
-    let val = registers[1];
+    let val: i64 = unsafe { std::mem::transmute(registers[1]) };
     assert_eq!(val, -86);
 }
