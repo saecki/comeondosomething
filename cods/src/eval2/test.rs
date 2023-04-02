@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn add_int() {
     let code = vec![OpCode::Add as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 4;
     registers[2] = 9;
 
@@ -17,7 +17,7 @@ fn add_int() {
 #[test]
 fn sub_signed_int() {
     let code = vec![OpCode::Sub as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 4;
     registers[2] = 9;
 
@@ -31,7 +31,7 @@ fn sub_signed_int() {
 #[test]
 fn mul_int() {
     let code = vec![OpCode::Mul as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 4;
     registers[2] = 9;
 
@@ -45,7 +45,7 @@ fn mul_int() {
 #[test]
 fn div_int() {
     let code = vec![OpCode::Div as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 4;
     registers[2] = 9;
 
@@ -59,7 +59,7 @@ fn div_int() {
 #[test]
 fn rem_int() {
     let code = vec![OpCode::Rem as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 37;
     registers[2] = 6;
 
@@ -73,7 +73,7 @@ fn rem_int() {
 #[test]
 fn add_float() {
     let code = vec![OpCode::FAdd as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = int(4.0);
     registers[2] = int(9.0);
 
@@ -87,7 +87,7 @@ fn add_float() {
 #[test]
 fn sub_float() {
     let code = vec![OpCode::FSub as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = int(4.0);
     registers[2] = int(9.0);
 
@@ -101,7 +101,7 @@ fn sub_float() {
 #[test]
 fn mul_float() {
     let code = vec![OpCode::FMul as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = int(4.0);
     registers[2] = int(9.0);
 
@@ -115,7 +115,7 @@ fn mul_float() {
 #[test]
 fn div_float() {
     let code = vec![OpCode::FDiv as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = int(4.0);
     registers[2] = int(9.0);
 
@@ -129,7 +129,7 @@ fn div_float() {
 #[test]
 fn rem_float() {
     let code = vec![OpCode::FRem as u8, 3, 1, 2, 0, 0, 0, 0];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = int(37.0);
     registers[2] = int(6.0);
 
@@ -146,7 +146,7 @@ fn mov() {
     let code = vec![
         OpCode::Move as u8, 1, 2, 0, 0, 0, 0, 0,
     ];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[2] = 42;
 
     let mut stack = [0; STACK_SIZE];
@@ -163,7 +163,7 @@ fn store() {
         OpCode::Push as u8, 0, 0, 0,  8, 0, 0, 0,
         OpCode::Store as u8,  1, STACK_PTR as u8, 0,  0, 0, 0, 0,
     ];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 42;
 
     let mut stack = [0; STACK_SIZE];
@@ -182,11 +182,24 @@ fn store_load() {
         OpCode::Store as u8,  1, STACK_PTR as u8, 0,  0, 0, 0, 0,
         OpCode::Load as u8,  2, STACK_PTR as u8, 0,  0, 0, 0, 0,
     ];
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     registers[1] = 42;
 
     let mut stack = [0; STACK_SIZE];
     eval(&[], &code, &mut registers, &mut stack).unwrap();
 
     assert_eq!(registers[2], 42);
+}
+
+#[test]
+fn load_inline() {
+    #[rustfmt::skip]
+    let code = vec![
+        OpCode::LoadInline as u8, 1, 0, 0,  0xfa, 0xfb, 0xfc, 0xfd,
+    ];
+    let mut registers = [0; NUM_REGISTERS];
+    let mut stack = [0; STACK_SIZE];
+    eval(&[], &code, &mut registers, &mut stack).unwrap();
+
+    assert_eq!(registers[1], 0xfdfc_fbfa);
 }

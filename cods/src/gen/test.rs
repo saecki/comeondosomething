@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::eval2::{REGISTERS, STACK_SIZE};
+use crate::eval2::{NUM_REGISTERS, STACK_SIZE};
 use crate::{ast, eval2, Ast, AstT, DataType, Span, Val};
 
 use super::State;
@@ -20,7 +20,7 @@ fn add_constants() {
         ..Default::default()
     };
 
-    let mut registers = [0; REGISTERS];
+    let mut registers = [0; NUM_REGISTERS];
     let mut stack = [0; STACK_SIZE];
 
     gen_op(&mut state, op, &args, 1);
