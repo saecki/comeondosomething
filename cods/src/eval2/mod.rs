@@ -94,320 +94,320 @@ pub fn eval(
         dbg!(registers[STACK_PTR]);
         dbg!(registers[1]);
         dbg!(&stack[STACK_SIZE - 16..]);
-        let [op, args @ ..] = *get::<[u8; 8]>(code, instruction_ptr as usize);
-        let op: OpCode = OpCode::try_from(op).expect("Unknown op code");
+        let instruction = *get::<[u8; 8]>(code, instruction_ptr as usize);
+        let op: OpCode = OpCode::try_from(instruction[0]).expect("Unknown op code");
         instruction_ptr += 8;
         match op {
             OpCode::Push => {
-                let size = *get::<u32>(&args, 3) as u64;
+                let size = *get::<u32>(&instruction, 4) as u64;
                 if registers[STACK_PTR] < size {
                     return Err(crate::Error::StackOverflow);
                 }
                 registers[STACK_PTR] -= size;
             }
             OpCode::Pop => {
-                let size = *get::<u32>(&args, 3) as u64;
+                let size = *get::<u32>(&instruction, 4) as u64;
                 if registers[STACK_PTR] + size > STACK_SIZE as u64 {
                     return Err(crate::Error::StackUnderflow);
                 }
                 registers[STACK_PTR] += size;
             }
             OpCode::JmpAbs => {
-                instruction_ptr = *get::<i32>(&args, 3);
+                instruction_ptr = *get::<i32>(&instruction, 4);
             }
             OpCode::JmpRel => {
-                instruction_ptr += *get::<i32>(&args, 3);
+                instruction_ptr += *get::<i32>(&instruction, 4);
             }
             OpCode::Cbzr => {
-                let reg_cmp = args[0] as usize;
+                let reg_cmp = instruction[1] as usize;
                 if registers[reg_cmp] == 0 {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cbnz => {
-                let reg_cmp = args[0] as usize;
+                let reg_cmp = instruction[1] as usize;
                 if registers[reg_cmp as usize] != 0 {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cbeq => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] == registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cbne => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] != registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cblt => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] < registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cble => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] <= registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cbgt => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] > registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::Cbge => {
-                let reg_a = args[0] as usize;
-                let reg_b = args[1] as usize;
+                let reg_a = instruction[1] as usize;
+                let reg_b = instruction[2] as usize;
                 if registers[reg_a] >= registers[reg_b] {
-                    instruction_ptr += *get::<i32>(&args, 3);
+                    instruction_ptr += *get::<i32>(&instruction, 4);
                 }
             }
             OpCode::LoadConst => {
-                let reg_dest = args[0] as usize;
-                let addr = *get::<u32>(&args, 3);
+                let reg_dest = instruction[1] as usize;
+                let addr = *get::<u32>(&instruction, 4);
                 registers[reg_dest] = *get::<u64>(consts, addr as usize);
             }
             OpCode::LoadInline => {
-                let reg_dest = args[0] as usize;
-                let val = *get::<u32>(&args, 3);
+                let reg_dest = instruction[1] as usize;
+                let val = *get::<u32>(&instruction, 4);
                 registers[reg_dest] = val as u64;
             }
             OpCode::Load => {
-                let reg_dest = args[0] as usize;
-                let reg_addr = args[1] as usize;
-                let offset = *get::<i32>(&args, 3) as i64;
+                let reg_dest = instruction[1] as usize;
+                let reg_addr = instruction[2] as usize;
+                let offset = *get::<i32>(&instruction, 4) as i64;
                 let addr = registers[reg_addr] as i64 + offset;
                 registers[reg_dest] = *get::<u64>(stack, addr as usize);
             }
             OpCode::Store => {
-                let reg_src = args[0] as usize;
-                let reg_addr = args[1] as usize;
-                let offset = *get::<i32>(&args, 3) as i64;
+                let reg_src = instruction[1] as usize;
+                let reg_addr = instruction[2] as usize;
+                let offset = *get::<i32>(&instruction, 4) as i64;
                 dbg!(offset);
                 let addr = registers[reg_addr] as i64 + offset;
                 dbg!(addr);
                 *get_mut::<u64>(stack, addr as usize) = registers[reg_src];
             }
             OpCode::Move => {
-                let reg_dest = args[0] as usize;
-                let reg_src = args[1] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_src = instruction[2] as usize;
                 registers[reg_dest] = registers[reg_src];
             }
             OpCode::Not => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
                 registers[reg_dest] = !registers[reg_a];
             }
             OpCode::Eq => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] == registers[reg_b]) as u64;
             }
             OpCode::Ne => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] != registers[reg_b]) as u64;
             }
             OpCode::Lt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] < registers[reg_b]) as u64;
             }
             OpCode::ILt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (signed(registers[reg_a]) < signed(registers[reg_b])) as u64;
             }
             OpCode::FLt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (float(registers[reg_a]) < float(registers[reg_b])) as u64;
             }
             OpCode::Le => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] <= registers[reg_b]) as u64;
             }
             OpCode::ILe => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (signed(registers[reg_a]) <= signed(registers[reg_b])) as u64;
             }
             OpCode::FLe => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (float(registers[reg_a]) <= float(registers[reg_b])) as u64;
             }
             OpCode::Gt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] > registers[reg_b]) as u64;
             }
             OpCode::IGt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (signed(registers[reg_a]) > signed(registers[reg_b])) as u64;
             }
             OpCode::FGt => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (float(registers[reg_a]) > float(registers[reg_b])) as u64;
             }
             OpCode::Ge => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (registers[reg_a] >= registers[reg_b]) as u64;
             }
             OpCode::IGe => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (signed(registers[reg_a]) >= signed(registers[reg_b])) as u64;
             }
             OpCode::FGe => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = (float(registers[reg_a]) >= float(registers[reg_b])) as u64;
             }
             OpCode::Or => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] | registers[reg_b];
             }
             OpCode::Xor => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] ^ registers[reg_b];
             }
             OpCode::And => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] & registers[reg_b];
             }
             OpCode::Shl => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] << registers[reg_b];
             }
             OpCode::Shr => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] >> registers[reg_b];
             }
             OpCode::Neg => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
                 registers[reg_dest] = unsigned(-signed(registers[reg_a]));
             }
             OpCode::FNeg => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
                 registers[reg_dest] = unsafe { std::mem::transmute(-float(registers[reg_a])) };
             }
             OpCode::Add => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a].wrapping_add(registers[reg_b]);
             }
             OpCode::FAdd => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) + float(registers[reg_b]));
             }
             OpCode::Sub => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a].wrapping_sub(registers[reg_b]);
             }
             OpCode::FSub => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) - float(registers[reg_b]));
             }
             OpCode::Mul => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] * registers[reg_b];
             }
             OpCode::IMul => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = unsigned(signed(registers[reg_a]) * signed(registers[reg_b]));
             }
             OpCode::FMul => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) * float(registers[reg_b]));
             }
             OpCode::Div => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] / registers[reg_b];
             }
             OpCode::IDiv => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = unsigned(signed(registers[reg_a]) / signed(registers[reg_b]));
             }
             OpCode::FDiv => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) / float(registers[reg_b]));
             }
             OpCode::Rem => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = registers[reg_a] % registers[reg_b];
             }
             OpCode::IRem => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = unsigned(signed(registers[reg_a]) % signed(registers[reg_b]));
             }
             OpCode::FRem => {
-                let reg_dest = args[0] as usize;
-                let reg_a = args[1] as usize;
-                let reg_b = args[2] as usize;
+                let reg_dest = instruction[1] as usize;
+                let reg_a = instruction[2] as usize;
+                let reg_b = instruction[3] as usize;
                 registers[reg_dest] = int(float(registers[reg_a]) % float(registers[reg_b]));
             }
         }
