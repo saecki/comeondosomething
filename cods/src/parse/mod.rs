@@ -134,8 +134,10 @@ impl Context {
                     if let Cst::Ident(id) = lhs {
                         match g.par_kind() {
                             ParKind::Round => {
-                                let g = parser.next().unwrap().into_group().unwrap();
-                                lhs = self.parse_fun_call(id, g)?;
+                                let group_parser = parser.next().unwrap().into_group().unwrap();
+                                let args = self.parse_fun_args(group_parser)?;
+                                let f = cst::FunCall::new(id, args);
+                                lhs = Cst::FunCall(f);
                                 continue;
                             }
                             ParKind::Square => {
@@ -248,12 +250,6 @@ impl Context {
                 Ok(cst::Block::new(g.l_par, g.r_par, vec![Cst::Error(s)]))
             }
         }
-    }
-
-    fn parse_fun_call(&mut self, id: IdentSpan, g: Group) -> crate::Result<Cst> {
-        let args = self.parse_fun_args(g)?;
-        let f = cst::FunCall::new(id, args);
-        Ok(Cst::FunCall(f))
     }
 
     fn parse_fun_args(&mut self, group: Group) -> crate::Result<cst::FunArgs> {
