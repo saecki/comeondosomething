@@ -132,7 +132,7 @@ fn string_multi_line() {
 fn unicode_operators() {
     assert_err(
         "(23423.0 × 423.0 + (423.0 − 234.0) ÷ 654.0 + 4324.0) × 4234.0",
-        crate::Error::InvalidChar(Span::pos(0, 9)),
+        crate::Error::InvalidIdentChar(Span::pos(0, 9)),
     );
 }
 

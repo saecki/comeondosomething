@@ -47,6 +47,10 @@ impl Span {
         Self::pos(self.end.line, self.end.col)
     }
 
+    pub const fn end(&self) -> Self {
+        Self::pos(self.end.line, self.end.col.saturating_sub(1))
+    }
+
     pub const fn intersects(&self, other: &Self) -> bool {
         self.contains(&other.start) || other.contains(&self.start)
     }
@@ -69,5 +73,12 @@ pub struct Pos {
 impl Pos {
     pub const fn new(line: u32, col: u32) -> Self {
         Self { line, col }
+    }
+
+    pub const fn plus(&self, col: u32) -> Self {
+        Self {
+            line: self.line,
+            col: self.col + col,
+        }
     }
 }

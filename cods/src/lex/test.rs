@@ -120,7 +120,7 @@ fn vars() {
 fn invalid_char() {
     assert_err(
         "x6ä = 2; Arm = 3",
-        crate::Error::InvalidChar(Span::pos(0, 2)),
+        crate::Error::InvalidIdentChar(Span::pos(0, 2)),
     );
 }
 
@@ -207,4 +207,79 @@ fn ident_tuple_index() {
             Token::Val(ValSpan::new(Val::Int(2), Span::pos(0, 5))),
         ],
     )
+}
+
+#[test]
+fn integer_literal_binary() {
+    assert(
+        "0b101000100101",
+        vec![Token::val(Val::Int(0b101000100101), Span::cols(0, 0, 14))],
+    );
+    assert(
+        "0b1010_0010_0101",
+        vec![Token::val(Val::Int(0b101000100101), Span::cols(0, 0, 16))],
+    );
+}
+
+#[test]
+fn integer_literal_oct() {
+    assert(
+        "0o7_0321",
+        vec![Token::val(Val::Int(0o70321), Span::cols(0, 0, 8))],
+    );
+}
+
+#[test]
+fn integer_literal_hex() {
+    assert(
+        "0xf_a0_45",
+        vec![Token::val(Val::Int(0xfa045), Span::cols(0, 0, 9))],
+    );
+}
+
+#[test]
+fn integer_float_literal() {
+    assert(
+        "23432423f",
+        vec![Token::val(Val::Float(23432423_f64), Span::cols(0, 0, 9))],
+    );
+}
+
+#[test]
+fn float_literals() {
+    assert(
+        "0.3",
+        vec![Token::val(Val::Float(0.3), Span::cols(0, 0, 3))],
+    );
+    assert(
+        "1.0",
+        vec![Token::val(Val::Float(1.0), Span::cols(0, 0, 3))],
+    );
+    assert(
+        "18f",
+        vec![Token::val(Val::Float(18f64), Span::cols(0, 0, 3))],
+    );
+    assert(
+        "18_f",
+        vec![Token::val(Val::Float(18_f64), Span::cols(0, 0, 4))],
+    );
+    assert(
+        "121312.23878979432",
+        vec![Token::val(
+            Val::Float(121312.23878979432),
+            Span::cols(0, 0, 18),
+        )],
+    );
+    assert(
+        "1234e3",
+        vec![Token::val(Val::Float(1234e3), Span::cols(0, 0, 6))],
+    );
+    assert(
+        "1234e-3",
+        vec![Token::val(Val::Float(1234e-3), Span::cols(0, 0, 7))],
+    );
+    assert(
+        "1234e+3",
+        vec![Token::val(Val::Float(1234e+3), Span::cols(0, 0, 7))],
+    );
 }

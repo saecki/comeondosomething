@@ -23,8 +23,15 @@ pub enum Error {
     NotImplemented(&'static str, Vec<Span>),
 
     // Lex
-    InvalidChar(Span),
-    InvalidNumberFormat(Span),
+    InvalidIdentChar(Span),
+    InvalidNumChar(char, Span),
+    IntEndsWithUnderscore(Span),
+    InvalidIntRadix(char, Span),
+    IntDigitTooLarge(char, Span),
+    MissingIntDigits(Span),
+    IntOverflow(Span),
+    InvalidFloatLiteral(Span),
+    TrailingFloatLitChars(Span),
     InvalidEscapeChar(char, Span),
     MissingEscapeChar(Span),
     InvalidUnicodeEscapeChar(char, Span),
@@ -168,8 +175,17 @@ impl UserFacing for Error {
             Self::NotImplemented(m, _) => write!(f, "{m}"),
 
             // Lex
-            Self::InvalidChar(_) => write!(f, "Invalid character"),
-            Self::InvalidNumberFormat(_) => write!(f, "Invalid number format"),
+            Self::InvalidIdentChar(_) => write!(f, "Invalid character in identifier"),
+            Self::InvalidNumChar(c, _) => {
+                write!(f, "Invalid character in number literal `{c}`")
+            }
+            Self::IntEndsWithUnderscore(_) => write!(f, "Integer literal ends with underscore"),
+            Self::InvalidIntRadix(c, _) => write!(f, "Invalid integer radix `{c}`"),
+            Self::IntDigitTooLarge(c, _) => write!(f, "Integer digit `{c}` too large"),
+            Self::MissingIntDigits(_) => write!(f, "Missing integer digits"),
+            Self::IntOverflow(_) => write!(f, "Integer literal overflow"),
+            Self::InvalidFloatLiteral(_) => write!(f, "Invalid float literal"),
+            Self::TrailingFloatLitChars(_) => write!(f, "Trailing characters in float literal"),
             Self::InvalidEscapeChar(c, _) => {
                 write!(f, "Invalid escape character: `{}`", c.escape_default())
             }
@@ -510,8 +526,15 @@ impl UserFacing for Error {
             Self::NotImplemented(_, spans) => spans.clone(),
 
             // Lex
-            Self::InvalidChar(s) => vec![*s],
-            Self::InvalidNumberFormat(s) => vec![*s],
+            Self::InvalidIdentChar(s) => vec![*s],
+            Self::InvalidNumChar(_, s) => vec![*s],
+            Self::IntEndsWithUnderscore(s) => vec![*s],
+            Self::InvalidIntRadix(_, s) => vec![*s],
+            Self::IntDigitTooLarge(_, s) => vec![*s],
+            Self::MissingIntDigits(s) => vec![*s],
+            Self::IntOverflow(s) => vec![*s],
+            Self::InvalidFloatLiteral(s) => vec![*s],
+            Self::TrailingFloatLitChars(s) => vec![*s],
             Self::InvalidEscapeChar(_, s) => vec![*s],
             Self::MissingEscapeChar(s) => vec![*s],
             Self::MissingUnicodeEscapeChar { span, .. } => vec![*span],
@@ -529,7 +552,7 @@ impl UserFacing for Error {
             // Parse
             Self::MissingOperand(s) => vec![*s],
             Self::MissingOperator(s) => vec![*s],
-            Self::MissingFunArgs { span: pos, .. } => vec![*pos],
+            Self::MissingFunArgs { span, .. } => vec![*span],
             Self::UnexpectedItem(i) => vec![i.span()],
             Self::UnexpectedFunArgs { spans, .. } => spans.clone(),
             Self::UnexpectedOperator(o) => vec![o.span],
