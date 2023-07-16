@@ -1,4 +1,4 @@
-use crate::util::{get, get_mut};
+use crate::util::{get, mut_ref};
 
 #[cfg(test)]
 mod test;
@@ -196,7 +196,7 @@ pub fn eval(
                 dbg!(offset);
                 let addr = registers[reg_addr] as i64 + offset;
                 dbg!(addr);
-                *get_mut::<u64>(stack, addr as usize) = registers[reg_src];
+                *mut_ref::<u64>(stack, addr as usize) = registers[reg_src];
             }
             OpCode::Move => {
                 let reg_dest = instruction[1] as usize;

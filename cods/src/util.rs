@@ -1,8 +1,8 @@
-pub(crate) fn get<T: Sized>(buf: &[u8], index: usize) -> &T {
+pub(crate) fn get<'a, T: Sized>(buf: &'a [u8], index: usize) -> &'a T {
     unsafe { std::mem::transmute(&buf[index] as *const u8) }
 }
 
-pub(crate) fn get_mut<T: Sized>(buf: &mut [u8], index: usize) -> &mut T {
+pub(crate) fn mut_ref<'a, T: Sized>(buf: &'a mut [u8], index: usize) -> &'a mut T {
     unsafe { std::mem::transmute(&buf[index] as *const u8) }
 }
 

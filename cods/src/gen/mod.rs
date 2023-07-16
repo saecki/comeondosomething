@@ -1,7 +1,7 @@
 use crate::ast::Op;
 use crate::eval2::{OpCode, NUM_REGISTERS};
-use crate::util::get_mut;
-use crate::{Ast, AstT, Val};
+use crate::util::mut_ref;
+use crate::{Ast, AstT, Range, Val};
 
 #[cfg(test)]
 mod test;
@@ -14,11 +14,14 @@ pub struct State {
 }
 
 fn gen_instructions(state: &mut State, asts: &[Ast]) {
-    for a in asts {
+    for (i, a) in asts.iter().enumerate() {
         match &a.typ {
             AstT::Error => todo!(),
             AstT::Var(_) => todo!(),
-            AstT::Val(_) => todo!(),
+            AstT::Val(v) => {
+                // otherwise the value is unused
+                if i == asts.len() - 1 {}
+            }
             AstT::Op(op, args) => {
                 let reg_dest = use_register(state);
                 gen_op(state, *op, args, reg_dest)
@@ -31,12 +34,92 @@ fn gen_instructions(state: &mut State, asts: &[Ast]) {
             AstT::MatchExpr(_) => todo!(),
             AstT::WhileLoop(_) => todo!(),
             AstT::ForLoop(_) => todo!(),
-            AstT::VarAssign(_, _) => todo!(),
+            AstT::VarAssign(var, ast) => {
+                let reg_dest = use_register(state);
+                gen_to_reg(state, a, reg_dest);
+            }
             AstT::FunCall(_, _) => todo!(),
             AstT::Return(_) => todo!(),
             AstT::BuiltinFunCall(_, _) => todo!(),
             AstT::Spill(_) => todo!(),
         }
+    }
+}
+
+fn gen_to_reg(state: &mut State, arg: &Ast, reg: u8) {
+    match &arg.typ {
+        AstT::Error => todo!(),
+        AstT::Var(_) => todo!(),
+        AstT::Val(v) => {
+            // TODO: check if value can be stored inline
+            let mut instruction = [0; 8];
+            let addr = push_const(state, v);
+            instruction[0] = OpCode::LoadConst as u8;
+            instruction[1] = reg;
+            *mut_ref(&mut instruction, 4) = addr;
+            state.code.extend(&instruction);
+        }
+        AstT::Op(op, args) => {
+            let reg_dest = use_register(state);
+            gen_op(state, *op, args, reg_dest)
+        }
+        AstT::Is(_, _) => todo!(),
+        AstT::Cast(_, _) => todo!(),
+        AstT::Unit => todo!(),
+        AstT::Block(_) => todo!(),
+        AstT::IfExpr(_) => todo!(),
+        AstT::MatchExpr(_) => todo!(),
+        AstT::WhileLoop(_) => todo!(),
+        AstT::ForLoop(f) => {
+            let reg_iter = use_register(state);
+            // intitalize iterator
+            {
+                let AstT::Val(Val::Range(range)) = f.iter.typ else { unreachable!() };
+                let initializer = rang
+
+                let mut instruction = [0; 8];
+                let addr = push_const(state, f.iter);
+                instruction[0] = OpCode::LoadConst as u8;
+                instruction[1] = reg_iter;
+                *mut_ref(&mut instruction, 4) = addr;
+                state.code.extend(&instruction);
+            }
+
+            {
+                let mut instruction = [0; 8];
+                instruction[0] = OpCode::JmpAbs as u8;
+                *mut_ref(&mut instruction, 4) = 0;
+                state.code.extend(&instruction);
+            }
+
+            let start_addr = state.code.len();
+            {
+                let mut instruction = [0; 8];
+                instruction[0] = OpCode::Cblt as u8;
+                *mut_ref::<i32>(&mut instruction, 4) = start_addr as i32;
+                state.code.extend(&instruction);
+            }
+
+            // update the address to jump to initially
+            let end_addr = state.code.len() as i32;
+            *mut_ref::<i32>(&mut state.code, start_addr + 4) = end_addr;
+
+            {
+                let mut instruction = [0; 8];
+                instruction[0] = OpCode::Cblt as u8;
+                *mut_ref::<i32>(&mut instruction, 4) = start_addr as i32;
+                state.code.extend(&instruction);
+            }
+        }
+        AstT::VarAssign(var, ast) => {
+            // TODO: save register information somewhere
+            let reg_dest = use_register(state);
+            gen_to_reg(state, ast, reg_dest);
+        }
+        AstT::FunCall(_, _) => todo!(),
+        AstT::Return(_) => todo!(),
+        AstT::BuiltinFunCall(_, _) => todo!(),
+        AstT::Spill(_) => todo!(),
     }
 }
 
@@ -129,33 +212,19 @@ fn gen_two_op(state: &mut State, op_code: OpCode, args: &[Ast], reg_dest: u8) {
     state.code.extend(&instruction);
 }
 
-fn gen_to_reg(state: &mut State, arg: &Ast, reg: u8) {
-    let mut instruction = [0; 8];
-
-    match &arg.typ {
-        AstT::Val(v) => {
-            let addr = push_const(state, v);
-            instruction[0] = OpCode::LoadConst as u8;
-            instruction[1] = reg;
-            *get_mut(&mut instruction, 4) = addr;
-        }
-        _ => todo!(),
-    }
-    state.code.extend_from_slice(&instruction);
-}
-
+// TODO: deduplication
 fn push_const(state: &mut State, val: &Val) -> u32 {
     match val {
         Val::Int(i) => {
             let addr = state.consts.len();
             state.consts.resize(state.consts.len() + 8, 0);
-            *get_mut(&mut state.consts, addr) = *i as i64;
+            *mut_ref(&mut state.consts, addr) = *i as i64;
             addr as u32
         }
         Val::Bool(b) => {
             let addr = state.consts.len();
             state.consts.resize(state.consts.len() + 1, 0);
-            *get_mut(&mut state.consts, addr) = *b as u8;
+            *mut_ref(&mut state.consts, addr) = *b as u8;
             addr as u32
         }
         _ => todo!(),
