@@ -5,9 +5,9 @@ use crate::cst::{self, Cst};
 use crate::{Context, Infix, InfixT, Postfix, PostfixT, Prefix, PrefixT, Span, VarRef};
 
 pub use ast::{Ast, AstT, Asts, BuiltinFunCall};
-pub use builtin::*;
+pub use builtin::{BuiltinConst, BuiltinFun, FunSignature, Repetition, SignatureKind, SpillKind};
 pub use funs::*;
-pub use op::*;
+pub use op::OpSignature;
 pub use scope::*;
 pub use types::*;
 

@@ -1,6 +1,4 @@
-use crate::{
-    BuiltinConst, BuiltinFun, Context, Group, IdentSpan, Item, Kw, KwT, OpT, ParKind, PctT, Span,
-};
+use crate::{BuiltinConst, BuiltinFun, Context, Group, Item, Kw, KwT, OpT, ParKind, PctT, Span};
 
 pub use cst::Cst;
 pub use op::*;
