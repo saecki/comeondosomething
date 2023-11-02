@@ -363,7 +363,7 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
                     return cast_err(va, t, a.span);
                 }
                 let Some(c) = char::from_u32(i as u32) else {
-                    return cast_err(va, t, a.span)
+                    return cast_err(va, t, a.span);
                 };
 
                 c
@@ -648,6 +648,10 @@ fn eval_builtin_fun_call(
         BuiltinFunCall::AbsFloat => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.abs())
+        }
+        BuiltinFunCall::Round => {
+            let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            Val::Float(num.round())
         }
         BuiltinFunCall::Print => {
             eval_print(stack, funs, args)?;

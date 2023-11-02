@@ -253,6 +253,7 @@ pub enum BuiltinFunCall {
     ClampFloat,
     AbsInt,
     AbsFloat,
+    Round,
     Print,
     Println,
     Assert,

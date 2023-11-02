@@ -37,6 +37,7 @@ pub enum BuiltinFun {
     Max,
     Clamp,
     Abs,
+    Round,
     Print,
     Println,
     Spill,
@@ -84,6 +85,7 @@ impl BuiltinFun {
             BuiltinFun::Max => SignatureKind::Normal(&MAX_SIGNATURES),
             BuiltinFun::Clamp => SignatureKind::Normal(&CLAMP_SIGNATURES),
             BuiltinFun::Abs => SignatureKind::Normal(&ABS_SIGNATURES),
+            BuiltinFun::Round => SignatureKind::Normal(&ROUND_SIGNATURES),
             BuiltinFun::Print => SignatureKind::Normal(&PRINT_SIGNATURES),
             BuiltinFun::Println => SignatureKind::Normal(&PRINTLN_SIGNATURES),
             BuiltinFun::Assert => SignatureKind::Normal(&ASSERT_SIGNATURES),
@@ -274,6 +276,9 @@ pub const CLAMP_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures
 pub const ABS_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     AbsInt(Int) -> Int
     AbsFloat(Float) -> Float
+};
+pub const ROUND_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Round(Float) -> Float
 };
 pub const PRINT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Print(..Any) -> Unit

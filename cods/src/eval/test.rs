@@ -297,6 +297,14 @@ fn abs() {
 }
 
 #[test]
+fn round() {
+    assert("round(0.2)", Val::Float(0.0));
+    assert("round(3.8)", Val::Float(4.0));
+    assert("round(-3.1)", Val::Float(-3.0));
+    assert("round(-54.82)", Val::Float(-55.0));
+}
+
+#[test]
 fn eq() {
     assert("false == false", Val::Bool(true));
     assert("false == true", Val::Bool(false));
