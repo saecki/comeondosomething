@@ -2,7 +2,6 @@ use crate::ast::{BuiltinFunCall, ForLoop, IfExpr, MatchExpr, Op, WhileLoop};
 use crate::{Ast, AstT, Asts, DataType, FunRef, Funs, Range, Span, Val, ValSpan};
 
 pub use stack::*;
-pub use val::*;
 
 mod stack;
 #[cfg(test)]
