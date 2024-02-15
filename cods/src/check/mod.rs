@@ -576,13 +576,7 @@ impl Context {
         let uninitialized_vars = checker.scopes.uninitialized_vars();
         let (inner, block) =
             self.with_new_scope(checker, ExecPolicy::MultipleTimes, |ctx, checker| {
-                let inner = ctx.def_var(
-                    &mut checker.scopes,
-                    f.ident,
-                    iter_type,
-                    Initialized::Yes,
-                    false,
-                );
+                let inner = ctx.def_var(&mut checker.scopes, f.ident, iter_type, true, false);
                 let (block, _) = ctx.check_types(checker, f.block.csts, false)?;
                 Ok((inner, block))
             })?;
@@ -647,13 +641,7 @@ impl Context {
             |ctx, checker| {
                 let mut inner_params = Vec::new();
                 for p in fun.params.iter() {
-                    let param = ctx.def_var(
-                        &mut checker.scopes,
-                        p.ident,
-                        p.data_type,
-                        Initialized::Yes,
-                        false,
-                    );
+                    let param = ctx.def_var(&mut checker.scopes, p.ident, p.data_type, true, false);
                     inner_params.push(param);
                 }
 
@@ -951,13 +939,7 @@ impl Context {
                 }
 
                 let val_returns = val.returns;
-                let var_ref = self.def_var(
-                    &mut checker.scopes,
-                    v.ident,
-                    data_type,
-                    Initialized::Yes,
-                    mutable,
-                );
+                let var_ref = self.def_var(&mut checker.scopes, v.ident, data_type, true, mutable);
                 Ok(Ast::statement(
                     AstT::VarAssign(var_ref, Box::new(val)),
                     val_returns,
@@ -974,13 +956,7 @@ impl Context {
                 }
 
                 let val_returns = val.returns;
-                let var_ref = self.def_var(
-                    &mut checker.scopes,
-                    v.ident,
-                    data_type,
-                    Initialized::Yes,
-                    mutable,
-                );
+                let var_ref = self.def_var(&mut checker.scopes, v.ident, data_type, true, mutable);
                 Ok(Ast::statement(
                     AstT::VarAssign(var_ref, Box::new(val)),
                     val_returns,
@@ -989,13 +965,7 @@ impl Context {
             }
             cst::VarDefInner::Declaration { type_hint } => {
                 let data_type = self.resolve_data_type(&type_hint.1)?;
-                self.def_var(
-                    &mut checker.scopes,
-                    v.ident,
-                    data_type,
-                    Initialized::No,
-                    mutable,
-                );
+                self.def_var(&mut checker.scopes, v.ident, data_type, false, mutable);
 
                 Ok(Ast::statement(AstT::Unit, false, span))
             }

@@ -592,6 +592,7 @@ impl UserFacing for Error {
 pub enum Warning {
     UnusedVar(String, Span),
     UnreadVar(String, Span),
+    RedundantMutVar(String, Span),
     UnusedFun(String, Span),
     Unreachable(Span),
     UnnecesaryCast(DataType, Span),
@@ -615,6 +616,9 @@ impl UserFacing for Warning {
         match self {
             Warning::UnusedVar(name, _) => write!(f, "Unused variable `{name}`"),
             Warning::UnreadVar(name, _) => write!(f, "Variable is never read `{name}`"),
+            Self::RedundantMutVar(name, _) => {
+                write!(f, "Variable doesn't need to be mutable `{name}`")
+            }
             Warning::UnusedFun(name, _) => write!(f, "Unused function `{name}`"),
             Warning::Unreachable(_) => write!(f, "Unreachable code"),
             Warning::UnnecesaryCast(d, _) => {
@@ -632,6 +636,7 @@ impl UserFacing for Warning {
         match self {
             Warning::UnusedVar(_, s) => vec![*s],
             Warning::UnreadVar(_, s) => vec![*s],
+            Warning::RedundantMutVar(_, s) => vec![*s],
             Warning::UnusedFun(_, s) => vec![*s],
             Warning::Unreachable(s) => vec![*s],
             Warning::UnnecesaryCast(_, s) => vec![*s],

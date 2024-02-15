@@ -634,6 +634,36 @@ fn spill_uses_var() {
 }
 
 #[test]
+fn redundant_mut_var1() {
+    let input = "let mut a = 3; print(a)";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::RedundantMutVar(
+            "a".into(),
+            Span::cols(0, 8, 9)
+        )],
+    );
+}
+
+#[test]
+fn redundant_mut_var2() {
+    let input = "let mut a: int; a = 3; print(a)";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Unit);
+    assert_eq!(
+        ctx.warnings,
+        vec![crate::Warning::RedundantMutVar(
+            "a".into(),
+            Span::cols(0, 8, 9)
+        )],
+    );
+}
+
+#[test]
 fn unused_fun() {
     let input = "fn a() {}";
     let mut ctx = Context::default();
@@ -772,11 +802,7 @@ fn first_branch_doesnt_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(9, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(9, 8)),
     );
 }
 
@@ -797,11 +823,7 @@ fn not_all_branches_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(9, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(9, 8)),
     );
 }
 
@@ -822,11 +844,7 @@ fn else_branch_doesent_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(9, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(9, 8)),
     );
 }
 
@@ -845,11 +863,7 @@ fn missing_else_branch_doesent_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(7, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(7, 8)),
     );
 }
 
@@ -910,11 +924,7 @@ fn one_match_arm_doesnt_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(8, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(8, 8)),
     );
 }
 
@@ -934,11 +944,7 @@ fn default_match_arm_doesnt_initialize_var() {
     let err = ctx.parse_and_eval(input).unwrap_err();
     assert_eq!(
         err,
-        crate::Error::UninitializedVar(
-            "a".into(),
-            Initialized::Maybe,
-            Span::pos(8, 8)
-        ),
+        crate::Error::UninitializedVar("a".into(), Initialized::Maybe, Span::pos(8, 8)),
     );
 }
 

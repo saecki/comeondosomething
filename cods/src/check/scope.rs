@@ -133,7 +133,7 @@ impl Context {
         scopes: &mut Scopes,
         ident: IdentSpan,
         data_type: DataType,
-        initialized: Initialized,
+        initialized: bool,
         mutable: bool,
     ) -> VarRef {
         let inner = scopes.var_ref();
@@ -223,7 +223,7 @@ impl Context {
     pub fn check_unused(&mut self, scopes: &Scopes) {
         for v in scopes.current_vars() {
             if v.reads == 0 {
-                if v.writes == 0 {
+                if v.writes <= 1 {
                     let name = self.idents.name(v.ident.ident);
                     if name.starts_with('_') {
                         continue;
@@ -240,6 +240,17 @@ impl Context {
                     self.warnings
                         .push(crate::Warning::UnreadVar(name.to_owned(), v.ident.span));
                 }
+            } else if v.mutable && v.writes == 1 {
+                let name = self.idents.name(v.ident.ident);
+                if name.starts_with('_') {
+                    continue;
+                }
+
+                // TODO: use span of `mut` instead of ident
+                self.warnings.push(crate::Warning::RedundantMutVar(
+                    name.to_owned(),
+                    v.ident.span,
+                ));
             }
         }
 
@@ -546,21 +557,32 @@ pub enum Initialized {
     Yes = 2,
 }
 
+impl Initialized {
+    pub fn from_bool(init: bool) -> Self {
+        match init {
+            true => Self::Yes,
+            false => Self::No,
+        }
+    }
+}
+
 impl Var {
     pub fn new(
         ident: IdentSpan,
         data_type: DataType,
-        initialized: Initialized,
+        initialized: bool,
         mutable: bool,
         inner: VarRef,
     ) -> Self {
+        let writes = initialized as u32;
+        let initialized = Initialized::from_bool(initialized);
         Self {
             ident,
             data_type,
             initialized,
             mutable,
             reads: 0,
-            writes: 0,
+            writes,
             inner,
         }
     }
