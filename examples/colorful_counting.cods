@@ -2,28 +2,27 @@ let ansii_cursor_up = "\x1b[A"
 let ansii_clear_line = "\x1b[2K\r"
 let ansii_clear_color = "\x1b[0m";
 
-let interval = 1000000
+// 50ms in nanoseconds
+let interval = 50000000
 
-for i in 0..100 * interval {
-    if i % interval == 0 {
-        let c = i / interval;
+for i in 1..=100 {
+    let color = match i % 5 {
+        0 => "\x1b[31m", // red
+        1 => "\x1b[33m", // yellow
+        2 => "\x1b[32m", // green
+        3 => "\x1b[34m", // blue
+        _ => "\x1b[35m", // purple
+    };
 
-        if c % 10 == 0 {
-            for _ in 0..10 {
-                print(ansii_cursor_up)
-                print(ansii_clear_line)
-            }
+    println(color, i, ansii_clear_color);
+    sleep(interval)
+
+    if i % 10 == 0 {
+        sleep(3 * interval)
+        for _ in 0..10 {
+            print(ansii_cursor_up)
+            print(ansii_clear_line)
         }
-
-        let color = match c % 5 {
-            0 => "\x1b[31m", // red
-            1 => "\x1b[33m", // yellow
-            2 => "\x1b[32m", // green
-            3 => "\x1b[34m", // blue
-            _ => "\x1b[35m", // purple
-        };
-
-        println(color, c, ansii_clear_color);
     }
 }
 println()
