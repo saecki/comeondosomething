@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::ast::{BuiltinFunCall, ForLoop, IfExpr, MatchExpr, Op, WhileLoop};
 use crate::{Ast, AstT, Asts, DataType, FunRef, Funs, Range, Span, Val, ValSpan};
 
@@ -659,6 +661,10 @@ fn eval_builtin_fun_call(
         BuiltinFunCall::Println => {
             eval_print(stack, funs, args)?;
             println!();
+            Val::Unit
+        }
+        BuiltinFunCall::Flush => {
+            std::io::stdout().flush().unwrap();
             Val::Unit
         }
         BuiltinFunCall::Assert => {

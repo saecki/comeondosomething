@@ -40,6 +40,7 @@ pub enum BuiltinFun {
     Round,
     Print,
     Println,
+    Flush,
     Spill,
     SpillLocal,
     Assert,
@@ -88,6 +89,7 @@ impl BuiltinFun {
             BuiltinFun::Round => SignatureKind::Normal(&ROUND_SIGNATURES),
             BuiltinFun::Print => SignatureKind::Normal(&PRINT_SIGNATURES),
             BuiltinFun::Println => SignatureKind::Normal(&PRINTLN_SIGNATURES),
+            BuiltinFun::Flush => SignatureKind::Normal(&FLUSH_SIGNATURES),
             BuiltinFun::Assert => SignatureKind::Normal(&ASSERT_SIGNATURES),
             BuiltinFun::AssertEq => SignatureKind::Normal(&ASSERT_EQ_SIGNATURES),
             BuiltinFun::Spill => SignatureKind::Spill(SpillKind::Global),
@@ -285,6 +287,9 @@ pub const PRINT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures
 };
 pub const PRINTLN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Println(..Any) -> Unit
+};
+pub const FLUSH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Flush() -> Unit
 };
 pub const ASSERT_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Assert(Bool) -> Unit

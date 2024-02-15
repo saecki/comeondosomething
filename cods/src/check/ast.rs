@@ -256,6 +256,7 @@ pub enum BuiltinFunCall {
     Round,
     Print,
     Println,
+    Flush,
     Assert,
     AssertEq,
 }
