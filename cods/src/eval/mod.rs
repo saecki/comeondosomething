@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::time::Duration;
 
 use crate::ast::{BuiltinFunCall, ForLoop, IfExpr, MatchExpr, Op, WhileLoop};
 use crate::{Ast, AstT, Asts, DataType, FunRef, Funs, Range, Span, Val, ValSpan};
@@ -683,6 +684,21 @@ fn eval_builtin_fun_call(
                     ValSpan::new(b, args[1].span),
                 ));
             }
+            Val::Unit
+        }
+        BuiltinFunCall::Sleep => {
+            const NANOS_PER_SECOND: i128 = 1_000_000_000;
+            let nanos = eval_ast(stack, funs, &args[0])?.unwrap_int();
+            if nanos < 0 {
+                return err(crate::Error::NegativeSleepDuration(ValSpan::new(
+                    Val::Int(nanos),
+                    args[0].span,
+                )));
+            }
+
+            let secs = (nanos / NANOS_PER_SECOND) as u64;
+            let subsec_nanos = (nanos % NANOS_PER_SECOND) as u32;
+            std::thread::sleep(Duration::new(secs, subsec_nanos));
             Val::Unit
         }
     };

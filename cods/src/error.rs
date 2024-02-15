@@ -145,6 +145,7 @@ pub enum Error {
     InvalidClampBounds(ValSpan, ValSpan),
     AssertFailed(Span),
     AssertEqFailed(ValSpan, ValSpan),
+    NegativeSleepDuration(ValSpan),
 }
 
 impl error::Error for Error {}
@@ -497,6 +498,9 @@ impl UserFacing for Error {
                     ls = line_suffix,
                 )
             }
+            Self::NegativeSleepDuration(d) => {
+                write!(f, "Attempted to sleep for a negative duration `{d}`ns")
+            }
         }?;
         f.write_str(line_suffix)
     }
@@ -584,6 +588,7 @@ impl UserFacing for Error {
             Self::InvalidClampBounds(min, max) => vec![min.span, max.span],
             Self::AssertFailed(s) => vec![*s],
             Self::AssertEqFailed(a, b) => vec![a.span, b.span],
+            Self::NegativeSleepDuration(a) => vec![a.span],
         }
     }
 }

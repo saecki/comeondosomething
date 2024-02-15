@@ -45,6 +45,7 @@ pub enum BuiltinFun {
     SpillLocal,
     Assert,
     AssertEq,
+    Sleep,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -92,6 +93,7 @@ impl BuiltinFun {
             BuiltinFun::Flush => SignatureKind::Normal(&FLUSH_SIGNATURES),
             BuiltinFun::Assert => SignatureKind::Normal(&ASSERT_SIGNATURES),
             BuiltinFun::AssertEq => SignatureKind::Normal(&ASSERT_EQ_SIGNATURES),
+            BuiltinFun::Sleep => SignatureKind::Normal(&SLEEP_SIGNATURES),
             BuiltinFun::Spill => SignatureKind::Spill(SpillKind::Global),
             BuiltinFun::SpillLocal => SignatureKind::Spill(SpillKind::Local),
         }
@@ -301,4 +303,7 @@ pub const ASSERT_EQ_SIGNATURES: [(BuiltinFunCall, FunSignature); 6] = fun_signat
     AssertEq(Str, Str) -> Unit
     AssertEq(Range, Range) -> Unit
     AssertEq(Unit, Unit) -> Unit
+};
+pub const SLEEP_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Sleep(Int) -> Unit
 };

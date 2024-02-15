@@ -259,4 +259,5 @@ pub enum BuiltinFunCall {
     Flush,
     Assert,
     AssertEq,
+    Sleep,
 }
