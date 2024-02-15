@@ -42,7 +42,7 @@ impl Parser {
     }
 
     pub fn eat_newlns(&mut self) {
-        while let Some(i) = self.items.get(0) {
+        while let Some(i) = self.items.front() {
             if i.is_newln() {
                 self.skip_one();
             } else {
@@ -53,7 +53,7 @@ impl Parser {
 
     pub fn peek(&mut self) -> Option<&Item> {
         self.eat_newlns();
-        self.items.get(0)
+        self.items.front()
     }
 
     pub fn eat_semi(&mut self) -> bool {
