@@ -1,6 +1,6 @@
 use std::env::args;
 use std::io::{self, Write as _};
-use std::process::{exit, ExitCode};
+use std::process::ExitCode;
 
 use cods::{Asts, Checker, Context, Stack, Val, Warning};
 use cods_derive::EnumFromStr;
@@ -38,19 +38,24 @@ enum OutputFormat {
 #[derive(Default)]
 struct Args {
     format: OutputFormat,
-    input_args_start: usize,
     skip_unused_warnings: bool,
-    /// all arguments that aren't specific options
-    items: Vec<String>,
 }
 
 enum Action {
-    Run,
-    Check,
-    Input,
+    Run(String),
+    Check(String),
     Interactive,
     Help,
     Version,
+}
+
+macro_rules! error {
+    ($pat:expr $(,$args:expr),*) => {{
+        bprintln!(LRed, $pat $(,$args)*);
+        println!();
+        help();
+        return ExitCode::FAILURE;
+    }}
 }
 
 fn main() -> ExitCode {
@@ -61,38 +66,45 @@ fn main() -> ExitCode {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "i" | "interactive" => action = Some(Action::Interactive),
-            "r" | "run" => action = Some(Action::Run),
-            "c" | "check" => action = Some(Action::Check),
+            "r" | "run" => {
+                let Some(path) = args.next() else {
+                    error!("Path not specified");
+                };
+                action = Some(Action::Run(path));
+            }
+            "c" | "check" => {
+                let Some(path) = args.next() else {
+                    bprintln!(LRed, "Path not specified");
+                    return ExitCode::FAILURE;
+                };
+                action = Some(Action::Check(path));
+            }
             "-h" | "--help" => action = Some(Action::Help),
             "-v" | "--version" => action = Some(Action::Version),
             "-f" | "--format" => match args.next() {
                 Some(f) => match f.parse::<OutputFormat>() {
                     Ok(f) => user_args.format = f,
                     Err(_) => {
-                        bprintln!(
-                            LRed,
-                            "Invalid --format: '{f}', possible values are [pretty, json]"
-                        );
-                        return ExitCode::FAILURE;
+                        error!("Invalid --format: `{f}`, possible values are [pretty, json]");
                     }
                 },
                 None => {
-                    bprintln!(LRed, "Missing --format, possible values are [pretty, json]");
-                    return ExitCode::FAILURE;
+                    error!("Missing --format, possible values are [pretty, json]");
                 }
             },
             "--" => {
-                action = Some(Action::Input);
-                user_args.input_args_start = user_args.items.len();
+                let items = args.collect::<Vec<_>>();
+                return eval_args(&user_args, &items);
             }
-            _ => user_args.items.push(arg),
+            a => {
+                error!("Invalid argument: `{a}`");
+            }
         }
     }
 
     match action {
-        Some(Action::Run) => eval_path(&user_args),
-        Some(Action::Check) => check_path(&user_args),
-        Some(Action::Input) => eval_args(&user_args),
+        Some(Action::Run(path)) => eval_path(&user_args, &path),
+        Some(Action::Check(path)) => check_path(&user_args, &path),
         Some(Action::Interactive) => repl(&mut user_args),
         Some(Action::Help) => {
             help();
@@ -150,16 +162,8 @@ fn repl(args: &mut Args) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn eval_path(args: &Args) -> ExitCode {
-    let p = match args.items.first() {
-        Some(p) => p,
-        None => {
-            bprintln!(LRed, "Path not specified");
-            exit(1);
-        }
-    };
-
-    match std::fs::read_to_string(p) {
+fn eval_path(args: &Args, path: &str) -> ExitCode {
+    match std::fs::read_to_string(path) {
         Ok(input) => {
             let mut state = State::default();
             match print_eval(&mut state, &input, args) {
@@ -168,22 +172,14 @@ fn eval_path(args: &Args) -> ExitCode {
             }
         }
         Err(_) => {
-            bprintln!(LRed, "Error reading file: {p}");
+            bprintln!(LRed, "Error reading file: {path}");
             ExitCode::FAILURE
         }
     }
 }
 
-fn check_path(args: &Args) -> ExitCode {
-    let p = match args.items.first() {
-        Some(p) => p,
-        None => {
-            bprintln!(LRed, "Path not specified");
-            exit(1);
-        }
-    };
-
-    match std::fs::read_to_string(p) {
+fn check_path(args: &Args, path: &str) -> ExitCode {
+    match std::fs::read_to_string(path) {
         Ok(input) => {
             let mut state = State::default();
             match print_check(&mut state, &input, args) {
@@ -192,14 +188,14 @@ fn check_path(args: &Args) -> ExitCode {
             }
         }
         Err(_) => {
-            bprintln!(LRed, "Error reading file: {p}");
+            bprintln!(LRed, "Error reading file: {path}");
             ExitCode::FAILURE
         }
     }
 }
 
-fn eval_args(args: &Args) -> ExitCode {
-    let input = args.items[args.input_args_start..].join(" ");
+fn eval_args(args: &Args, items: &[String]) -> ExitCode {
+    let input = items.join(" ");
     let mut state = State::default();
     match print_eval(&mut state, &input, args) {
         Some(_) => ExitCode::SUCCESS,
