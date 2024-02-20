@@ -624,8 +624,8 @@ fn parse_prefixed_integer_literal<const BITS: u32>(
     let mut accum: i128 = 0;
 
     for i in 0.. {
-        let c = match chars.next() {
-            Some((_, c)) => c,
+        let (i, c) = match chars.next() {
+            Some((i, c)) => (i, c),
             None if i == 0 => {
                 return Err(crate::Error::MissingIntDigits(span.end()));
             }
@@ -636,7 +636,7 @@ fn parse_prefixed_integer_literal<const BITS: u32>(
             '0'..='9' => {
                 let n = (c as u32) - ('0' as u32);
                 if n >= max_value {
-                    let span = Span::from(span.start.plus(i));
+                    let span = Span::from(span.start.plus(i as u32));
                     return Err(crate::Error::IntDigitTooLarge(c, span));
                 }
                 n
@@ -644,7 +644,7 @@ fn parse_prefixed_integer_literal<const BITS: u32>(
             'a'..='f' => {
                 let n = 10 + (c as u32) - ('a' as u32);
                 if n >= max_value {
-                    let span = Span::from(span.start.plus(i));
+                    let span = Span::from(span.start.plus(i as u32));
                     return Err(crate::Error::IntDigitTooLarge(c, span));
                 }
                 n
@@ -652,7 +652,7 @@ fn parse_prefixed_integer_literal<const BITS: u32>(
             'A'..='F' => {
                 let n = 10 + (c as u32) - ('A' as u32);
                 if n >= max_value {
-                    let span = Span::from(span.start.plus(i));
+                    let span = Span::from(span.start.plus(i as u32));
                     return Err(crate::Error::IntDigitTooLarge(c, span));
                 }
                 n
