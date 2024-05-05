@@ -195,7 +195,7 @@ impl OpT {
             Self::Shl => Some((17, InfixT::Shl, 18)),
             Self::Shr => Some((17, InfixT::Shr, 18)),
             Self::BwAnd => Some((15, InfixT::BwAnd, 16)),
-            Self::Xor => Some((13, InfixT::BwAnd, 14)),
+            Self::Xor => Some((13, InfixT::Xor, 14)),
             Self::BwOr => Some((11, InfixT::BwOr, 12)),
             Self::Eq => Some((9, InfixT::Eq, 10)),
             Self::Ne => Some((9, InfixT::Ne, 10)),
