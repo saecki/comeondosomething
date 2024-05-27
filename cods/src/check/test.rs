@@ -311,6 +311,27 @@ fn if_expr_branch_types_are_enforced() {
 }
 
 #[test]
+fn if_expr_first_condition_can_initialize_variables() {
+    let input = "
+        let a: int
+        let b = if {
+            a = 4;
+            a <= 3
+        } {
+            9
+        } else if false {
+            12
+        } else {
+            43
+        }
+        a + b
+    ";
+    let mut ctx = Context::default();
+    let val = ctx.parse_and_eval(input).unwrap();
+    assert_eq!(val, Val::Int(47));
+}
+
+#[test]
 fn if_statement_branch_types_can_differ() {
     let input = r#"
         if 3 >= 4 {

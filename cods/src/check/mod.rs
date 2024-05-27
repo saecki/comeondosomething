@@ -170,10 +170,14 @@ impl Context {
 
         let init_frame_size = checker.scopes.frame_size();
         let mut max_frame_size = init_frame_size;
-        let mut uninitialized_vars = checker.scopes.uninitialized_vars();
+        let mut uninitialized_vars;
         let if_block_span = i.if_block.block.span();
         {
             let cond = self.check_cond(checker, *i.if_block.cond)?;
+
+            // the first condition is always evaluated
+            uninitialized_vars = checker.scopes.uninitialized_vars();
+
             if cond.returns {
                 let s = Span::across(i.if_block.block.span(), span);
                 self.warnings.push(crate::Warning::Unreachable(s));
