@@ -124,12 +124,13 @@ impl ValSpan {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Val {
-    Int(i128),
+    Int(i64),
     Float(f64),
     Bool(bool),
     Char(char),
     Str(String),
-    Range(Range),
+    InclusiveRange(InclusiveRange),
+    ExclusiveRange(ExclusiveRange),
     Unit,
 }
 
@@ -141,66 +142,61 @@ impl Display for Val {
             Self::Bool(v) => write!(f, "{v}"),
             Self::Char(v) => write!(f, "{v}"),
             Self::Str(v) => write!(f, "{v}"),
-            Self::Range(v) => write!(f, "{v}"),
+            Self::ExclusiveRange(v) => write!(f, "{v}"),
+            Self::InclusiveRange(v) => write!(f, "{v}"),
             Self::Unit => write!(f, "()"),
         }
     }
 }
 
+// TODO: half open range types
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Range {
-    Exclusive(i128, i128),
-    Inclusive(i128, i128),
+    Exclusive(ExclusiveRange),
+    Inclusive(InclusiveRange),
 }
 
-impl Display for Range {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ExclusiveRange {
+    start: i64,
+    end: i64,
+}
+
+impl Display for ExclusiveRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Exclusive(a, b) => write!(f, "{a}..{b}"),
-            Self::Inclusive(a, b) => write!(f, "{a}..={b}"),
-        }
+        write!(f, "{}..{}", self.start, self.end)
     }
 }
 
-impl Range {
-    pub fn iter(&self) -> RangeIter {
-        match self {
-            Self::Exclusive(a, _) => RangeIter::new(*a, *self),
-            Self::Inclusive(a, _) => RangeIter::new(*a, *self),
-        }
+impl ExclusiveRange {
+    pub fn new(start: i64, end: i64) -> Self {
+        Self { start, end }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = i64> {
+        self.start..self.end
     }
 }
 
-pub struct RangeIter {
-    i: i128,
-    range: Range,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InclusiveRange {
+    start: i64,
+    end: i64,
 }
 
-impl Iterator for RangeIter {
-    type Item = i128;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.range {
-            Range::Exclusive(_, b) => {
-                if self.i >= b {
-                    return None;
-                }
-            }
-            Range::Inclusive(_, b) => {
-                if self.i > b {
-                    return None;
-                }
-            }
-        }
-        let i = self.i;
-        self.i += 1;
-        Some(i)
+impl Display for InclusiveRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}..={}", self.start, self.end)
     }
 }
 
-impl RangeIter {
-    pub const fn new(i: i128, range: Range) -> Self {
-        RangeIter { i, range }
+impl InclusiveRange {
+    pub fn new(start: i64, end: i64) -> Self {
+        Self { start, end }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = i64> {
+        self.start..=self.end
     }
 }
 

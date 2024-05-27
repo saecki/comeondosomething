@@ -10,7 +10,8 @@ impl Val {
             Self::Bool(_) => DataType::Bool,
             Self::Char(_) => DataType::Char,
             Self::Str(_) => DataType::Str,
-            Self::Range(_) => DataType::Range,
+            Self::InclusiveRange(_) => DataType::Range,
+            Self::ExclusiveRange(_) => DataType::Range,
             Self::Unit => DataType::Unit,
         }
     }

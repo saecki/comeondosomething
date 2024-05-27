@@ -1,7 +1,7 @@
 use crate::{Range, Val};
 
 impl Val {
-    pub fn into_int(self) -> Option<i128> {
+    pub fn into_int(self) -> Option<i64> {
         match self {
             Self::Int(i) => Some(i),
             _ => None,
@@ -31,12 +31,13 @@ impl Val {
 
     pub fn into_range(self) -> Option<Range> {
         match self {
-            Self::Range(r) => Some(r),
+            Self::ExclusiveRange(r) => Some(Range::Exclusive(r)),
+            Self::InclusiveRange(r) => Some(Range::Inclusive(r)),
             _ => None,
         }
     }
 
-    pub fn unwrap_int(self) -> i128 {
+    pub fn unwrap_int(self) -> i64 {
         match self {
             Self::Int(i) => i,
             _ => panic!("Expected val of type 'int', found '{}'", self.data_type()),
@@ -66,7 +67,8 @@ impl Val {
 
     pub fn unwrap_range(self) -> Range {
         match self {
-            Self::Range(r) => r,
+            Self::ExclusiveRange(r) => Range::Exclusive(r),
+            Self::InclusiveRange(r) => Range::Inclusive(r),
             _ => panic!("Expected val of type 'range', found '{}'", self.data_type()),
         }
     }

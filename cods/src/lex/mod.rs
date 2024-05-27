@@ -555,7 +555,7 @@ fn parse_num_literal(literal: &str, span: Span) -> crate::Result<ValSpan> {
             }
         },
         '1'..='9' => {
-            int_accum = (c as u32 - '0' as u32) as i128;
+            int_accum = (c as u32 - '0' as u32) as i64;
         }
         // don't allow `.5` notation, because it's stupid
         _ => unreachable!("number literals have to start with [0-9]"),
@@ -571,7 +571,7 @@ fn parse_num_literal(literal: &str, span: Span) -> crate::Result<ValSpan> {
                     match int_accum.checked_mul(10) {
                         Some(val) => {
                             let digit = (c as u32) - ('0' as u32);
-                            int_accum = val + digit as i128;
+                            int_accum = val + digit as i64;
                         }
                         None => int_overflow = true,
                     }
@@ -619,9 +619,9 @@ fn parse_num_literal(literal: &str, span: Span) -> crate::Result<ValSpan> {
 fn parse_prefixed_integer_literal<const BITS: u32>(
     mut chars: impl Iterator<Item = (usize, char)>,
     span: Span,
-) -> crate::Result<i128> {
+) -> crate::Result<i64> {
     let max_value: u32 = 2u32.pow(BITS);
-    let mut accum: i128 = 0;
+    let mut accum: i64 = 0;
 
     for i in 0.. {
         let (i, c) = match chars.next() {
@@ -670,7 +670,7 @@ fn parse_prefixed_integer_literal<const BITS: u32>(
         };
 
         accum = shifted;
-        accum += digit as i128;
+        accum += digit as i64;
     }
 
     Ok(accum)

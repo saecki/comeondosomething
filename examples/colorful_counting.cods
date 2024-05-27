@@ -2,8 +2,8 @@ let ansii_cursor_up = "\x1b[A"
 let ansii_clear_line = "\x1b[2K\r"
 let ansii_clear_color = "\x1b[0m";
 
-// 50ms in nanoseconds
-let interval = 50000000
+// 50ms in mircoseconds
+let interval = 50000
 
 for i in 1..=100 {
     let color = match i % 5 {

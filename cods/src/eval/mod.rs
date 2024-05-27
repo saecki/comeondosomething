@@ -2,7 +2,10 @@ use std::io::Write;
 use std::time::Duration;
 
 use crate::ast::{BuiltinFunCall, ForLoop, IfExpr, MatchExpr, Op, WhileLoop};
-use crate::{Ast, AstT, Asts, DataType, FunRef, Funs, Range, Span, Val, ValSpan};
+use crate::{
+    Ast, AstT, Asts, DataType, ExclusiveRange, FunRef, Funs, InclusiveRange, Range, Span, Val,
+    ValSpan,
+};
 
 pub use stack::*;
 
@@ -84,12 +87,12 @@ fn eval_op(stack: &mut Stack, funs: &Funs, op: &Op, args: &[Ast]) -> EvalResult<
         Op::RangeEx => {
             let va = eval_ast(stack, funs, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, funs, &args[1])?.unwrap_int();
-            Val::Range(Range::Exclusive(va, vb))
+            Val::ExclusiveRange(ExclusiveRange::new(va, vb))
         }
         Op::RangeIn => {
             let va = eval_ast(stack, funs, &args[0])?.unwrap_int();
             let vb = eval_ast(stack, funs, &args[1])?.unwrap_int();
-            Val::Range(Range::Inclusive(va, vb))
+            Val::InclusiveRange(InclusiveRange::new(va, vb))
         }
         Op::AddInt => {
             let va = eval_ast(stack, funs, &args[0])?.unwrap_int();
@@ -151,7 +154,7 @@ fn eval_op(stack: &mut Stack, funs: &Funs, op: &Op, args: &[Ast]) -> EvalResult<
             if exp < 0 {
                 return err(crate::Error::NegativeIntPow(a.span, b.span));
             }
-            if exp > u32::MAX as i128 {
+            if exp > u32::MAX as i64 {
                 return err(crate::Error::PowOverflow(a.span, b.span));
             }
             match base.checked_pow(exp as u32) {
@@ -169,7 +172,7 @@ fn eval_op(stack: &mut Stack, funs: &Funs, op: &Op, args: &[Ast]) -> EvalResult<
             let b = &args[1];
             let base = eval_ast(stack, funs, a)?.unwrap_float();
             let exp = eval_ast(stack, funs, b)?.unwrap_int();
-            if exp > i32::MAX as i128 {
+            if exp > i32::MAX as i64 {
                 return err(crate::Error::PowOverflow(a.span, b.span));
             }
             Val::Float(base.powi(exp as i32))
@@ -210,7 +213,7 @@ fn eval_op(stack: &mut Stack, funs: &Funs, op: &Op, args: &[Ast]) -> EvalResult<
                 )));
             }
 
-            let mut f: i128 = 1;
+            let mut f: i64 = 1;
             for i in 2..=va {
                 f = match f.checked_mul(i) {
                     Some(v) => v,
@@ -344,8 +347,8 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
     let val = match t {
         DataType::Int => Val::Int(match va {
             Val::Int(i) => i,
-            Val::Float(f) => f as i128,
-            Val::Char(c) => c as i128,
+            Val::Float(f) => f as i64,
+            Val::Char(c) => c as i64,
             v => return cast_err(v, t, a.span),
         }),
         DataType::Float => Val::Float(match va {
@@ -361,7 +364,7 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
         DataType::Char => Val::Char(match va {
             Val::Char(c) => c,
             Val::Int(i) => {
-                if i > char::MAX as i128 {
+                if i > char::MAX as i64 {
                     return cast_err(va, t, a.span);
                 }
                 let Some(c) = char::from_u32(i as u32) else {
@@ -376,10 +379,11 @@ fn eval_cast(stack: &mut Stack, funs: &Funs, a: &Ast, t: DataType) -> EvalResult
             Val::Str(s) => s,
             v => return cast_err(v, t, a.span),
         }),
-        DataType::Range => Val::Range(match va {
-            Val::Range(r) => r,
+        DataType::Range => match va {
+            Val::ExclusiveRange(r) => Val::ExclusiveRange(r),
+            Val::InclusiveRange(r) => Val::InclusiveRange(r),
             v => return cast_err(v, t, a.span),
-        }),
+        },
         DataType::Unit => match va {
             Val::Unit => Val::Unit,
             v => return cast_err(v, t, a.span),
@@ -428,9 +432,19 @@ fn eval_while_loop(stack: &mut Stack, funs: &Funs, whl_loop: &WhileLoop) -> Eval
 fn eval_for_loop(stack: &mut Stack, funs: &Funs, for_loop: &ForLoop) -> EvalResult<Val> {
     let iter = eval_ast(stack, funs, &for_loop.iter)?.unwrap_range();
 
-    for i in iter.iter() {
-        stack.set(&for_loop.var, Val::Int(i));
-        eval_asts(stack, funs, &for_loop.block)?;
+    match iter {
+        Range::Exclusive(r) => {
+            for i in r.iter() {
+                stack.set(&for_loop.var, Val::Int(i));
+                eval_asts(stack, funs, &for_loop.block)?;
+            }
+        }
+        Range::Inclusive(r) => {
+            for i in r.iter() {
+                stack.set(&for_loop.var, Val::Int(i));
+                eval_asts(stack, funs, &for_loop.block)?;
+            }
+        }
     }
 
     Ok(Val::Unit)
@@ -482,7 +496,7 @@ fn eval_builtin_fun_call(
             if exp < 0 {
                 return err(crate::Error::NegativeIntPow(a.span, b.span));
             }
-            if exp > u32::MAX as i128 {
+            if exp > u32::MAX as i64 {
                 return err(crate::Error::PowOverflow(a.span, b.span));
             }
             match base.checked_pow(exp as u32) {
@@ -500,7 +514,7 @@ fn eval_builtin_fun_call(
             let b = &args[1];
             let base = eval_ast(stack, funs, a)?.unwrap_float();
             let exp = eval_ast(stack, funs, b)?.unwrap_int();
-            if exp > i32::MAX as i128 {
+            if exp > i32::MAX as i64 {
                 return err(crate::Error::PowOverflow(a.span, b.span));
             }
             Val::Float(base.powi(exp as i32))
@@ -613,9 +627,9 @@ fn eval_builtin_fun_call(
             }
             Val::Int(a)
         }
-        BuiltinFunCall::MinInt => Val::Int(fold_eval_int(stack, funs, args, i128::min)?),
+        BuiltinFunCall::MinInt => Val::Int(fold_eval_int(stack, funs, args, i64::min)?),
         BuiltinFunCall::MinFloat => Val::Float(fold_eval_float(stack, funs, args, f64::min)?),
-        BuiltinFunCall::MaxInt => Val::Int(fold_eval_int(stack, funs, args, i128::max)?),
+        BuiltinFunCall::MaxInt => Val::Int(fold_eval_int(stack, funs, args, i64::max)?),
         BuiltinFunCall::MaxFloat => Val::Float(fold_eval_float(stack, funs, args, f64::max)?),
         BuiltinFunCall::ClampInt => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_int();
@@ -687,18 +701,12 @@ fn eval_builtin_fun_call(
             Val::Unit
         }
         BuiltinFunCall::Sleep => {
-            const NANOS_PER_SECOND: i128 = 1_000_000_000;
-            let nanos = eval_ast(stack, funs, &args[0])?.unwrap_int();
-            if nanos < 0 {
-                return err(crate::Error::NegativeSleepDuration(ValSpan::new(
-                    Val::Int(nanos),
-                    args[0].span,
-                )));
+            let micros = eval_ast(stack, funs, &args[0])?.unwrap_int();
+            if micros < 0 {
+                return err(crate::Error::NegativeSleepDuration(micros, args[0].span));
             }
 
-            let secs = (nanos / NANOS_PER_SECOND) as u64;
-            let subsec_nanos = (nanos % NANOS_PER_SECOND) as u32;
-            std::thread::sleep(Duration::new(secs, subsec_nanos));
+            std::thread::sleep(Duration::from_micros(micros as u64));
             Val::Unit
         }
     };
@@ -730,8 +738,8 @@ fn fold_eval_int(
     stack: &mut Stack,
     funs: &Funs,
     args: &[Ast],
-    fold: fn(i128, i128) -> i128,
-) -> EvalResult<i128> {
+    fold: fn(i64, i64) -> i64,
+) -> EvalResult<i64> {
     let mut current = eval_ast(stack, funs, &args[0])?.unwrap_int();
     for a in &args[1..] {
         let val = eval_ast(stack, funs, a)?.unwrap_int();

@@ -2,6 +2,7 @@ use std::f64::consts;
 
 use crate::{Error, Par, ParT, Span, Val, ValSpan};
 
+#[track_caller]
 fn assert(input: &str, expected: Val) {
     match crate::eval(input) {
         Ok(val) => assert_eq!(val, expected),
@@ -11,6 +12,7 @@ fn assert(input: &str, expected: Val) {
     }
 }
 
+#[track_caller]
 fn assert_err(input: &str, expected: Error) {
     match crate::eval(input) {
         Ok(_) => panic!("Expected error: {expected:?}"),
