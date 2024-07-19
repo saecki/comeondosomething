@@ -267,11 +267,11 @@ pub const GCD_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! 
 };
 pub const MIN_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     MinInt(...Int) -> Int
-    MinFloat(...Float) -> Int
+    MinFloat(...Float) -> Float
 };
 pub const MAX_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     MaxInt(...Int) -> Int
-    MaxFloat(...Float) -> Int
+    MaxFloat(...Float) -> Float
 };
 pub const CLAMP_SIGNATURES: [(BuiltinFunCall, FunSignature); 2] = fun_signatures! {
     ClampInt(Int, Int, Int) -> Int
