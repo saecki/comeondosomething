@@ -243,7 +243,7 @@ fn parse_enum(input: TokenStream) -> Result<Enum, TokenStream> {
     })
 }
 
-fn transform_case(input: &str, case: Case) -> Cow<str> {
+fn transform_case(input: &str, case: Case) -> Cow<'_, str> {
     match case {
         Case::Camel => {
             let mut output = input.to_string();
