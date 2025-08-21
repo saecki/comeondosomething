@@ -6,7 +6,7 @@ use cods::{Asts, Checker, Context, Stack, Val, Warning};
 use cods_derive::EnumFromStr;
 
 use display::*;
-use style::*;
+pub use style::*;
 
 mod display;
 mod json;
@@ -303,8 +303,8 @@ fn help() {
         vers = env!("CARGO_PKG_VERSION"),
         authors = env!("CARGO_PKG_AUTHORS"),
         desc = env!("CARGO_PKG_DESCRIPTION"),
-        green = DGreen::normal(),
-        yellow = DYellow::normal(),
+        green = DGreen::NORMAL,
+        yellow = DYellow::NORMAL,
         esc = ANSI_ESC,
     );
 }

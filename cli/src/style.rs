@@ -5,7 +5,7 @@ pub const ANSI_ESC: &str = "\x1B[0m";
 #[macro_export]
 macro_rules! cprintln {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
-        print!("{}", <$col>::normal());
+        print!("{}", <$col>::NORMAL);
         print!($pat, $($args,)*);
         println!("{ANSI_ESC}");
     }}
@@ -14,7 +14,7 @@ macro_rules! cprintln {
 #[macro_export]
 macro_rules! cprint {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
-        print!("{}", <$col>::normal());
+        print!("{}", <$col>::NORMAL);
         print!($pat, $($args,)*);
         print!("{ANSI_ESC}");
     }}
@@ -23,7 +23,7 @@ macro_rules! cprint {
 #[macro_export]
 macro_rules! bprintln {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
-        print!("{}", <$col>::bold());
+        print!("{}", <$col>::BOLD);
         print!($pat, $($args,)*);
         println!("{ANSI_ESC}");
     }}
@@ -32,28 +32,24 @@ macro_rules! bprintln {
 #[macro_export]
 macro_rules! bprint {
     ($col:ty, $pat:expr $(,$args:expr),*) => {{
-        print!("{}", <$col>::bold());
+        print!("{}", <$col>::BOLD);
         print!($pat, $($args,)*);
         print!("{ANSI_ESC}");
     }}
 }
 
 pub trait Color: Sized {
-    fn color_code() -> u8;
+    const COLOR_CODE: u8;
 
-    fn normal() -> WriteAnsi {
-        WriteAnsi {
-            bold: false,
-            color: Self::color_code(),
-        }
-    }
+    const NORMAL: WriteAnsi = WriteAnsi {
+        bold: false,
+        color: Self::COLOR_CODE,
+    };
 
-    fn bold() -> WriteAnsi {
-        WriteAnsi {
-            bold: true,
-            color: Self::color_code(),
-        }
-    }
+    const BOLD: WriteAnsi = WriteAnsi {
+        bold: true,
+        color: Self::COLOR_CODE,
+    };
 }
 
 pub struct WriteAnsi {
@@ -75,56 +71,40 @@ impl Display for WriteAnsi {
 
 pub struct DRed;
 impl Color for DRed {
-    fn color_code() -> u8 {
-        31
-    }
+    const COLOR_CODE: u8 = 31;
 }
 
 pub struct DGreen;
 impl Color for DGreen {
-    fn color_code() -> u8 {
-        32
-    }
+    const COLOR_CODE: u8 = 32;
 }
 
 pub struct DYellow;
 impl Color for DYellow {
-    fn color_code() -> u8 {
-        33
-    }
+    const COLOR_CODE: u8 = 33;
 }
 
 pub struct DBlue;
 impl Color for DBlue {
-    fn color_code() -> u8 {
-        34
-    }
+    const COLOR_CODE: u8 = 34;
 }
 
 pub struct LRed;
 impl Color for LRed {
-    fn color_code() -> u8 {
-        91
-    }
+    const COLOR_CODE: u8 = 91;
 }
 
 pub struct LGreen;
 impl Color for LGreen {
-    fn color_code() -> u8 {
-        92
-    }
+    const COLOR_CODE: u8 = 92;
 }
 
 pub struct LYellow;
 impl Color for LYellow {
-    fn color_code() -> u8 {
-        93
-    }
+    const COLOR_CODE: u8 = 93;
 }
 
 pub struct LBlue;
 impl Color for LBlue {
-    fn color_code() -> u8 {
-        94
-    }
+    const COLOR_CODE: u8 = 94;
 }

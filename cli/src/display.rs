@@ -101,7 +101,7 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
             let mut last_nr = hl_line.nr;
             for hl_line in others {
                 if last_nr + 1 < hl_line.nr {
-                    writeln!(f, "{blue}...{esc}", blue = LBlue::bold(), esc = ANSI_ESC)?;
+                    writeln!(f, "{blue}...{esc}", blue = LBlue::BOLD, esc = ANSI_ESC)?;
                 }
                 print_line(f, hl_line.nr, nr_width, hl_line.text)?;
                 if !hl_line.spans.is_empty() {
@@ -114,8 +114,8 @@ impl<U: DisplayUserFacing<C>, C: Color> Display for FmtUserFacing<'_, U, C> {
         let prefix = format!(
             "{spc:nr_width$} {blue}│{esc} {col}",
             spc = ' ',
-            col = C::bold(),
-            blue = LBlue::bold(),
+            col = C::BOLD,
+            blue = LBlue::BOLD,
             esc = ANSI_ESC,
         );
         self.error.description(f, &prefix, ANSI_ESC)?;
@@ -136,7 +136,7 @@ fn print_line(
         nr = line_nr,
         nr_w = nr_width,
         ln = line,
-        blue = LBlue::bold(),
+        blue = LBlue::BOLD,
         esc = ANSI_ESC,
     )
 }
@@ -152,7 +152,7 @@ fn mark_spans<C: Color>(
         "{spc:nr_w$} {blue}│{esc} ",
         nr_w = nr_width,
         spc = ' ',
-        blue = LBlue::bold(),
+        blue = LBlue::BOLD,
         esc = ANSI_ESC,
     )?;
 
@@ -195,7 +195,7 @@ fn mark_spans<C: Color>(
 }
 
 fn mark_error<C: Color>(f: &mut fmt::Formatter<'_>, n: usize) -> fmt::Result {
-    write!(f, "{}", C::bold())?;
+    write!(f, "{}", C::BOLD)?;
     for _ in 0..n {
         f.write_char('^')?;
     }
