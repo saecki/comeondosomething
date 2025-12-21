@@ -605,6 +605,11 @@ fn eval_builtin_fun_call(
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.atan())
         }
+        BuiltinFunCall::Atan2 => {
+            let y = eval_ast(stack, funs, &args[0])?.unwrap_float();
+            let x = eval_ast(stack, funs, &args[1])?.unwrap_float();
+            Val::Float(y.atan2(x))
+        }
         BuiltinFunCall::Asinh => {
             let num = eval_ast(stack, funs, &args[0])?.unwrap_float();
             Val::Float(num.asinh())

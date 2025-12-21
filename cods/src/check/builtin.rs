@@ -29,6 +29,7 @@ pub enum BuiltinFun {
     Asin,
     Acos,
     Atan,
+    Atan2,
     Asinh,
     Acosh,
     Atanh,
@@ -79,6 +80,7 @@ impl BuiltinFun {
             BuiltinFun::Asin => SignatureKind::Normal(&ASIN_SIGNATURES),
             BuiltinFun::Acos => SignatureKind::Normal(&ACOS_SIGNATURES),
             BuiltinFun::Atan => SignatureKind::Normal(&ATAN_SIGNATURES),
+            BuiltinFun::Atan2 => SignatureKind::Normal(&ATAN2_SIGNATURES),
             BuiltinFun::Asinh => SignatureKind::Normal(&ASINH_SIGNATURES),
             BuiltinFun::Acosh => SignatureKind::Normal(&ACOSH_SIGNATURES),
             BuiltinFun::Atanh => SignatureKind::Normal(&ATANH_SIGNATURES),
@@ -252,6 +254,9 @@ pub const ACOS_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures!
 };
 pub const ATAN_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Atan(Float) -> Float
+};
+pub const ATAN2_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
+    Atan2(Float, Float) -> Float
 };
 pub const ASINH_SIGNATURES: [(BuiltinFunCall, FunSignature); 1] = fun_signatures! {
     Asinh(Float) -> Float

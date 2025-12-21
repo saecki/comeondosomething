@@ -241,6 +241,7 @@ pub enum BuiltinFunCall {
     Asin,
     Acos,
     Atan,
+    Atan2,
     Asinh,
     Acosh,
     Atanh,
